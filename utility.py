@@ -12,7 +12,6 @@ import scipy.linalg as sl
 import scipy.fftpack as sf
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
-import matplotlib.pyplot as plt
 
 def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
     """
@@ -123,16 +122,44 @@ def fit_ar_coeffs(x, model_ord, penalty=None, mu=0, cond=1e-4, X=None, Y=None):
         raise ValueError(penalty+' is not a valid penalty argument, i.e. None, l1, or l2.')
     return A
 
-def ar_evaluate(X, A, Y):
+def ar_evaluate(X, A, Y, score_fcn='likelihood'):
     """
+    Evaluate the fit of autoregressive coefficients A with stacked
+    observations Y and autoregressive Toeplitz operator X.
+    
+    inputs:
+    ar Toeplitz operator (X) - n x (p*d) tensor
+    ar coefficients (A) - (p*d) x d tensor
+    observations (Y) - n x d tensor
+    score_fcn - string {'likelihood', 'aic', 'bic'}
+    
+    outputs:
+    predicted observations (Y_pred) - n x d tensor
+    fit score - scalar
     """
+    aic = lambda L, k : 2 * k + 2 * L
+    bic = lambda L, n, k : np.log(n) * k + 2 * L
     model_ord, signal_dim, _ = A.shape
     A = np.reshape(np.moveaxis(A, 1, 2), [model_ord*signal_dim, signal_dim])
     Y_pred = np.dot(X, A)
-    return Y_pred, sl.norm(Y-Y_pred, ord='fro')
+    log_likelihood = 0.5 * sl.norm(Y-Y_pred, ord='fro')**2
+    if score_fcn == 'likelihood':
+        score = log_likelihood
+    elif score_fcn == 'aic':
+        k = np.prod(np.shape(A))
+        score = aic(log_likelihood, k)
+    elif score_fcn == 'bic':
+        n, _ = Y.shape
+        k = np.prod(np.shape(A))
+        score = bic(log_likelihood, n, k)
+    else:
+        raise ValueError(score_fcn + ' is not a valid score function, i.e. likelihood, aic, bic.')
+    return Y_pred, score
     
 
-def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, penalty=None, mu_list=None):
+def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, 
+                     penalty=None, mu_list=None, cv_score_fcn='likelihood', 
+                     val_score_fcn='likelihood'):
     """
     Uses k-fold cross validation to select model order and penalty
     parameter for fitting an autoregressive model. Then, fits the 
@@ -145,6 +172,7 @@ def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, penalty=None,
     model_ord_list (p_1, ..., p_m) - list of integers (optional)
     penalty (\|.\|_p) - 'l1' or 'l2' (optional)
     mu_list - list of scalars (optional)
+    score_fcn - string {'likelihood', 'aic', 'bic'} (optional)
     
     outputs:
     ar_coeffs (A) - p x d x d tensor
@@ -165,12 +193,12 @@ def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, penalty=None,
             for j, (train_index, test_index) in enumerate(tscv.split(x_train)):
                 A = fit_ar_coeffs(x_train[train_index, :], model_ord)
                 X, Y = ar_toep_op(x[test_index, :], model_ord)
-                _, cv_score[i, j] = ar_evaluate(X, A, Y)
+                _, cv_score[i, j] = ar_evaluate(X, A, Y, score_fcn=cv_score_fcn)
         model_ord = model_ord_list[np.argmin(np.mean(cv_score, axis=1))]
         A = fit_ar_coeffs(x_train, model_ord)
         X, Y = ar_toep_op(x, model_ord)
         _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False, train_size=train_size)
-        _, val_score = ar_evaluate(X_test, A, Y_test)
+        _, val_score = ar_evaluate(X_test, A, Y_test, score_fcn=val_score_fcn)
         return A, model_ord, val_score
     else:
         cv_score = np.zeros([len(model_ord_list), len(mu_list), k])
@@ -179,22 +207,12 @@ def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, penalty=None,
                 for l, (train_index, test_index) in enumerate(tscv.split(x_train)):
                     A = fit_ar_coeffs(x[train_index, :], model_ord, penalty=penalty, mu=mu)
                     X, Y = ar_toep_op(x[test_index, :], model_ord)
-                    _, cv_score[i, j, l] = ar_evaluate(X, A, Y)
+                    _, cv_score[i, j, l] = ar_evaluate(X, A, Y, score_fcn=cv_score_fcn)
         i, j = np.unravel_index(np.argmin(np.mean(cv_score, axis=2)), np.array(np.shape(cv_score)[:-1]))
         model_ord = model_ord_list[i]
         mu = mu_list[j]
         A = fit_ar_coeffs(x_train, model_ord, penalty=penalty, mu=mu)
         X, Y = ar_toep_op(x, model_ord)
         _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False, train_size=train_size)
-        _, val_score = ar_evaluate(X_test, A, Y_test)
+        _, val_score = ar_evaluate(X_test, A, Y_test, score_fcn=val_score_fcn)
         return A, model_ord, mu, val_score
-
-p = 2
-d = 5
-A = nr.rand(p, d, d)
-nu = d**(-1/2)
-n = 1000
-
-A = ar_coeffs_sample(p, d, n)
-x = autoregressive_sample(n, d, nu, A)
-A_pred, p_pred, mu_pred, score = fit_ar_coeffs_CV(x, penalty='l2', train_size=0.8)
