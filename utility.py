@@ -123,7 +123,16 @@ def fit_ar_coeffs(x, model_ord, penalty=None, mu=0, cond=1e-4, X=None, Y=None):
         raise ValueError(penalty+' is not a valid penalty argument, i.e. None, l1, or l2.')
     return A
 
-def fit_ar_coeffs_CV(x, k=4, train_pct=0.75, model_ord_list=None, penalty=None, mu_list=None):
+def ar_evaluate(X, A, Y):
+    """
+    """
+    model_ord, signal_dim, _ = A.shape
+    A = np.reshape(np.moveaxis(A, 1, 2), [model_ord*signal_dim, signal_dim])
+    Y_pred = np.dot(X, A)
+    return Y_pred, sl.norm(Y-Y_pred, ord='fro')
+    
+
+def fit_ar_coeffs_CV(x, k=4, train_size=0.75, model_ord_list=None, penalty=None, mu_list=None):
     """
     Uses k-fold cross validation to select model order and penalty
     parameter for fitting an autoregressive model. Then, fits the 
@@ -148,20 +157,20 @@ def fit_ar_coeffs_CV(x, k=4, train_pct=0.75, model_ord_list=None, penalty=None, 
         model_ord_list = np.arange(1, 11)
     if mu_list is None and penalty is not None:
         mu_list = np.logspace(-3, 3, num=10)
-    x_train, _ = train_test_split(x, shuffle=False)
+    x_train, _ = train_test_split(x, shuffle=False, train_size=train_size)
     tscv = TimeSeriesSplit(max_train_size=None, n_splits=k)
     if penalty is None:
         cv_score = np.zeros([len(model_ord_list), k])
         for i, model_ord in enumerate(model_ord_list):
             for j, (train_index, test_index) in enumerate(tscv.split(x_train)):
                 A = fit_ar_coeffs(x_train[train_index, :], model_ord)
-                X, Y = ar_toep_op(x_train, model_ord)
-                cv_score[i, j] = sl.norm(Y[test_index, :] - np.dot(A, X[test_index, :]), ord='fro')
+                X, Y = ar_toep_op(x[test_index, :], model_ord)
+                _, cv_score[i, j] = ar_evaluate(X, A, Y)
         model_ord = model_ord_list[np.argmin(np.mean(cv_score, axis=1))]
         A = fit_ar_coeffs(x_train, model_ord)
         X, Y = ar_toep_op(x, model_ord)
-        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False)
-        val_score = sl.norm(Y_test - np.dot(A, X_test), ord='fro')
+        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False, train_size=train_size)
+        _, val_score = ar_evaluate(X_test, A, Y_test)
         return A, model_ord, val_score
     else:
         cv_score = np.zeros([len(model_ord_list), len(mu_list), k])
@@ -169,28 +178,23 @@ def fit_ar_coeffs_CV(x, k=4, train_pct=0.75, model_ord_list=None, penalty=None, 
             for j, mu in enumerate(mu_list):
                 for l, (train_index, test_index) in enumerate(tscv.split(x_train)):
                     A = fit_ar_coeffs(x[train_index, :], model_ord, penalty=penalty, mu=mu)
-                    X, Y = ar_toep_op(x_train, model_ord)
-                    cv_score[i, j, l] = sl.norm(Y[test_index, :] - np.dot(A, X[test_index, :]), ord='fro')
-        i, j = np.unravel_index(np.argmin(np.mean(cv_score, axis=2)), np.shape(cv_score)[1:])
+                    X, Y = ar_toep_op(x[test_index, :], model_ord)
+                    _, cv_score[i, j, l] = ar_evaluate(X, A, Y)
+        i, j = np.unravel_index(np.argmin(np.mean(cv_score, axis=2)), np.array(np.shape(cv_score)[:-1]))
         model_ord = model_ord_list[i]
         mu = mu_list[j]
         A = fit_ar_coeffs(x_train, model_ord, penalty=penalty, mu=mu)
-        X, Y = ar_toep_op(X, model_ord)
-        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False)
-        val_score = sl.norm(Y_test - np.dot(A, X_test), ord='fro')
+        X, Y = ar_toep_op(x, model_ord)
+        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False, train_size=train_size)
+        _, val_score = ar_evaluate(X_test, A, Y_test)
         return A, model_ord, mu, val_score
 
-p = 1
+p = 2
 d = 5
 A = nr.rand(p, d, d)
 nu = d**(-1/2)
 n = 1000
 
-error = []
-for n in np.logspace(2, 5, num=50, dtype=np.int):
-    print(n)
-    A = ar_coeffs_sample(p, d, n)
-    x = autoregressive_sample(n, d, nu, A)
-    A_pred = fit_ar_coeffs(x, p)
-    error.append(sl.norm(A-A_pred))
-plt.plot(error)
+A = ar_coeffs_sample(p, d, n)
+x = autoregressive_sample(n, d, nu, A)
+A_pred, p_pred, mu_pred, score = fit_ar_coeffs_CV(x, penalty='l2', train_size=0.8)
