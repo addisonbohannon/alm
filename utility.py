@@ -10,6 +10,9 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 import scipy.fftpack as sf
+from sklearn.linear_model import Lasso, Ridge
+from sklearn.model_selection import train_test_split, TimeSeriesSplit
+import matplotlib.pyplot as plt
 
 def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
     """
@@ -27,8 +30,10 @@ def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
     sample of autoregessive process (x) - n x d tensor
     """
     model_ord = np.shape(ar_coeffs)[0]
+    # Generate more samples than necessary to allow for mixing of the process
     samples = 2*sample_len + model_ord
     x = np.zeros([samples, signal_dim, 1])
+    # Generate samples by autoregressive recurrence relation
     x[:model_ord, :, :] = nr.randn(model_ord, signal_dim, 1)
     x[model_ord, :, :] = np.sum(np.matmul(ar_coeffs, x[model_ord-1::-1, :, :]), axis=0) + noise_var * nr.randn(1, signal_dim, 1)
     for t in np.arange(model_ord+1, samples):
@@ -49,6 +54,7 @@ def ar_coeffs_sample(model_ord, signal_dim, sample_len):
     ar_coeffs (A) - p x d x d tensor
     """
     ar_coeffs = nr.rand(model_ord, signal_dim, signal_dim)
+    # Enforce stability of the process
     ar_coeffs /= np.max(sl.norm(sf.fft(ar_coeffs, n=sample_len, axis=0), ord=2, axis=0))
     return ar_coeffs
 
@@ -66,20 +72,125 @@ def ar_toep_op(x, model_ord):
     
     outputs:
     ar_toep - (n-p) x (p*d) tensor
+    x_trunc - (n-p) x d tensor
     """
     sample_len, signal_dim = np.shape(x)
     ar_toep = np.zeros([sample_len-model_ord, model_ord*signal_dim])
+    # Construct autoregressive Toeplitz operator; reverse order of 
+    # observations to achieve convolution effect
     ar_toep[0, :] = np.ndarray.flatten(x[model_ord-1::-1, :])
     for t in np.arange(1, sample_len-model_ord):
         ar_toep[t, :] = np.ndarray.flatten(x[t+model_ord-1:t-1:-1, :])
-    return ar_toep
+    return ar_toep, x[model_ord:, :]
 
-p = 2
+def fit_ar_coeffs(x, model_ord, penalty=None, mu=0, cond=1e-4, X=None, Y=None):
+    """
+    Fits an autoregressive model to an observation x according to the relation
+    x[t] = A[1] x[t-1] + ... + A[p] x[t-p] + n[t] using an ordinary least
+    squares estimator.
+    
+    inputs:
+    ar process observation (x) - n x d tensor
+    model_ord (p) - integer
+    penalty (\|.\|_p) - 'l1' or 'l2' (optional)
+    mu - scalar (optional)
+    cond - scalar (optional)
+    X - (n-p) x (p*d) tensor (optional)
+    Y - (n-p) x d tensor (optional)
+    
+    outputs:
+    ar_coeffs (A) - p x d x d tensor
+    """
+    _, d = x.shape
+    if X is None or Y is None:
+        X, Y = ar_toep_op(x, model_ord)
+    if penalty is None:
+        A, _, _, _ = sl.lstsq(X, Y, cond=cond)
+        A = np.stack(np.split(A.T, model_ord, axis=1), axis=0)
+    elif penalty == 'l1':
+        if mu == 0:
+            A = sl.lstsq(X, Y, cond=cond)
+        lm = Lasso(alpha=mu, fit_intercept=False)
+        lm.fit(X, Y)
+        A = np.stack(np.split(lm.coef_, model_ord, axis=1), axis=0)
+    elif penalty == 'l2':
+        if mu == 0:
+            A = sl.lstsq(X, Y, cond=cond)
+        lm = Ridge(alpha=mu, fit_intercept=False)
+        lm.fit(X, Y)
+        A = np.stack(np.split(lm.coef_, model_ord, axis=1), axis=0)
+    else:
+        raise ValueError(penalty+' is not a valid penalty argument, i.e. None, l1, or l2.')
+    return A
+
+def fit_ar_coeffs_CV(x, k=4, train_pct=0.75, model_ord_list=None, penalty=None, mu_list=None):
+    """
+    Uses k-fold cross validation to select model order and penalty
+    parameter for fitting an autoregressive model. Then, fits the 
+    autoregressive model for the optimal parameters.
+    
+    inputs:
+    ar process observation (x) - n x d tensor
+    k - integer (optional)
+    train_pct - scalar (0, 1) (optional)
+    model_ord_list (p_1, ..., p_m) - list of integers (optional)
+    penalty (\|.\|_p) - 'l1' or 'l2' (optional)
+    mu_list - list of scalars (optional)
+    
+    outputs:
+    ar_coeffs (A) - p x d x d tensor
+    model_ord (p) - integer
+    mu - scalar (only if penalty is not None)
+    val_score - scalar
+    """
+    n, d = x.shape
+    if model_ord_list is None:
+        model_ord_list = np.arange(1, 11)
+    if mu_list is None and penalty is not None:
+        mu_list = np.logspace(-3, 3, num=10)
+    x_train, _ = train_test_split(x, shuffle=False)
+    tscv = TimeSeriesSplit(max_train_size=None, n_splits=k)
+    if penalty is None:
+        cv_score = np.zeros([len(model_ord_list), k])
+        for i, model_ord in enumerate(model_ord_list):
+            for j, (train_index, test_index) in enumerate(tscv.split(x_train)):
+                A = fit_ar_coeffs(x_train[train_index, :], model_ord)
+                X, Y = ar_toep_op(x_train, model_ord)
+                cv_score[i, j] = sl.norm(Y[test_index, :] - np.dot(A, X[test_index, :]), ord='fro')
+        model_ord = model_ord_list[np.argmin(np.mean(cv_score, axis=1))]
+        A = fit_ar_coeffs(x_train, model_ord)
+        X, Y = ar_toep_op(x, model_ord)
+        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False)
+        val_score = sl.norm(Y_test - np.dot(A, X_test), ord='fro')
+        return A, model_ord, val_score
+    else:
+        cv_score = np.zeros([len(model_ord_list), len(mu_list), k])
+        for i, model_ord in enumerate(model_ord_list):
+            for j, mu in enumerate(mu_list):
+                for l, (train_index, test_index) in enumerate(tscv.split(x_train)):
+                    A = fit_ar_coeffs(x[train_index, :], model_ord, penalty=penalty, mu=mu)
+                    X, Y = ar_toep_op(x_train, model_ord)
+                    cv_score[i, j, l] = sl.norm(Y[test_index, :] - np.dot(A, X[test_index, :]), ord='fro')
+        i, j = np.unravel_index(np.argmin(np.mean(cv_score, axis=2)), np.shape(cv_score)[1:])
+        model_ord = model_ord_list[i]
+        mu = mu_list[j]
+        A = fit_ar_coeffs(x_train, model_ord, penalty=penalty, mu=mu)
+        X, Y = ar_toep_op(X, model_ord)
+        _, X_test, _, Y_test = train_test_split(X, Y, shuffle=False)
+        val_score = sl.norm(Y_test - np.dot(A, X_test), ord='fro')
+        return A, model_ord, mu, val_score
+
+p = 1
 d = 5
 A = nr.rand(p, d, d)
 nu = d**(-1/2)
-n = 10
+n = 1000
 
-A = ar_coeffs_sample(p, d, n)
-Y = autoregressive_sample(n, d, nu, A)
-X = ar_toep_op(Y, p)
+error = []
+for n in np.logspace(2, 5, num=50, dtype=np.int):
+    print(n)
+    A = ar_coeffs_sample(p, d, n)
+    x = autoregressive_sample(n, d, nu, A)
+    A_pred = fit_ar_coeffs(x, p)
+    error.append(sl.norm(A-A_pred))
+plt.plot(error)
