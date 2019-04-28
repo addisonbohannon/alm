@@ -100,6 +100,21 @@ def coeff_update_omp(Y, X, D, s):
     return c
 
 def coeff_update_lasso_sklearn(Y, X, D, s):
+    """
+    Implements a LASSO solver for \|Y-\sum_j c_j X D_j\|_F**2 + u \sum_j |c_j|
+    along the entire u-path. Selects the coefficients along the path with
+    support size s. Uses lars_path from sklearn as a subroutine with
+    precomputed Gram and Xy matrices.
+    
+    inputs:
+    observations (Y) - n x d tensor
+    observation Toeplitz matrix (X) - n x (p*d) tensor
+    dictionary (D) - r x (p*d) x d tensor
+    support size (s) - integer {1,...,r}
+    
+    outputs:
+    coefficients (c) - r tensor
+    """
     # precompute reused quantities
     r, _, _ = D.shape
     XTX = np.dot(X.T, X)
