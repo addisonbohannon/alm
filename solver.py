@@ -27,6 +27,11 @@ def ip(a, b):
         return np.sum(np.multiply(a, b), axis=(1,2))
     else:
         return np.sum(np.multiply(a, b))
+    
+def dict_update(Y, X, D, c):
+    """
+    """
+    
 
 def coeff_update_omp_sklearn(Y, X, D, s):
     """
@@ -43,10 +48,11 @@ def coeff_update_omp_sklearn(Y, X, D, s):
     outputs:
     coefficients (c) - r tensor
     """
-    # precompute reused quantities
     r, _, _ = D.shape
-    XTX = np.dot(X.T, X)
-    XTY = np.dot(X.T, Y)
+    n, _ = Y.shape
+    # precompute reused quantities
+    XTX = np.dot(X.T, X) / n
+    XTY = np.dot(X.T, Y) / n
     XD_gram = []
     indices = np.triu_indices(r, k=1)
     [XD_gram.append(ip(D[i, :, :], np.dot(XTX, D[j, :, :]))) for (i, j) in zip(indices[0], indices[1])]
@@ -72,10 +78,11 @@ def coeff_update_omp(Y, X, D, s):
     outputs:
     coefficients (c) - r tensor
     """
-    # precompute reused quantities
     r, _, _ = D.shape
-    XTX = np.dot(X.T, X)
-    XTY = np.dot(X.T, Y)
+    n, _ = Y.shape
+    # precompute reused quantities
+    XTX = np.dot(X.T, X) / n
+    XTY = np.dot(X.T, Y) / n
     XD_gram = []
     indices = np.triu_indices(r, k=1)
     [XD_gram.append(ip(D[i, :, :], np.dot(XTX, D[j, :, :]))) for (i, j) in zip(indices[0], indices[1])]
@@ -94,7 +101,8 @@ def coeff_update_omp(Y, X, D, s):
         J.append(Jc[np.argmin([ np.sum(np.square( R - ip(XTR, D[j, :, :]) / XD2[j] * np.dot(X, D[j, :, :]) )) for j in Jc ])])
         # find optimal (c_j)_J that minimizes the residual
         J_index = [j in J for j in range(r)]
-        c[J_index] = sl.solve(DTXTXD[J_index, :][:, J_index], ip(XTY, D[J_index, :, :]), assume_a='pos')
+        c[J_index] = sl.solve(DTXTXD[J_index, :][:, J_index], 
+                              ip(XTY, D[J_index, :, :]), assume_a='pos')
         # update residual
         R = Y - np.tensordot(c[J_index], np.matmul(X, D[J_index, :, :]), axes=1)
     return c
@@ -115,10 +123,11 @@ def coeff_update_lasso_sklearn(Y, X, D, s):
     outputs:
     coefficients (c) - r tensor
     """
-    # precompute reused quantities
     r, _, _ = D.shape
-    XTX = np.dot(X.T, X)
-    XTY = np.dot(X.T, Y)
+    n, _ = Y.shape
+    # precompute reused quantities
+    XTX = np.dot(X.T, X) / n
+    XTY = np.dot(X.T, Y) / n
     XD_gram = []
     indices = np.triu_indices(r, k=1)
     [XD_gram.append(ip(D[i, :, :], np.dot(XTX, D[j, :, :]))) for (i, j) in zip(indices[0], indices[1])]
@@ -128,4 +137,4 @@ def coeff_update_lasso_sklearn(Y, X, D, s):
     YTXD = np.array([ip(XTY, D[j, :, :]) for j in range(r)])
     # call sklearn subroutine
     _, _, coefs = lars_path(X, Y, Xy=YTXD, Gram=DTXTXD, method='lasso')
-    return coefs[:, s]
+    return coefs[:, np.minimum(s, np.shape(coefs)[1]-1)]
