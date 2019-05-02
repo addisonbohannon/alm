@@ -10,6 +10,7 @@ import numpy as np
 import scipy.linalg as sl
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
+import cvxpy as cp
 
 def ar_toep_op(x, model_ord):
     """
@@ -48,6 +49,21 @@ def stack_ar_coeffs(A):
     """
     model_ord, signal_dim, _  = A.shape
     return np.reshape(np.moveaxis(A, 1, 2), [model_ord*signal_dim, signal_dim])
+
+def unstack_ar_coeffs(A):
+    """
+    Unstack autoregressive coefficients (A[s])_s to [[A[1]], ..., [A[p]]].
+    
+    inputs:
+    ar coeffs (A) - (p*d) x d tensor
+    
+    outputs:
+    ar coeffs (A) - p x d x d tensor
+    """
+    
+    m, n = A.shape
+    model_ord = int(m/n)
+    return np.stack(np.split(A.T, model_ord, axis=1), axis=0)
 
 def fit_ar_coeffs(x, model_ord, penalty=None, mu=0, cond=1e-4, X=None, Y=None):
     """
@@ -188,3 +204,22 @@ def ar_evaluate(X, A, Y, score_fcn='likelihood'):
     else:
         raise ValueError(score_fcn + ' is not a valid score function, i.e. likelihood, aic, bic.')
     return Y_pred, score
+
+def dictionary_distance(A, B, p=2):
+    n = len(A)
+    m = len(B)
+    if m != n:
+        raise ValueError('Dimension mismatch')
+    D = np.zeros([n, n])
+    triu_index = np.triu_indices(n)
+    for (i, j) in zip(triu_index[0], triu_index[1]):
+            D[i,j] = np.minimum(np.sum(np.power(A[i]-B[j], p))**(1/p), 
+                                np.sum(np.power(A[i]+B[j], p))**(1/p))
+    tril_index = np.tril_indices(n, k=-1)
+    D[tril_index] = D.T[tril_index]
+    W = cp.Variable(shape=(n, n))
+    obj = cp.Minimize(cp.sum(cp.multiply(D, W)))
+    con = [W >= 0, cp.sum(W, axis=0) == 1, cp.sum(W, axis=1) == 1]
+    prob = cp.Problem(obj, con)
+    prob.solve()
+    return prob.value, D[W.value>1e-3], W.value
