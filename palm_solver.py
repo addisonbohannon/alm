@@ -67,18 +67,40 @@ def depthwise_kron(a, b):
 def prox_dict(D):
     """
     Normalizes dictionary atom to have Frobenius norm of one.
+    
+    inputs:
+    dictionary ((p*d) x d tensor) - unnormalized dictionary atom
+    
+    outputs:
+    dictionary ((p*d) x d tensor) - normalized dictionary atom
     """
     return D / sl.norm(D, ord='fro')
 
 def shrink(x, t):
     """
     Implements the proximal operator of the l1-norm (shrink operator).
+    
+    inputs:
+    x (tensor) - argument to apply soft thresholding
+    t (scalar) - step size of proximal operator
+    
+    outputs:
+    x (tensor) - soft thresholded argument
     """
+    
     return np.sign(x) * np.maximum(np.abs(x)-t, 0)
 
 def threshold(x, t):
     """
     Implements the proximal operator of the l0-norm (threshold operator).
+    
+    inputs:
+    x (tensor) - argument to apply hard thresholding
+    t (scalar) - step size of proximal operator
+    
+    outputs:
+    x (tensor) - hard thresholded argument
+    
     """
     
     x[x**2 < 2*t] = 0
@@ -135,10 +157,13 @@ class Almm:
         else:
             raise TypeError('Atoms must be an integer.')
         if penalty_type is None:
+            self.penalty_type = penalty_type
             self.prox_coef = lambda x, t : x
         elif penalty_type == 'l0':
+            self.penalty_type = penalty_type
             self.prox_coef = threshold
         elif penalty_type == 'l1':
+            self.penalty_type = penalty_type
             self.prox_coef = shrink
         else:
             raise ValueError(penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
@@ -176,11 +201,14 @@ class Almm:
         # Pre-compute re-used quantities
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
         self.XtY = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.Y)
+        self.YtY = self.m**(-1) * np.mean(inner_prod(self.Y, self.Y))
         
         # Initialize estimates of dictionary and coefficients
         self.initialize_estimates()
         
         # Fit dictionary and coefficients
+        self.residual = np.zeros([self.max_iter])
+        self.likelihood = np.zeros_like(self.residual)
         self.fit()
         
         # Remove prox_coef method to allow opening class in Spyder
@@ -216,7 +244,6 @@ class Almm:
         atom and coefficients in turn.
         """
         
-        self.residual = np.zeros([self.max_iter])
         for step in range(self.max_iter):
             temp = np.copy(self.D)
             for j in range(self.r):
@@ -229,6 +256,7 @@ class Almm:
                 self.C[i, :] = self.prox_coef(self.C[i, :], self.mu*self.beta)
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
+            self.add_likelihood(step)
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 break
             elif step > 0 and self.residual[step] < self.tol:
@@ -238,6 +266,9 @@ class Almm:
         """
         Computes the gradient of the jth dictionary element for the current 
         values of other dictionary elements and coefficients.
+        
+        inputs:
+        j ({1,...,r}) - index of the dictionary atom
         """
             
         grad = - np.tensordot(self.C[:, j] / self.n, self.XtY, axes=1)
@@ -250,6 +281,28 @@ class Almm:
         """
         Computes the gradient of the ith coefficient vector for the current
         values of the dictionary elements.
+        
+        inputs:
+        i ({1,...,n}) - index of the observation
         """
         
         return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(gram(self.D, inner_prod), self.C[i, :].T)
+    
+    def add_likelihood(self, step):
+        """
+        Computes the likelihood of the current dictionary and coefficient 
+        estimate.
+        
+        inputs:
+        step (integer) - current step to which the likelihood will be assigned
+        """
+        
+        self.likelihood[step] += self.YtY
+        self.likelihood[step] += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
+        self.likelihood[step] += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
+        if self.penalty_type == 'l0':
+            self.likelihood[step] += np.count_nonzero(self.C)
+        elif self.penalty_type == 'l1':
+            self.likelihood[step] += sl.norm(self.C, ord=1)
+        
+        
