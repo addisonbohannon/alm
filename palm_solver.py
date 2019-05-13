@@ -10,7 +10,8 @@ Date: 1 May 2019
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import ar_toep_op
+import scipy.fftpack as sf
+from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs
 
 # Utility functions
 def gram(X, ip):
@@ -64,7 +65,20 @@ def depthwise_kron(a, b):
         K[i, :, :] = np.kron(a[i, :, :], b[i, :, :])
     return K
 
-def prox_dict(D):
+def proj_op(D, sample_len):
+    """
+    Normalizes dictionary atom to have operator norm of one.
+    
+    inputs:
+    dictionary ((p*d) x d tensor) - unnormalized dictionary atom
+    
+    outputs:
+    dictionary ((p*d) x d tensor) - normalized dictionary atom
+    """
+    return D / np.max(sl.norm(sf.rfft(unstack_ar_coeffs(D), n=sample_len, axis=0), 
+                              ord=2, axis=(1, 2)))
+
+def proj_fro(D):
     """
     Normalizes dictionary atom to have Frobenius norm of one.
     
@@ -111,8 +125,8 @@ class Almm:
     
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 penalty_type='l1', alpha=1e-4, beta=1e-4, max_iter=int(2.5e2), 
-                 tol=1e-4):
+                 dict_penalty_type='fro', coef_penalty_type='l1', alpha=1e-4, 
+                 beta=1e-4, max_iter=int(2.5e2), tol=1e-4):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -131,8 +145,11 @@ class Almm:
         atoms (integer) - Number of autoregressive components; must be much
         less than number of observations
         
-        penalty type (string) - Penalty applied to coefficients to enforce
-        sparsity. Options include {None, 'l0', 'l1' (default)}
+        dict penalty type (string) - Penalty applied to dictionary to enforce
+        stability; options include {'fro', 'op'}
+        
+        coef penalty type (string) - Penalty applied to coefficients to enforce
+        sparsity; options include {None, 'l0', 'l1' (default)}
         
         penalty parameter (scalar) - Relative weight of sparsity penalty; must 
         be positive
@@ -156,17 +173,35 @@ class Almm:
             self.r = atoms
         else:
             raise TypeError('Atoms must be an integer.')
-        if penalty_type is None:
-            self.penalty_type = penalty_type
+        if len(np.shape(observations)) != 3:
+            raise TypeError('Observation dimension invalid. Should be n x m x d.')
+        else:
+            self.n, self.m, self.d = observations.shape
+            self.m -= self.p
+            self.Y = np.zeros([self.n, self.m, self.d])
+            self.X = np.zeros([self.n, self.m, self.p*self.d])
+            for i in range(self.n):
+                self.X[i, :, :], self.Y[i, :, :] = ar_toep_op(observations[i, :, :], 
+                                                              self.p)
+        if dict_penalty_type == 'fro':
+            self.dict_penalty_type = dict_penalty_type
+            self.prox_dict = proj_fro
+        elif dict_penalty_type == 'op':
+            self.dict_penalty_type = dict_penalty_type
+            self.prox_dict = lambda D : proj_op(D, self.m)
+        else:
+            raise ValueError(dict_penalty_type+' is not a valid penalty type, i.e. fro or op.')
+        if coef_penalty_type is None:
+            self.coef_penalty_type = coef_penalty_type
             self.prox_coef = lambda x, t : x
-        elif penalty_type == 'l0':
-            self.penalty_type = penalty_type
+        elif coef_penalty_type == 'l0':
+            self.coef_penalty_type = coef_penalty_type
             self.prox_coef = threshold
-        elif penalty_type == 'l1':
-            self.penalty_type = penalty_type
+        elif coef_penalty_type == 'l1':
+            self.coef_penalty_type = coef_penalty_type
             self.prox_coef = shrink
         else:
-            raise ValueError(penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
+            raise ValueError(coef_penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
         if isinstance(penalty_parameter, float) and penalty_parameter > 0:
             self.mu = penalty_parameter
         else:
@@ -187,16 +222,6 @@ class Almm:
             self.tol = tol
         else:
             raise ValueError('Tolerance must be a positive float.')
-        if len(np.shape(observations)) != 3:
-            raise TypeError('Observation dimension invalid. Should be n x m x d.')
-        else:
-            self.n, self.m, self.d = observations.shape
-            self.m -= self.p
-            self.Y = np.zeros([self.n, self.m, self.d])
-            self.X = np.zeros([self.n, self.m, self.p*self.d])
-            for i in range(self.n):
-                self.X[i, :, :], self.Y[i, :, :] = ar_toep_op(observations[i, :, :], 
-                                                              self.p)
         
         # Pre-compute re-used quantities
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
@@ -221,7 +246,7 @@ class Almm:
         
         self.D = nr.randn(self.r, self.p*self.d, self.d)
         for j in range(self.r):
-            self.D[j, :, :] = prox_dict(self.D[j, :, :])
+            self.D[j, :, :] = self.prox_dict(self.D[j, :, :])
         self.C = np.zeros([self.n, self.r])
         self.coef_lstsq()
         
@@ -244,11 +269,12 @@ class Almm:
         atom and coefficients in turn.
         """
         
+        self.stop_condition = 'maximum iteration'
         for step in range(self.max_iter):
             temp = np.copy(self.D)
             for j in range(self.r):
                 self.D[j, :, :] -= self.alpha * self.grad_D(j)
-                self.D[j, :, :] = prox_dict(self.D[j, :, :])
+                self.D[j, :, :] = self.prox_dict(self.D[j, :, :])
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
@@ -258,8 +284,14 @@ class Almm:
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
+                self.stop_condition = 'relative tolerance'
+                self.residual = self.residual[:(step+1)]
+                self.likelihood = self.likelihood[:(step+1)]
                 break
             elif step > 0 and self.residual[step] < self.tol:
+                self.stop_condition = 'absolute tolerance'
+                self.residual = self.residual[:(step+1)]
+                self.likelihood = self.likelihood[:(step+1)]
                 break
             
     def grad_D(self, j):
@@ -300,9 +332,9 @@ class Almm:
         self.likelihood[step] += self.YtY
         self.likelihood[step] += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
         self.likelihood[step] += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
-        if self.penalty_type == 'l0':
+        if self.coef_penalty_type == 'l0':
             self.likelihood[step] += np.count_nonzero(self.C)
-        elif self.penalty_type == 'l1':
+        elif self.coef_penalty_type == 'l1':
             self.likelihood[step] += sl.norm(self.C, ord=1)
         
         
