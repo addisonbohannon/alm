@@ -11,7 +11,7 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 import scipy.fftpack as sf
-from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs
+from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs, ar_coeff_fft, ar_coeff_ifft, dictionary_distance
 
 # Utility functions
 def gram(X, ip):
@@ -65,31 +65,6 @@ def depthwise_kron(a, b):
         K[i, :, :] = np.kron(a[i, :, :], b[i, :, :])
     return K
 
-def proj_op(D, sample_len):
-    """
-    Normalizes dictionary atom to have operator norm of one.
-    
-    inputs:
-    dictionary ((p*d) x d tensor) - unnormalized dictionary atom
-    
-    outputs:
-    dictionary ((p*d) x d tensor) - normalized dictionary atom
-    """
-    return D / np.max(sl.norm(sf.rfft(unstack_ar_coeffs(D), n=sample_len, axis=0), 
-                              ord=2, axis=(1, 2)))
-
-def proj_fro(D):
-    """
-    Normalizes dictionary atom to have Frobenius norm of one.
-    
-    inputs:
-    dictionary ((p*d) x d tensor) - unnormalized dictionary atom
-    
-    outputs:
-    dictionary ((p*d) x d tensor) - normalized dictionary atom
-    """
-    return D / sl.norm(D, ord='fro')
-
 def shrink(x, t):
     """
     Implements the proximal operator of the l1-norm (shrink operator).
@@ -119,14 +94,46 @@ def threshold(x, t):
     
     x[x**2 < 2*t] = 0
     return x
+    
+def prox_dict(z, n):
+    """
+    Implements proximal operator for dictionary: argmin_x (1/2)*\|x-z\|_F^2
+    s.t. max_w \|x^(w)\|_op = 1.
+    
+    inputs:
+    dictionary (p x d x d tensor) - unnormalized dictionary atom
+    sample length (integer) - length of sample on which to compute FFT
+    
+    outputs:
+    dictionary (p x d x d tensor) - normalized dictionary atom
+    """
+    
+    p, _, _ = z.shape
+    z_hat = ar_coeff_fft(z, n=n)
+    z_hat_op_norms = sl.norm(z_hat, ord=2, axis=(1, 2))
+    op_norm = np.max(z_hat_op_norms)
+    if op_norm < 1:
+        # find the largest singular value and increase to 1
+        w = np.argmax(np.abs(z_hat_op_norms))
+        U, s, Vh = sl.svd(z_hat[w])
+        s[np.argmax(np.abs(s))] = 1
+        z_hat[w] = np.dot(U, np.dot(s, Vh))
+    elif op_norm > 1:
+        # find all singular values greater than 1 and decrease to 1
+        for w in [w for w, norm in enumerate(z_hat_op_norms) if norm > 1]:
+            U, s, Vh = sl.svd(z_hat[w])
+            s[s > 1] = 1
+            z_hat[w] = np.dot(U, np.dot(s, Vh))
+    # else op_norm == 1
+    return ar_coeff_ifft(z_hat, p=p)
 
 # Solver class
 class Almm:
     
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 dict_penalty_type='fro', coef_penalty_type='l1', alpha=1e-4, 
-                 beta=1e-4, max_iter=int(2.5e2), tol=1e-4):
+                 coef_penalty_type='l1', alpha=1e-4, beta=1e-4, 
+                 max_iter=int(2.5e2), tol=1e-4, return_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -145,9 +152,6 @@ class Almm:
         atoms (integer) - Number of autoregressive components; must be much
         less than number of observations
         
-        dict penalty type (string) - Penalty applied to dictionary to enforce
-        stability; options include {'fro', 'op'}
-        
         coef penalty type (string) - Penalty applied to coefficients to enforce
         sparsity; options include {None, 'l0', 'l1' (default)}
         
@@ -162,6 +166,9 @@ class Almm:
         
         tolerance (float) - Tolerance to terminate iterative algorithm; must
         be positive
+        
+        return_path (boolean) - Whether to record the iterative updates of
+        the dictionary; memory intensive
         """
         
         # Check arguments
@@ -183,14 +190,6 @@ class Almm:
             for i in range(self.n):
                 self.X[i, :, :], self.Y[i, :, :] = ar_toep_op(observations[i, :, :], 
                                                               self.p)
-        if dict_penalty_type == 'fro':
-            self.dict_penalty_type = dict_penalty_type
-            self.prox_dict = proj_fro
-        elif dict_penalty_type == 'op':
-            self.dict_penalty_type = dict_penalty_type
-            self.prox_dict = lambda D : proj_op(D, self.m)
-        else:
-            raise ValueError(dict_penalty_type+' is not a valid penalty type, i.e. fro or op.')
         if coef_penalty_type is None:
             self.coef_penalty_type = coef_penalty_type
             self.prox_coef = lambda x, t : x
@@ -206,22 +205,38 @@ class Almm:
             self.mu = penalty_parameter
         else:
             raise ValueError('Penalty must be a positive float.')
-        if isinstance(alpha, float) and alpha > 0:
-            self.alpha = alpha
-        else:
-            raise ValueError('Alpha must be a positive float.')
-        if isinstance(beta, float) and beta > 0:
-            self.beta = beta
-        else:
-            raise ValueError('Beta must be a positive float.')
         if isinstance(max_iter, int):
             self.max_iter = max_iter
         else:
             raise TypeError('Max iteration must be an integer.')
+        if isinstance(alpha, float) and alpha > 0:
+            self.alpha = alpha * np.ones([self.max_iter])
+        elif isinstance(alpha, list):
+            if len(alpha) == self.max_iter:
+                self.alpha = alpha
+            elif len(alpha) > self.max_iter:
+                self.alpha = alpha[:self.max_iter]
+            else:
+                raise ValueError('alpha must be the same length as maximum iterations, i.e. '+self.max_iter)
+        else:
+            raise ValueError('Alpha must be a positive float or list.')
+        if isinstance(beta, float) and beta > 0:
+            self.beta = beta * np.ones([self.max_iter])
+        elif isinstance(beta, list):
+            if len(beta) == self.max_iter:
+                self.beta = beta
+            else:
+                raise ValueError('beta must be the same length as maximum iterations, i.e. '+self.max_iter)
+        else:
+            raise ValueError('Beta must be a positive float or list.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
             raise ValueError('Tolerance must be a positive float.')
+        if isinstance(return_path, bool):
+            self.return_path = return_path
+        else:
+            raise TypeError('return_path must be True/False.')
         
         # Pre-compute re-used quantities
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
@@ -230,6 +245,9 @@ class Almm:
         
         # Initialize estimates of dictionary and coefficients
         self.initialize_estimates()
+        if self.return_path:
+            self.D_path = []
+            self.D_path.append(np.copy(self.D))
         
         # Fit dictionary and coefficients
         self.residual = np.zeros([self.max_iter])
@@ -246,7 +264,7 @@ class Almm:
         
         self.D = nr.randn(self.r, self.p*self.d, self.d)
         for j in range(self.r):
-            self.D[j, :, :] = self.prox_dict(self.D[j, :, :])
+            self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :]), self.m+self.p))
         self.C = np.zeros([self.n, self.r])
         self.coef_lstsq()
         
@@ -273,16 +291,19 @@ class Almm:
         for step in range(self.max_iter):
             temp = np.copy(self.D)
             for j in range(self.r):
-                self.D[j, :, :] -= self.alpha * self.grad_D(j)
-                self.D[j, :, :] = self.prox_dict(self.D[j, :, :])
+                # TODO: should n=m+p or 2*m+3*p or np.inf?
+                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha[step] * self.grad_D(j)), 
+                                                            self.m + self.p))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
-                self.C[i, :] -= self.beta * self.grad_C(i)
-                self.C[i, :] = self.prox_coef(self.C[i, :], self.mu*self.beta)
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i), 
+                                              self.mu*self.beta[step])
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
+            if self.return_path:
+                self.D_path.append(np.copy(self.D))
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
                 self.residual = self.residual[:(step+1)]
@@ -308,6 +329,7 @@ class Almm:
             grad += np.dot(np.tensordot(self.C[:, j]*self.C[:, l] / self.n, 
                                      self.XtX, axes=1), self.D[l, :, :])
         return grad
+        
         
     def grad_C(self, i):
         """

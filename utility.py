@@ -8,9 +8,55 @@ Date: 26 Apr 2019
 
 import numpy as np
 import scipy.linalg as sl
+import scipy.fftpack as sf
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 import cvxpy as cp
+
+def ar_coeff_fft(A, n=None):
+    """
+    Implements an FFT on the coefficients of an AR process, i.e. 
+    A^(w) = \sum_s=1,...,p exp(2\pi i w t) A[t]; note that it zero-pads the 
+    zero lag and transforms on the dimension of the sample length.
+    
+    inputs:
+    ar coefficients (A) - p x d x d tensor
+    sample length (n) - integer (optional)
+    
+    outputs:
+    ar frequency coefficients (A^) - n x d x d tensor
+    """
+    p, d, _ = A.shape
+    if n is not None and n <= p:
+        raise ValueError("n must be greater than the model order")
+    A = np.concatenate((np.zeros([1, d, d]), A), axis=0)
+    if n is not None:
+        A_hat = sf.rfft(A, n=n, axis=0)
+    else:
+        A_hat = sf.rfft(A, axis=0)
+    return A_hat
+
+def ar_coeff_ifft(A_hat, p=None):
+    """
+    Implments an inverse FFT on the frequency coefficients of an AR process, 
+    i.e. A[s] = \int exp(-2\pi i w s) A^(w) dw; note that it will return only 
+    (A[1], ..., A[p]) components.
+    
+    inputs:
+    ar frequency coefficients (A^) - n x d x d tensor
+    model order (p) - integer (optional)
+    
+    outputs:
+    ar coefficients (A) - p x d x d tensor
+    """
+    n, _, _ = A_hat.shape
+    if p is not None and p > n:
+        raise ValueError("model order (p) must be less than n")
+    if p is not None:
+        A = sf.irfft(A_hat, axis=0)[1:(p+1)]
+    else:
+        A = sf.irfft(A_hat, axis=0)[1:]
+    return A
 
 def ar_toep_op(x, model_ord):
     """
@@ -213,7 +259,7 @@ def dictionary_distance(A, B, p=2):
     D = np.zeros([n, n])
     triu_index = np.triu_indices(n)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-            D[i,j] = np.minimum(np.sum(np.power(A[i]-B[j], p))**(1/p), 
+            D[i, j] = np.minimum(np.sum(np.power(A[i]-B[j], p))**(1/p), 
                                 np.sum(np.power(A[i]+B[j], p))**(1/p))
     tril_index = np.tril_indices(n, k=-1)
     D[tril_index] = D.T[tril_index]
