@@ -9,7 +9,7 @@ Date: 29 Apr 2019
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import ar_coeff_fft
+from utility import isstable
 
 def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
     """
@@ -58,10 +58,8 @@ def ar_coeffs_sample(model_ord, signal_dim, sample_len, coef_type=None):
         ar_coeffs[list(nr.randint(model_ord, size=(int(0.9*model_ord),), dtype=np.int)), :, :] = 0
     elif coef_type is not None:
         raise ValueError(coef_type+" is not a valid coefficient type, i.e. sparse or lag_sparse.")
-    # Enforce stability of the process
-    ar_coeffs /= np.max(sl.norm(ar_coeff_fft(ar_coeffs, n=sample_len), 
-                                ord=2, axis=(1, 2)))
-    return ar_coeffs
+    # Enforce unit Frobenius norm
+    return ar_coeffs / sl.norm(ar_coeffs[:])
 
 def almm_iid_sample(num_samples, sample_len, signal_dim, num_processes, 
                     model_ord, coef_support, coef_type=None):
@@ -71,8 +69,8 @@ def almm_iid_sample(num_samples, sample_len, signal_dim, num_processes,
     where (c_ij)_j has support of size coef_support and i=1,...,num_processes.
     
     inputs:
-    num_samples (m) - integer
-    sample_len (n) - integer
+    num_samples (n) - integer
+    sample_len (m) - integer
     signal_dim (d) - integer
     num_processes (r) - integer
     model_ord (p) - integer
@@ -84,18 +82,16 @@ def almm_iid_sample(num_samples, sample_len, signal_dim, num_processes,
     coefficients (C) - m x r tensor
     ar_coeffs (A) - r x p x d x d tensor
     """
-    C = np.zeros([num_samples, num_processes])
-    for i in range(num_samples):
-        # rejection sampling to enforce \sum_j |c_j|<1
-        # TODO: projection inside the l_1 ball
-        c = nr.randn(coef_support)
-        while sl.norm(c, ord=1) >= 1:
-            c = nr.randn(coef_support)
-        C[i, list(nr.choice(num_processes, size=coef_support, replace=False))] = c
     A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
     for i in range(num_processes):
         A[i, :, :, :] = ar_coeffs_sample(model_ord, signal_dim, sample_len, 
                                          coef_type=coef_type)
+    C = np.zeros([num_samples, num_processes])
+    for i in range(num_samples):
+        support = list(nr.choice(num_processes, size=coef_support, replace=False))
+        C[i, support] = signal_dim**(-1/2) * nr.randn(coef_support)
+        while not isstable(np.tensordot(C[i, :], A, axes=1)):
+            C[i, support]  = signal_dim**(-1/2) * nr.randn(coef_support)
     X = np.zeros([num_samples, sample_len, signal_dim])
     for i in range(num_samples):
         X[i, :, :] = autoregressive_sample(sample_len, signal_dim, 

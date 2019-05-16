@@ -13,6 +13,24 @@ from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 import cvxpy as cp
 
+def isstable(A):
+    """
+    Form companion matrix (C) of polynomial p(z) = z*A[1] + ... + z^p*A[p] and
+    check that det(I-zC)=0 only for |z|>1; if so, return True and otherwise
+    False.
+    
+    inputs:
+    ar coefficientst (A) - p x d x d tensor
+    
+    outputs:
+    isstable - True/False
+    """
+    p, d, _ = A.shape
+    C = np.eye(p*d, k=-d)
+    C[:d, :] = np.concatenate(list(A), axis=1)
+    v = sl.eigvals(C, overwrite_a=True)
+    return np.all(np.abs(v**(-1)) > 1)
+    
 def ar_coeff_fft(A, n=None):
     """
     Implements an FFT on the coefficients of an AR process, i.e. 

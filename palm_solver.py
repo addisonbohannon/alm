@@ -198,7 +198,8 @@ class Almm:
             elif len(alpha) > self.max_iter:
                 self.alpha = alpha[:self.max_iter]
             else:
-                raise ValueError('alpha must be the same length as maximum iterations, i.e. '+self.max_iter)
+                raise ValueError('alpha must be the same length as maximum iterations, i.e. '
+                                 +self.max_iter)
         else:
             raise ValueError('Alpha must be a positive float or list.')
         if isinstance(beta, float) and beta > 0:
@@ -207,7 +208,8 @@ class Almm:
             if len(beta) == self.max_iter:
                 self.beta = beta
             else:
-                raise ValueError('beta must be the same length as maximum iterations, i.e. '+self.max_iter)
+                raise ValueError('beta must be the same length as maximum iterations, i.e. '
+                                 +self.max_iter)
         else:
             raise ValueError('Beta must be a positive float or list.')
         if isinstance(tol, float) and tol > 0:
@@ -272,7 +274,6 @@ class Almm:
         for step in range(self.max_iter):
             temp = np.copy(self.D)
             for j in range(self.r):
-                # TODO: should n=m+p or 2*m+3*p or np.inf?
                 self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
             delta_D = self.D - temp
             temp = np.copy(self.C)
@@ -280,7 +281,8 @@ class Almm:
                 self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i), 
                                               self.mu*self.beta[step])
             delta_C = self.C - temp
-            self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
+            self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) 
+                                          + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
             if self.return_path:
                 self.D_path.append(np.copy(self.D))
@@ -320,7 +322,8 @@ class Almm:
         i ({1,...,n}) - index of the observation
         """
         
-        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(gram(self.D, inner_prod), self.C[i, :].T)
+        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(gram(self.D, inner_prod), 
+                                                                self.C[i, :].T)
     
     def add_likelihood(self, step):
         """
