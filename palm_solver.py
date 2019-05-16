@@ -10,8 +10,7 @@ Date: 1 May 2019
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-import scipy.fftpack as sf
-from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs, ar_coeff_fft, ar_coeff_ifft, dictionary_distance
+from utility import ar_toep_op
 
 # Utility functions
 def gram(X, ip):
@@ -95,37 +94,19 @@ def threshold(x, t):
     x[x**2 < 2*t] = 0
     return x
     
-def prox_dict(z, n):
+def prox_dict(z):
     """
     Implements proximal operator for dictionary: argmin_x (1/2)*\|x-z\|_F^2
-    s.t. max_w \|x^(w)\|_op = 1.
+    s.t. \|x\|_F = 1.
     
     inputs:
-    dictionary (p x d x d tensor) - unnormalized dictionary atom
-    sample length (integer) - length of sample on which to compute FFT
+    dictionary (p*d x d tensor) - unnormalized dictionary atom
     
     outputs:
-    dictionary (p x d x d tensor) - normalized dictionary atom
+    dictionary (p*d x d tensor) - normalized dictionary atom
     """
     
-    p, _, _ = z.shape
-    z_hat = ar_coeff_fft(z, n=n)
-    z_hat_op_norms = sl.norm(z_hat, ord=2, axis=(1, 2))
-    op_norm = np.max(z_hat_op_norms)
-    if op_norm < 1:
-        # find the largest singular value and increase to 1
-        w = np.argmax(np.abs(z_hat_op_norms))
-        U, s, Vh = sl.svd(z_hat[w])
-        s[np.argmax(np.abs(s))] = 1
-        z_hat[w] = np.dot(U, np.dot(s, Vh))
-    elif op_norm > 1:
-        # find all singular values greater than 1 and decrease to 1
-        for w in [w for w, norm in enumerate(z_hat_op_norms) if norm > 1]:
-            U, s, Vh = sl.svd(z_hat[w])
-            s[s > 1] = 1
-            z_hat[w] = np.dot(U, np.dot(s, Vh))
-    # else op_norm == 1
-    return ar_coeff_ifft(z_hat, p=p)
+    return z / sl.norm(z, ord='fro')
 
 # Solver class
 class Almm:
@@ -264,7 +245,7 @@ class Almm:
         
         self.D = nr.randn(self.r, self.p*self.d, self.d)
         for j in range(self.r):
-            self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :]), self.m+self.p))
+            self.D[j, :, :] = prox_dict(self.D[j, :, :])
         self.C = np.zeros([self.n, self.r])
         self.coef_lstsq()
         
@@ -292,8 +273,7 @@ class Almm:
             temp = np.copy(self.D)
             for j in range(self.r):
                 # TODO: should n=m+p or 2*m+3*p or np.inf?
-                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha[step] * self.grad_D(j)), 
-                                                            self.m + self.p))
+                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
