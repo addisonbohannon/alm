@@ -11,7 +11,7 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 import scipy.fftpack as sf
-from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs
+from utility import ar_toep_op, stack_ar_coeffs, unstack_ar_coeffs, ar_coeff_fft, ar_coeff_ifft, dictionary_distance
 
 # Utility functions
 def gram(X, ip):
@@ -108,7 +108,8 @@ def prox_dict(z, n):
     dictionary (p x d x d tensor) - normalized dictionary atom
     """
     
-    z_hat = sf.rfft(unstack_ar_coeffs(z), n=n, axis=0)
+    p, _, _ = z.shape
+    z_hat = ar_coeff_fft(z, n=n)
     z_hat_op_norms = sl.norm(z_hat, ord=2, axis=(1, 2))
     op_norm = np.max(z_hat_op_norms)
     if op_norm < 1:
@@ -124,7 +125,7 @@ def prox_dict(z, n):
             s[s > 1] = 1
             z_hat[w] = np.dot(U, np.dot(s, Vh))
     # else op_norm == 1
-    return sf.irfft(z_hat, n=n, axis=0)
+    return ar_coeff_ifft(z_hat, p=p)
 
 # Solver class
 class Almm:
@@ -132,7 +133,7 @@ class Almm:
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
                  coef_penalty_type='l1', alpha=1e-4, beta=1e-4, 
-                 max_iter=int(2.5e2), tol=1e-4):
+                 max_iter=int(2.5e2), tol=1e-4, D_true=None):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -223,6 +224,14 @@ class Almm:
         self.XtY = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.Y)
         self.YtY = self.m**(-1) * np.mean(inner_prod(self.Y, self.Y))
         
+        # ---Debug---
+        if D_true is not None:
+            self.D_true = D_true
+            self.debug = True
+            self.loss = []
+        # ---Debug---
+
+        
         # Initialize estimates of dictionary and coefficients
         self.initialize_estimates()
         
@@ -241,9 +250,19 @@ class Almm:
         
         self.D = nr.randn(self.r, self.p*self.d, self.d)
         for j in range(self.r):
-            self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :], self.m+self.p)))
+            self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :]), self.m+self.p))
         self.C = np.zeros([self.n, self.r])
         self.coef_lstsq()
+        
+        # ---Debug---
+        if self.debug:
+            D_temp = np.zeros([self.r, self.p, self.d, self.d])
+            for j in range(self.r):
+                D_temp[j] = unstack_ar_coeffs(self.D[j])
+            d_loss, _, _ = dictionary_distance(self.D_true, D_temp)
+            self.loss.append(d_loss)
+        # ---Debug---
+
         
     def coef_lstsq(self):
         """
@@ -269,8 +288,8 @@ class Almm:
             temp = np.copy(self.D)
             for j in range(self.r):
                 # TODO: should n=m+p or 2*m+3*p or np.inf?
-                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha * self.grad_D(j), 
-                                                            self.m + self.p)))
+                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha * self.grad_D(j)), 
+                                                            self.m + self.p))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
@@ -279,6 +298,16 @@ class Almm:
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
+            
+            # ---Debug---
+            if self.debug:
+                D_temp = np.zeros([self.r, self.p, self.d, self.d])
+                for j in range(self.r):
+                    D_temp[j] = unstack_ar_coeffs(self.D[j])
+                d_loss, _, _ = dictionary_distance(self.D_true, D_temp)
+                self.loss.append(d_loss)
+            # ---Debug---
+
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
                 self.residual = self.residual[:(step+1)]

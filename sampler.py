@@ -9,7 +9,7 @@ Date: 29 Apr 2019
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-import scipy.fftpack as sf
+from utility import ar_coeff_fft
 
 def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
     """
@@ -59,7 +59,7 @@ def ar_coeffs_sample(model_ord, signal_dim, sample_len, coef_type=None):
     elif coef_type is not None:
         raise ValueError(coef_type+" is not a valid coefficient type, i.e. sparse or lag_sparse.")
     # Enforce stability of the process
-    ar_coeffs /= np.max(sl.norm(sf.rfft(ar_coeffs, n=sample_len, axis=0), 
+    ar_coeffs /= np.max(sl.norm(ar_coeff_fft(ar_coeffs, n=sample_len), 
                                 ord=2, axis=(1, 2)))
     return ar_coeffs
 
