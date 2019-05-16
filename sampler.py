@@ -37,7 +37,7 @@ def autoregressive_sample(sample_len, signal_dim, noise_var, ar_coeffs):
         x[t, :] = np.sum(np.matmul(ar_coeffs, x[t-1:t-model_ord-1:-1, :, :]), axis=0) + noise_var * nr.randn(1, signal_dim, 1)
     return np.squeeze(x[-sample_len:, :])
 
-def ar_coeffs_sample(model_ord, signal_dim, sample_len=None, coef_type=None):
+def ar_coeffs_sample(model_ord, signal_dim, sample_len, coef_type=None):
     """
     Generates coefficients for a stable autoregressive process (A[s])_s as in
     x[t] = A[1] x[t-1] + ... + A[p] x[t-p] + n[t].
@@ -59,11 +59,8 @@ def ar_coeffs_sample(model_ord, signal_dim, sample_len=None, coef_type=None):
     elif coef_type is not None:
         raise ValueError(coef_type+" is not a valid coefficient type, i.e. sparse or lag_sparse.")
     # Enforce stability of the process
-    if sample_len is not None:
-        ar_coeffs /= np.max(sl.norm(sf.rfft(ar_coeffs, n=sample_len, axis=0), 
-                                    ord=2, axis=(1, 2)))
-    else:
-        ar_coeffs /= np.max(sl.norm(sf.rfft(ar_coeffs, axis=0), ord=2, axis=(1, 2)))
+    ar_coeffs /= np.max(sl.norm(sf.rfft(ar_coeffs, n=sample_len, axis=0), 
+                                ord=2, axis=(1, 2)))
     return ar_coeffs
 
 def almm_iid_sample(num_samples, sample_len, signal_dim, num_processes, 
@@ -89,11 +86,15 @@ def almm_iid_sample(num_samples, sample_len, signal_dim, num_processes,
     """
     C = np.zeros([num_samples, num_processes])
     for i in range(num_samples):
-        C[i, list(nr.choice(num_processes, size=coef_support, replace=False))] = nr.random_sample(coef_support) / coef_support
+        # rejection sampling to enforce \sum_j |c_j|<1
+        # TODO: projection inside the l_1 ball
+        c = nr.randn(coef_support)
+        while sl.norm(c, ord=1) >= 1:
+            c = nr.randn(coef_support)
+        C[i, list(nr.choice(num_processes, size=coef_support, replace=False))] = c
     A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
     for i in range(num_processes):
-        A[i, :, :, :] = ar_coeffs_sample(model_ord, signal_dim, 
-                                         sample_len=sample_len, 
+        A[i, :, :, :] = ar_coeffs_sample(model_ord, signal_dim, sample_len, 
                                          coef_type=coef_type)
     X = np.zeros([num_samples, sample_len, signal_dim])
     for i in range(num_samples):

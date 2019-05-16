@@ -213,7 +213,7 @@ def dictionary_distance(A, B, p=2):
     D = np.zeros([n, n])
     triu_index = np.triu_indices(n)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-            D[i,j] = np.minimum(np.sum(np.power(A[i]-B[j], p))**(1/p), 
+            D[i, j] = np.minimum(np.sum(np.power(A[i]-B[j], p))**(1/p), 
                                 np.sum(np.power(A[i]+B[j], p))**(1/p))
     tril_index = np.tril_indices(n, k=-1)
     D[tril_index] = D.T[tril_index]
