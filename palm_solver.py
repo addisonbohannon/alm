@@ -133,7 +133,7 @@ class Almm:
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
                  coef_penalty_type='l1', alpha=1e-4, beta=1e-4, 
-                 max_iter=int(2.5e2), tol=1e-4, D_true=None):
+                 max_iter=int(2.5e2), tol=1e-4, return_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -166,6 +166,9 @@ class Almm:
         
         tolerance (float) - Tolerance to terminate iterative algorithm; must
         be positive
+        
+        return_path (boolean) - Whether to record the iterative updates of
+        the dictionary; memory intensive
         """
         
         # Check arguments
@@ -218,22 +221,21 @@ class Almm:
             self.tol = tol
         else:
             raise ValueError('Tolerance must be a positive float.')
+        if isinstance(return_path, bool):
+            self.return_path = return_path
+        else:
+            raise TypeError('return_path must be True/False.')
         
         # Pre-compute re-used quantities
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
         self.XtY = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.Y)
         self.YtY = self.m**(-1) * np.mean(inner_prod(self.Y, self.Y))
         
-        # ---Debug---
-        if D_true is not None:
-            self.D_true = D_true
-            self.debug = True
-            self.loss = []
-        # ---Debug---
-
-        
         # Initialize estimates of dictionary and coefficients
         self.initialize_estimates()
+        if self.return_path:
+            self.D_path = []
+            self.D_path.append(self.D)
         
         # Fit dictionary and coefficients
         self.residual = np.zeros([self.max_iter])
@@ -253,16 +255,6 @@ class Almm:
             self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :]), self.m+self.p))
         self.C = np.zeros([self.n, self.r])
         self.coef_lstsq()
-        
-        # ---Debug---
-        if self.debug:
-            D_temp = np.zeros([self.r, self.p, self.d, self.d])
-            for j in range(self.r):
-                D_temp[j] = unstack_ar_coeffs(self.D[j])
-            d_loss, _, _ = dictionary_distance(self.D_true, D_temp)
-            self.loss.append(d_loss)
-        # ---Debug---
-
         
     def coef_lstsq(self):
         """
@@ -298,16 +290,8 @@ class Almm:
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
-            
-            # ---Debug---
-            if self.debug:
-                D_temp = np.zeros([self.r, self.p, self.d, self.d])
-                for j in range(self.r):
-                    D_temp[j] = unstack_ar_coeffs(self.D[j])
-                d_loss, _, _ = dictionary_distance(self.D_true, D_temp)
-                self.loss.append(d_loss)
-            # ---Debug---
-
+            if self.return_path:
+                self.D_path.append(self.D)
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
                 self.residual = self.residual[:(step+1)]
