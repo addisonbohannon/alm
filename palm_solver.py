@@ -205,18 +205,30 @@ class Almm:
             self.mu = penalty_parameter
         else:
             raise ValueError('Penalty must be a positive float.')
-        if isinstance(alpha, float) and alpha > 0:
-            self.alpha = alpha
-        else:
-            raise ValueError('Alpha must be a positive float.')
-        if isinstance(beta, float) and beta > 0:
-            self.beta = beta
-        else:
-            raise ValueError('Beta must be a positive float.')
         if isinstance(max_iter, int):
             self.max_iter = max_iter
         else:
             raise TypeError('Max iteration must be an integer.')
+        if isinstance(alpha, float) and alpha > 0:
+            self.alpha = alpha * np.ones([self.max_iter])
+        elif isinstance(alpha, list):
+            if len(alpha) == self.max_iter:
+                self.alpha = alpha
+            elif len(alpha) > self.max_iter:
+                self.alpha = alpha[:self.max_iter]
+            else:
+                raise ValueError('alpha must be the same length as maximum iterations, i.e. '+self.max_iter)
+        else:
+            raise ValueError('Alpha must be a positive float or list.')
+        if isinstance(beta, float) and beta > 0:
+            self.beta = beta * np.ones([self.max_iter])
+        elif isinstance(beta, list):
+            if len(beta) == self.max_iter:
+                self.beta = beta
+            else:
+                raise ValueError('beta must be the same length as maximum iterations, i.e. '+self.max_iter)
+        else:
+            raise ValueError('Beta must be a positive float or list.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
@@ -280,13 +292,13 @@ class Almm:
             temp = np.copy(self.D)
             for j in range(self.r):
                 # TODO: should n=m+p or 2*m+3*p or np.inf?
-                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha * self.grad_D(j)), 
+                self.D[j, :, :] = stack_ar_coeffs(prox_dict(unstack_ar_coeffs(self.D[j, :, :] - self.alpha[step] * self.grad_D(j)), 
                                                             self.m + self.p))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
-                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta * self.grad_C(i), 
-                                              self.mu*self.beta)
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i), 
+                                              self.mu*self.beta[step])
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
