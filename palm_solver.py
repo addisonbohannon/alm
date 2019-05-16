@@ -235,7 +235,7 @@ class Almm:
         self.initialize_estimates()
         if self.return_path:
             self.D_path = []
-            self.D_path.append(self.D)
+            self.D_path.append(np.copy(self.D))
         
         # Fit dictionary and coefficients
         self.residual = np.zeros([self.max_iter])
@@ -291,7 +291,7 @@ class Almm:
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) + np.sum(np.square(delta_C)))
             self.add_likelihood(step)
             if self.return_path:
-                self.D_path.append(self.D)
+                self.D_path.append(np.copy(self.D))
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
                 self.residual = self.residual[:(step+1)]
