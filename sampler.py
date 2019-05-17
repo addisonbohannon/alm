@@ -51,7 +51,7 @@ def ar_coeffs_sample(model_ord, signal_dim, sample_len, coef_type=None):
     outputs:
     ar_coeffs (A) - p x d x d tensor
     """
-    ar_coeffs = nr.rand(model_ord, signal_dim, signal_dim)
+    ar_coeffs = nr.randn(model_ord, signal_dim, signal_dim)
     if coef_type == 'sparse':
         ar_coeffs[ar_coeffs < np.percentile(ar_coeffs, 90)] = 0
     elif coef_type == 'lag_sparse':
