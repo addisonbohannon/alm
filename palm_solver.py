@@ -62,8 +62,8 @@ class Almm:
     
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 coef_penalty_type='l1', max_iter=int(2.5e2), tol=1e-4, 
-                 return_path=False):
+                 coef_penalty_type='l1', step_size=10, max_iter=int(2.5e2), 
+                 tol=1e-6, return_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -131,10 +131,14 @@ class Almm:
             self.mu = penalty_parameter
         else:
             raise ValueError('Penalty must be a positive float.')
-        if isinstance(max_iter, int):
+        if isinstance(float(step_size), float) and step_size > 1:
+            self.step_size = float(step_size)
+        else:
+            raise ValueError('Step size must be a float greater than 1.')
+        if isinstance(max_iter, int) and max_iter > 0:
             self.max_iter = max_iter
         else:
-            raise TypeError('Max iteration must be an integer.')
+            raise TypeError('Max iteration must be a positive integer.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
@@ -201,9 +205,9 @@ class Almm:
             for j in range(self.r):
                 # TODO: re-use matrix computation in step size and gradient step
                 # compute step size
-                self.alpha[step] = 0.5 * sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
-                                                            self.XtX, axes=1), 
-                                                            ord=2)**(-1)
+                self.alpha[step] = sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
+                                                        self.XtX, axes=1), 
+                                                        ord=2)**(-1) / self.step_size
                 # proximal/gradient step
                 self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
             delta_D = self.D - temp
@@ -211,13 +215,13 @@ class Almm:
             for i in range(self.n):
                 # compute step size
                 G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
-                self.beta[step] = sl.norm(G, ord=2)**(-1)
+                self.beta[step] = sl.norm(G, ord=2)**(-1) / self.step_size
                 # proximal/gradient step
                 self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i, G=G), 
                                               self.mu * self.beta[step])
             delta_C = self.C - temp
-            self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) 
-                                          + np.sum(np.square(delta_C)))
+            self.residual[step] = np.sqrt(np.sum(np.square(delta_D)/self.alpha[step]) 
+                                          + np.sum(np.square(delta_C/self.beta[step])))
             self.add_likelihood(step)
             if self.return_path:
                 self.D_path.append(np.copy(self.D))
@@ -278,8 +282,8 @@ class Almm:
         self.likelihood[step] += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
         self.likelihood[step] += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
         if self.coef_penalty_type == 'l0':
-            self.likelihood[step] += np.count_nonzero(self.C)
+            self.likelihood[step] += self.mu * np.count_nonzero(self.C)
         elif self.coef_penalty_type == 'l1':
-            self.likelihood[step] += sl.norm(self.C, ord=1)
+            self.likelihood[step] += self.mu * sl.norm(self.C, ord=1)
         
         
