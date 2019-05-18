@@ -252,20 +252,21 @@ class Almm:
             for j in range(self.r):
                 # TODO: re-use matrix computation in step size and gradient step
                 # compute step size
-                self.alpha[step] = 2 * sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
+                self.alpha[step] = 0.5 * sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
                                                             self.XtX, axes=1), 
-                                                            ord=2)
+                                                            ord=2)**(-1)
                 # proximal/gradient step
-                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step]**(-1) * self.grad_D(j))
+                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
                 # TODO: re-use gram matrix in step size and gradient step
                 # compute step size
-                self.beta[step] = sl.norm(gram(self.D, inner_prod), ord=2)
+                G = gram(self.D, inner_prod)
+                self.beta[step] = sl.norm(G, ord=2)**(-1)
                 # proximal/gradient step
-                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step]**(-1) * self.grad_C(i), 
-                                              self.mu / self.beta[step])
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i, G=G), 
+                                              self.mu * self.beta[step])
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) 
                                           + np.sum(np.square(delta_C)))
@@ -303,7 +304,7 @@ class Almm:
         return grad
         
         
-    def grad_C(self, i):
+    def grad_C(self, i, G=None):
         """
         Computes the gradient of the ith coefficient vector for the current
         values of the dictionary elements.
@@ -312,8 +313,9 @@ class Almm:
         i ({1,...,n}) - index of the observation
         """
         
-        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(gram(self.D, inner_prod), 
-                                                                self.C[i, :].T)
+        if G is None:
+            G = gram(self.D, inner_prod)
+        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(G, self.C[i, :].T)
     
     def add_likelihood(self, step):
         """
