@@ -10,60 +10,9 @@ Date: 1 May 2019
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import ar_toep_op
+from utility import gram, inner_prod, ar_toep_op
 
 # Utility functions
-def gram(X, ip):
-    """
-    Computes gram matrix G_ij = ip(X_i, X_j).
-    """
-    n = len(X)
-    G = np.zeros([n, n])
-    triu_index = np.triu_indices(n)
-    for (i, j) in zip(triu_index[0], triu_index[1]):
-        G[i, j] = ip(X[i], X[j])
-    tril_index = np.tril_indices(n, k=-1)
-    G[tril_index] = G.T[tril_index]
-    return G
-
-def inner_prod(a, b):
-    """
-    Implements a Frobenius inner product which respects depthwise stacks of
-    matrices. It will broadcast if a or b has depth.
-    
-    inputs:
-    matrix (a) - [r x] n x m tensor
-    matrix (b) - [r x] n x m tensor
-    
-    outputs:
-    inner product (<a, b>) - [r tensor] scalar
-    """
-    if len(a.shape) == 3 or len(b.shape) == 3:
-        return np.sum(np.multiply(a, b), axis=(1,2))
-    else:
-        return np.sum(np.multiply(a, b))
-        
-def depthwise_kron(a, b):
-    """
-    Computes Kronecker product in parallel along depth dimension of 
-    tensors. Tensors must share the same depthwise dimension.
-    
-    inputs:
-    tensor a (n x m x l tensor) - first tensor in tensor product
-    tensor b (n x q x r tensor) - second tensor in tensor product
-    
-    outputs:
-    tensor K (n x (m*q) x (l*r)) - result of depthwise tensor product
-    """
-    n, m, l = a.shape
-    p, q, r = b.shape
-    if n != p:
-        raise ValueError('Dimension mismatch in depth of tensors.')
-    K = np.zeros([n, m*q, l*r])
-    for i in range(n):
-        K[i, :, :] = np.kron(a[i, :, :], b[i, :, :])
-    return K
-
 def shrink(x, t):
     """
     Implements the proximal operator of the l1-norm (shrink operator).
@@ -234,7 +183,7 @@ class Almm:
         """
         
         for i in range(self.n):
-            self.C[i, :] = sl.solve(gram(self.D, inner_prod), 
+            self.C[i, :] = sl.solve(gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y))), 
                                     inner_prod(self.XtY[i, :, :], self.D), 
                                     assume_a='pos')
     
@@ -260,9 +209,8 @@ class Almm:
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
-                # TODO: re-use gram matrix in step size and gradient step
                 # compute step size
-                G = gram(self.D, inner_prod)
+                G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
                 self.beta[step] = sl.norm(G, ord=2)**(-1)
                 # proximal/gradient step
                 self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i, G=G), 
@@ -314,7 +262,7 @@ class Almm:
         """
         
         if G is None:
-            G = gram(self.D, inner_prod)
+            G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
         return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(G, self.C[i, :].T)
     
     def add_likelihood(self, step):

@@ -13,6 +13,43 @@ from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 import cvxpy as cp
 
+def gram(X, ip):
+    """
+    Computes gram matrix G_ij = ip(X_i, X_j).
+    
+    inputs:
+    elements (X) - list of elements that can be acted on by ip
+    inner product (ip) - function with two arguments ip(x1, x_2) that returns a scalar
+    
+    outputs:
+    gram matrix (G) - G_ij = ip(x[i], x[j])
+    """
+    n = len(X)
+    G = np.zeros([n, n])
+    triu_index = np.triu_indices(n)
+    for (i, j) in zip(triu_index[0], triu_index[1]):
+        G[i, j] = ip(X[i], X[j])
+    tril_index = np.tril_indices(n, k=-1)
+    G[tril_index] = G.T[tril_index]
+    return G
+
+def inner_prod(a, b):
+    """
+    Implements a Frobenius inner product which respects depthwise stacks of
+    matrices. It will broadcast if a or b has depth.
+    
+    inputs:
+    matrix (a) - [r x] n x m tensor
+    matrix (b) - [r x] n x m tensor
+    
+    outputs:
+    inner product (<a, b>) - [r tensor] scalar
+    """
+    if len(a.shape) == 3 or len(b.shape) == 3:
+        return np.sum(np.multiply(a, b), axis=(1,2))
+    else:
+        return np.sum(np.multiply(a, b))
+
 def isstable(A):
     """
     Form companion matrix (C) of polynomial p(z) = z*A[1] + ... + z^p*A[p] and
