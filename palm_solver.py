@@ -113,8 +113,8 @@ class Almm:
     
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 coef_penalty_type='l1', alpha=1e-4, beta=1e-4, 
-                 max_iter=int(2.5e2), tol=1e-4, return_path=False):
+                 coef_penalty_type='l1', max_iter=int(2.5e2), tol=1e-4, 
+                 return_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -138,10 +138,6 @@ class Almm:
         
         penalty parameter (scalar) - Relative weight of sparsity penalty; must 
         be positive
-        
-        alpha (scalar) - Step size for dictionary update; must be positive
-        
-        beta (scalar) - Step size for coefficient update; must be positive
         
         max_iter (integer) - Maximum number of iterations for algorithm
         
@@ -190,28 +186,6 @@ class Almm:
             self.max_iter = max_iter
         else:
             raise TypeError('Max iteration must be an integer.')
-        if isinstance(alpha, float) and alpha > 0:
-            self.alpha = alpha * np.ones([self.max_iter])
-        elif isinstance(alpha, list):
-            if len(alpha) == self.max_iter:
-                self.alpha = alpha
-            elif len(alpha) > self.max_iter:
-                self.alpha = alpha[:self.max_iter]
-            else:
-                raise ValueError('alpha must be the same length as maximum iterations, i.e. '
-                                 +self.max_iter)
-        else:
-            raise ValueError('Alpha must be a positive float or list.')
-        if isinstance(beta, float) and beta > 0:
-            self.beta = beta * np.ones([self.max_iter])
-        elif isinstance(beta, list):
-            if len(beta) == self.max_iter:
-                self.beta = beta
-            else:
-                raise ValueError('beta must be the same length as maximum iterations, i.e. '
-                                 +self.max_iter)
-        else:
-            raise ValueError('Beta must be a positive float or list.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
@@ -233,6 +207,8 @@ class Almm:
             self.D_path.append(np.copy(self.D))
         
         # Fit dictionary and coefficients
+        self.alpha = np.zeros([self.max_iter])
+        self.beta = np.zeros_like(self.alpha)
         self.residual = np.zeros([self.max_iter])
         self.likelihood = np.zeros_like(self.residual)
         self.fit()
@@ -274,12 +250,22 @@ class Almm:
         for step in range(self.max_iter):
             temp = np.copy(self.D)
             for j in range(self.r):
-                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
+                # TODO: re-use matrix computation in step size and gradient step
+                # compute step size
+                self.alpha[step] = 2 * sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
+                                                            self.XtX, axes=1), 
+                                                            ord=2)
+                # proximal/gradient step
+                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step]**(-1) * self.grad_D(j))
             delta_D = self.D - temp
             temp = np.copy(self.C)
             for i in range(self.n):
-                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i), 
-                                              self.mu*self.beta[step])
+                # TODO: re-use gram matrix in step size and gradient step
+                # compute step size
+                self.beta[step] = sl.norm(gram(self.D, inner_prod), ord=2)
+                # proximal/gradient step
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step]**(-1) * self.grad_C(i), 
+                                              self.mu / self.beta[step])
             delta_C = self.C - temp
             self.residual[step] = np.sqrt(np.sum(np.square(delta_D)) 
                                           + np.sum(np.square(delta_C)))
@@ -288,11 +274,15 @@ class Almm:
                 self.D_path.append(np.copy(self.D))
             if step > 0 and self.residual[step] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
+                self.alpha = self.alpha[:(step+1)]
+                self.beta = self.beta[:(step+1)]
                 self.residual = self.residual[:(step+1)]
                 self.likelihood = self.likelihood[:(step+1)]
                 break
             elif step > 0 and self.residual[step] < self.tol:
                 self.stop_condition = 'absolute tolerance'
+                self.alpha = self.alpha[:(step+1)]
+                self.beta = self.beta[:(step+1)]
                 self.residual = self.residual[:(step+1)]
                 self.likelihood = self.likelihood[:(step+1)]
                 break
