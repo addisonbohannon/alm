@@ -49,6 +49,41 @@ def inner_prod(a, b):
         return np.sum(np.multiply(a, b), axis=(1,2))
     else:
         return np.sum(np.multiply(a, b))
+    
+def check_almm_condition(x, D, C):
+    """Computes and returns the condition number of the linear operators 
+    that participate in the gradient-based method, i.e.,
+    G_ij = and
+    H_ij[k] = <D_i, (X_k^TX_k) D_j>_F 
+    
+    inputs:
+    ar process (x) - n x m x d tensor
+    ar coefficients (D) - r x p x d x d tensor
+    coefficients (C) - n x r tensor
+    
+    outputs:
+    condition number (k1) - scalar
+    condition number (k2) - n array
+    """
+    n, m, d = x.shape
+    r, p, _, _ = D.shape
+    X = np.zeros([n, m-p, p*d])
+    for i in range(n):
+        X[i, :, :], _ = ar_toep_op(x[i, :, :], p)
+    XtX = m**(-1) * np.matmul(np.moveaxis(X, 1, 2), X)
+    G1 = np.zeros([p*d*r, p*d*r])
+    for i in range(n):
+        G1 += np.kron(np.outer(C[i, :], C[i, :]) / n, XtX[i])
+    _, s1, _ = sl.svd(G1)
+    D_stack = np.zeros([r, p*d, d])
+    for j in range(r):
+        D_stack[j] = stack_ar_coeffs(D[j])
+    G2 = np.zeros([n, r, r])
+    s2 = np.zeros([n, r])
+    for i in range(n):
+        G2[i] = gram(D_stack, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
+        _, s2[i], _ = sl.svd(G2[i])
+    return np.max(s1) / np.min(s1), np.max(s2, axis=0) / np.min(s2, axis=0)
 
 def isstable(A):
     """
