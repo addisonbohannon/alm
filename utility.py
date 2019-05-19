@@ -83,7 +83,7 @@ def check_almm_condition(x, D, C):
     for i in range(n):
         G2[i] = gram(D_stack, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
         _, s2[i], _ = sl.svd(G2[i])
-    return np.max(s1) / np.min(s1), np.max(s2, axis=0) / np.min(s2, axis=0)
+    return np.max(s1) / np.min(s1), np.max(s2, axis=1) / np.min(s2, axis=1)
 
 def isstable(A):
     """

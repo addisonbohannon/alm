@@ -62,8 +62,8 @@ class Almm:
     
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 coef_penalty_type='l1', step_size=10, max_iter=int(2.5e2), 
-                 tol=1e-6, return_path=False):
+                 coef_penalty_type='l1', step_size=10, max_iter=int(2.5e3), 
+                 tol=1e-6, return_path=False, likelihood_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -147,6 +147,10 @@ class Almm:
             self.return_path = return_path
         else:
             raise TypeError('return_path must be True/False.')
+        if isinstance(likelihood_path, bool):
+            self.likelihood_path = likelihood_path
+        else:
+            raise TypeError('likelihood_path must be True/False.')
         
         # Pre-compute re-used quantities
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
@@ -158,12 +162,12 @@ class Almm:
         if self.return_path:
             self.D_path = []
             self.D_path.append(np.copy(self.D))
+        self.alpha = np.zeros([self.r])
+        self.beta = np.zeros([self.n])
+        self.residual = []
+        self.likelihood = []
         
         # Fit dictionary and coefficients
-        self.alpha = np.zeros([self.max_iter])
-        self.beta = np.zeros_like(self.alpha)
-        self.residual = np.zeros([self.max_iter])
-        self.likelihood = np.zeros_like(self.residual)
         self.fit()
         
         # Remove prox_coef method to allow opening class in Spyder
@@ -201,46 +205,48 @@ class Almm:
         
         self.stop_condition = 'maximum iteration'
         for step in range(self.max_iter):
+            # Update dictionary estimate
             temp = np.copy(self.D)
             for j in range(self.r):
-                # TODO: re-use matrix computation in step size and gradient step
                 # compute step size
-                self.alpha[step] = sl.norm(np.tensordot(self.C[:, j]**2 / self.n, 
-                                                        self.XtX, axes=1), 
-                                                        ord=2)**(-1) / self.step_size
+                G = np.tensordot(self.C[:, j]**2 / self.n, self.XtX, axes=1)
+                self.alpha[j] = sl.norm(G, ord=2)**(-1) / self.step_size
                 # proximal/gradient step
-                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[step] * self.grad_D(j))
+                self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[j] * self.grad_D(j, G=G))
             delta_D = self.D - temp
+            # Add current dictionary estimate to path
+            if self.return_path:
+                self.D_path.append(np.copy(self.D))
+            # Update coefficient estimate
             temp = np.copy(self.C)
             for i in range(self.n):
                 # compute step size
                 G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
-                self.beta[step] = sl.norm(G, ord=2)**(-1) / self.step_size
+                self.beta[i] = sl.norm(G, ord=2)**(-1) / self.step_size
                 # proximal/gradient step
-                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[step] * self.grad_C(i, G=G), 
-                                              self.mu * self.beta[step])
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[i] * self.grad_C(i, G=G), 
+                                              self.mu * self.beta[i])
             delta_C = self.C - temp
-            self.residual[step] = np.sqrt(np.sum(np.square(delta_D)/self.alpha[step]) 
-                                          + np.sum(np.square(delta_C/self.beta[step])))
-            self.add_likelihood(step)
-            if self.return_path:
-                self.D_path.append(np.copy(self.D))
-            if step > 0 and self.residual[step] < self.tol * self.residual[0]:
+            # Compute residual
+            """( \sum_j (\|dD_j\|/alpha_j)^2 + \sum_i (\|dC_i\|/beta_i)^2 )^(1/2)"""
+            self.residual.append(np.sqrt(np.sum((sl.norm(delta_D, ord='fro', axis=(1,2))/self.alpha)**2)
+                                 + np.sum((sl.norm(delta_C, axis=1)/self.beta)**2)))
+            # Check stopping conditions (relative and absolute)
+            if step > 0 and self.residual[-1] < self.tol * self.residual[0]:
                 self.stop_condition = 'relative tolerance'
-                self.alpha = self.alpha[:(step+1)]
-                self.beta = self.beta[:(step+1)]
-                self.residual = self.residual[:(step+1)]
-                self.likelihood = self.likelihood[:(step+1)]
+                self.add_likelihood()
                 break
-            elif step > 0 and self.residual[step] < self.tol:
+            elif step > 0 and self.residual[-1] < self.tol:
                 self.stop_condition = 'absolute tolerance'
-                self.alpha = self.alpha[:(step+1)]
-                self.beta = self.beta[:(step+1)]
-                self.residual = self.residual[:(step+1)]
-                self.likelihood = self.likelihood[:(step+1)]
+                self.add_likelihood()
                 break
+            # Compute likelihood
+            if self.likelihood_path:
+                self.add_likelihood()
+        if not self.likelihood_path:
+            self.add_likelihood()
             
-    def grad_D(self, j):
+    def grad_D(self, j, G=None):
         """
         Computes the gradient of the jth dictionary element for the current 
         values of other dictionary elements and coefficients.
@@ -248,9 +254,12 @@ class Almm:
         inputs:
         j ({1,...,r}) - index of the dictionary atom
         """
-            
+        
+        if G is None:
+            G = np.tensordot(self.C[:, j]**2 / self.n, self.XtX, axes=1)
         grad = - np.tensordot(self.C[:, j] / self.n, self.XtY, axes=1)
-        for l in range(self.r):
+        grad += np.dot(G, self.D[j, :, :])
+        for l in np.setdiff1d(np.arange(self.r), [j]):
             grad += np.dot(np.tensordot(self.C[:, j]*self.C[:, l] / self.n, 
                                      self.XtX, axes=1), self.D[l, :, :])
         return grad
@@ -269,21 +278,19 @@ class Almm:
             G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
         return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(G, self.C[i, :].T)
     
-    def add_likelihood(self, step):
+    def add_likelihood(self):
         """
         Computes the likelihood of the current dictionary and coefficient 
         estimate.
-        
-        inputs:
-        step (integer) - current step to which the likelihood will be assigned
         """
         
-        self.likelihood[step] += self.YtY
-        self.likelihood[step] += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
-        self.likelihood[step] += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
+        lh = self.YtY
+        lh += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
+        lh += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
         if self.coef_penalty_type == 'l0':
-            self.likelihood[step] += self.mu * np.count_nonzero(self.C)
+            lh += self.mu * np.count_nonzero(self.C)
         elif self.coef_penalty_type == 'l1':
-            self.likelihood[step] += self.mu * sl.norm(self.C, ord=1)
+            lh += self.mu * sl.norm(self.C, ord=1)
+        self.likelihood.append(lh)
         
         
