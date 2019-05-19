@@ -63,7 +63,7 @@ class Almm:
     # Class constructor
     def __init__(self, observations, model_order, atoms, penalty_parameter, 
                  coef_penalty_type='l1', step_size=10, max_iter=int(2.5e3), 
-                 tol=1e-6, return_path=False, likelihood_path=False):
+                 tol=1e-4, return_path=False, likelihood_path=False):
         """
         Class constructor for ALMM solver. Takes as arguments the observations, 
         desired autoregressive model order, number of atoms to fit, the
@@ -156,6 +156,7 @@ class Almm:
         self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
         self.XtY = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.Y)
         self.YtY = self.m**(-1) * np.mean(inner_prod(self.Y, self.Y))
+        self.gram_C = np.zeros([self.n, self.r, self.r])
         
         # Initialize estimates of dictionary and coefficients
         self.initialize_estimates()
@@ -164,7 +165,8 @@ class Almm:
             self.D_path.append(np.copy(self.D))
         self.alpha = np.zeros([self.r])
         self.beta = np.zeros([self.n])
-        self.residual = []
+        self.residual_D = []
+        self.residual_C = []
         self.likelihood = []
         
         # Fit dictionary and coefficients
@@ -221,23 +223,24 @@ class Almm:
             temp = np.copy(self.C)
             for i in range(self.n):
                 # compute step size
-                G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
-                self.beta[i] = sl.norm(G, ord=2)**(-1) / self.step_size
+                self.gram_C[i] = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
+                self.beta[i] = sl.norm(self.gram_C[i], ord=2)**(-1) / self.step_size
                 # proximal/gradient step
-                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[i] * self.grad_C(i, G=G), 
+                self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[i] * self.grad_C(i), 
                                               self.mu * self.beta[i])
             delta_C = self.C - temp
             # Compute residual
-            """( \sum_j (\|dD_j\|/alpha_j)^2 + \sum_i (\|dC_i\|/beta_i)^2 )^(1/2)"""
-            self.residual.append(np.sqrt(np.sum((sl.norm(delta_D, ord='fro', axis=(1,2))/self.alpha)**2)
-                                 + np.sum((sl.norm(delta_C, axis=1)/self.beta)**2)))
-            # Check stopping conditions (relative and absolute)
-            if step > 0 and self.residual[-1] < self.tol * self.residual[0]:
+            """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2) 
+            + (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
+            res_D = ( sl.norm(delta_D, ord='fro', axis=(1,2))
+                     / ( self.alpha * self.p**(1/2) * self.d ) )
+            self.residual_D.append(np.mean(res_D))
+            res_C = sl.norm(delta_C, axis=1) / ( self.beta * self.r )
+            self.residual_C.append(np.mean(res_C))
+            # Check stopping condition
+            if ( step > 0 and self.residual_D[-1] < self.tol * self.residual_D[0] 
+                and self.residual_C[-1] < self.tol * self.residual_C[0] ):
                 self.stop_condition = 'relative tolerance'
-                self.add_likelihood()
-                break
-            elif step > 0 and self.residual[-1] < self.tol:
-                self.stop_condition = 'absolute tolerance'
                 self.add_likelihood()
                 break
             # Compute likelihood
@@ -265,7 +268,7 @@ class Almm:
         return grad
         
         
-    def grad_C(self, i, G=None):
+    def grad_C(self, i):
         """
         Computes the gradient of the ith coefficient vector for the current
         values of the dictionary elements.
@@ -274,9 +277,7 @@ class Almm:
         i ({1,...,n}) - index of the observation
         """
         
-        if G is None:
-            G = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
-        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(G, self.C[i, :].T)
+        return - inner_prod(self.XtY[i, :, :], self.D) + np.dot(self.gram_C[i], self.C[i, :].T)
     
     def add_likelihood(self):
         """
@@ -284,13 +285,13 @@ class Almm:
         estimate.
         """
         
-        lh = self.YtY
-        lh += np.mean([gram([self.C[i, j]*self.D[j] for j in range(self.r)], lambda d1, d2 : inner_prod(d1, np.matmul(self.XtX[i, :, :], d2))) for i in range(self.n)])
-        lh += 2 * np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY, self.D[j]) for i in range(self.n)]) for j in range(self.r)])
+        lh = 0.5 * self.YtY
+        lh += 0.5 * np.mean(np.matmul(np.expand_dims(self.C, 1), np.matmul(self.gram_C, np.expand_dims(self.C, 2))))
+        lh -= np.sum([np.mean([self.C[i, j]*inner_prod(self.XtY[i], self.D[j]) for i in range(self.n)]) for j in range(self.r)])
         if self.coef_penalty_type == 'l0':
-            lh += self.mu * np.count_nonzero(self.C)
+            lh += self.mu * np.count_nonzero(self.C[:])
         elif self.coef_penalty_type == 'l1':
-            lh += self.mu * sl.norm(self.C, ord=1)
+            lh += self.mu * sl.norm(self.C[:], ord=1)
         self.likelihood.append(lh)
         
         
