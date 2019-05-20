@@ -76,25 +76,32 @@ class Almm:
         indexes the observation, second dimension indexes the time, and third
         dimension indexes the coordinate
         
-        model_order (integer) - Autoregressive model order; must be much less 
+        model order (integer) - Autoregressive model order; must be much less 
         than observation length for reasonable estimation
         
         atoms (integer) - Number of autoregressive components; must be much
         less than number of observations
         
-        coef penalty type (string) - Penalty applied to coefficients to enforce
-        sparsity; options include {None, 'l0', 'l1' (default)}
-        
         penalty parameter (scalar) - Relative weight of sparsity penalty; must 
         be positive
         
-        max_iter (integer) - Maximum number of iterations for algorithm
+        coef penalty type (string) - Penalty applied to coefficients to enforce
+        sparsity; options include {None, 'l0', 'l1' (default)}
+        
+        step size (scalar) - Factor by which to divide the Lipschitz-based 
+        step size
+        
+        maximum iterations (integer) - Maximum number of iterations for 
+        algorithm
         
         tolerance (float) - Tolerance to terminate iterative algorithm; must
         be positive
         
-        return_path (boolean) - Whether to record the iterative updates of
+        return path (boolean) - Whether to record the iterative updates of
         the dictionary; memory intensive
+        
+        likelihood path (boolean) - Whether to record the likelihood at each
+        step; computation intensive
         """
         
         # Check arguments
@@ -207,36 +214,43 @@ class Almm:
         
         self.stop_condition = 'maximum iteration'
         for step in range(self.max_iter):
+            
             # Update dictionary estimate
             temp = np.copy(self.D)
             for j in range(self.r):
+                
                 # compute step size
                 G = np.tensordot(self.C[:, j]**2 / self.n, self.XtX, axes=1)
                 self.alpha[j] = sl.norm(G, ord=2)**(-1) / self.step_size
+                
                 # proximal/gradient step
                 self.D[j, :, :] = prox_dict(self.D[j, :, :] - self.alpha[j] * self.grad_D(j, G=G))
             delta_D = self.D - temp
+            
             # Add current dictionary estimate to path
             if self.return_path:
                 self.D_path.append(np.copy(self.D))
+                
             # Update coefficient estimate
             temp = np.copy(self.C)
             for i in range(self.n):
+                
                 # compute step size
                 self.gram_C[i] = gram(self.D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
                 self.beta[i] = sl.norm(self.gram_C[i], ord=2)**(-1) / self.step_size
+                
                 # proximal/gradient step
                 self.C[i, :] = self.prox_coef(self.C[i, :] - self.beta[i] * self.grad_C(i), 
                                               self.mu * self.beta[i])
             delta_C = self.C - temp
-            # Compute residual
-            """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2) 
-            + (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
-            res_D = ( sl.norm(delta_D, ord='fro', axis=(1,2))
-                     / ( self.alpha * self.p**(1/2) * self.d ) )
-            self.residual_D.append(np.mean(res_D))
-            res_C = sl.norm(delta_C, axis=1) / ( self.beta * self.r )
-            self.residual_C.append(np.mean(res_C))
+            
+            # Compute residuals
+            """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2)"""
+            self.residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
+                                   / ( self.alpha * self.p**(1/2) * self.d )))            
+            """(1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
+            self.residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
+                                   / ( self.beta * self.r )))            
             # Check stopping condition
             if ( step > 0 and self.residual_D[-1] < self.tol * self.residual_D[0] 
                 and self.residual_C[-1] < self.tol * self.residual_C[0] ):
