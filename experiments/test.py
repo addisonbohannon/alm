@@ -33,13 +33,13 @@ while flag:
         
 # Fit almm model
 almm_model = Almm(tol=1e-3, coef_penalty_type='l1')
-D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, 5e-2)
+D_pred, C_pred, likelihood, likelihood_val = almm_model.fit_k(x, p, r, 5e-2)
 
-loss = []
-for Di in D_pred:
-    D_pred = np.zeros([r, p, d, d])
-    for j in range(r):
-        D_pred[j] = unstack_ar_coeffs(Di[j])
-    d_loss, _, _ = dictionary_distance(D, D_pred)
-    loss.append(d_loss)
-ax = plt.plot(loss)
+#loss = []
+#for Di in D_pred:
+#    D_pred = np.zeros([r, p, d, d])
+#    for j in range(r):
+#        D_pred[j] = unstack_ar_coeffs(Di[j])
+#    d_loss, _, _ = dictionary_distance(D, D_pred)
+#    loss.append(d_loss)
+#ax = plt.plot(loss)

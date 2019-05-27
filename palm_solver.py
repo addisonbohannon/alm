@@ -11,8 +11,7 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 from sklearn.linear_model import lars_path
-from sklearn.model_selection import train_test_split
-from utility import gram, inner_prod, ar_toep_op
+from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
 def shrink(x, t):
@@ -234,8 +233,7 @@ class Almm:
         Fit the autoregressive linear mixture model to observations.
         
         inputs:
-        obs (list) - list of Observation instances; provides callable
-        functions to extract required quantities
+        obs (list) - list of observations; should be m x d arrays
         
         p (integer) - model order; must be a positive integer less than the 
         observation length
@@ -283,14 +281,14 @@ class Almm:
                             D[-1], C[-1], mu)
         return D, C, L
             
-    def fit_k(self, obs, p, r, mu, k=5):
+    def fit_k(self, obs, p, r, mu, k=5, val_pct=0.25, return_path=False, 
+              return_all=False):
         """
-        Fit ALMM model to observations using multiple starts to address the
-        nonconvexity of the objective.
+        Fit ALMM model to observations using multiple (k-) starts to address 
+        the nonconvexity of the objective.
         
         inputs:
-        obs (list) - list of Observation instances; provides callable
-        functions to extract required quantities
+        obs (list) - list of observations; shold be m x d arrays
         
         p (integer) - model order; must be a positive integer less than the 
         observation length
@@ -302,12 +300,23 @@ class Almm:
         k (integer) - unique initializations of the solver; must be a
         positive integer
         
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
         outputs:
         D (r x p*d x d array) - dictionary estimate
         
         C (n x r array) - coefficient estimate
         
         L (scalar) - negative log likelihood of estimates
+        
+        LV (scalar) - negative log likelihood of estimates during validation
         """
         
         if not isinstance(r, int) or r < 1:
@@ -318,6 +327,13 @@ class Almm:
             raise ValueError('Penalty parameter (mu) must be a positive float.')
         if not isinstance(k, int) or k < 1:
             raise TypeError('Starts (k) must be a positive integer.')
+        if not isinstance(val_pct, float) or val_pct < 0 or val_pct > 1:
+            raise TypeError('Validation percentage must be between 0 and 1.')
+        if not isinstance(return_path, bool):
+            raise TypeError('Return path must be a boolean.')
+        if not isinstance(return_all, bool):
+            raise TypeError('Return all must be a boolean.')
+        
         
         YtY = []
         XtX = []
@@ -336,42 +352,28 @@ class Almm:
             return b
         
         # split observations into training and validation
-        _, YtY_val, XtX_train, XtX_val, XtY_train, XtY_val = train_test_split(YtY, 
-                                                                              XtX, 
-                                                                              XtY)
+        train_idx, val_idx = train_val_split(len(obs), val_pct)
         
-        L_opt = np.inf
-        for start in range(k):
-            # Fit dictionary to training observations with unique initialization
-            D, _, _, _, _ = self._fit(np.array(XtX_train), np.array(XtY_train), 
-                                      p, r, mu)
+        # Fit dictionary to training observations with unique initialization
+        D = [self._fit(np.array(XtX[train_idx]), np.array(XtY[train_idx]), 
+                       p, r, mu, return_path=return_path) for _ in range(k)]
             
-            # Fit coefficients with LASSO estimator
-            n = len(XtX_val)
-            C = np.zeros([n, r])
-            for i in range(n):
-                C[i, :] = lasso(inner_prod(XtY_val[i], D), 
-                                gram(D, lambda x, y : inner_prod(x, np.dot(XtX_val[i], y))))
+        # Fit coefficients with LASSO estimator
+        C = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+                             gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
+                             for XtX_i, XtY_i in zip(XtX, XtY)]) for D_s in D]
             
-            # Calculate negative log likelihood of estimates
-            L = self.likelihood(YtY_val, XtX_val, XtY_val, D, C, mu)
-            
-            # Track the optimal dictionary estimate
-            if start == 0 or L < L_opt:
-                D_opt = D
-                L_opt = L
-                
-        # Fit coefficients for optimal dictionary estimate
-        n = len(XtX)
-        C = np.zeros([n, r])
-        for i in range(n):
-            C[i, :] = lasso(inner_prod(XtY[i], D_opt), 
-                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))))
+        # Calculate negative log likelihood of estimates
+        LT = [self.likelihood(YtY[train_idx], XtX[train_idx], XtY[train_idx],
+                              D_s[-1], C_s[train_idx], mu) for D_s, C_s in zip(D, C)]
+        LV = [self.likelihood(YtY[val_idx], XtX[val_idx], XtY[val_idx],
+                              D_s[-1], C_s[val_idx], mu) for D_s, C_s in zip(D, C)]
         
-        # Compute likelihood of estimates
-        L = self.likelihood(np.array(YtY), np.array(XtX), np.array(XtY), D, C, mu)
-        
-        return D, C, L
+        if return_all:
+            return D, C, (1-val_pct)*LT + val_pct*LV, LV
+        else:
+            opt = np.argmin(LT)
+            return D[opt], C[opt], ((1-val_pct)*LT + val_pct*LV)[opt], LV[opt]
         
     
     def _fit(self, XtX, XtY, p, r, mu, return_path=False):
