@@ -11,6 +11,7 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 from sklearn.linear_model import lars_path
+from sklearn.model_selection import train_test_split
 from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
@@ -352,25 +353,32 @@ class Almm:
             return b
         
         # split observations into training and validation
-        train_idx, val_idx = train_val_split(len(obs), val_pct)
+        YtY_train, YtY_val, XtX_train, XtX_val, XtY_train, XtY_val = train_test_split(YtY, XtX, XtY)
         
         # Fit dictionary to training observations with unique initialization
-        D = [self._fit(np.array(XtX[train_idx]), np.array(XtY[train_idx]), 
-                       p, r, mu, return_path=return_path) for _ in range(k)]
+        D = []
+        for _ in range(k):
+            D_s, _, _, _, _ = self._fit(np.array(XtX_train), 
+                                        np.array(XtY_train), p, r, mu, 
+                                        return_path=return_path)
+            D.append(D_s)
             
         # Fit coefficients with LASSO estimator
-        C = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-                             gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
-                             for XtX_i, XtY_i in zip(XtX, XtY)]) for D_s in D]
+        C_train = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+                                   gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
+                                   for XtX_i, XtY_i in zip(XtX_train, XtY_train)]) for D_s in D]
+        C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+                                 gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
+                                 for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) for D_s in D]
             
         # Calculate negative log likelihood of estimates
-        LT = [self.likelihood(YtY[train_idx], XtX[train_idx], XtY[train_idx],
-                              D_s[-1], C_s[train_idx], mu) for D_s, C_s in zip(D, C)]
-        LV = [self.likelihood(YtY[val_idx], XtX[val_idx], XtY[val_idx],
-                              D_s[-1], C_s[val_idx], mu) for D_s, C_s in zip(D, C)]
+        LT = [self.likelihood(YtY_train, XtX_train, XtY_train, D_s[-1], C_s, mu) 
+              for D_s, C_s in zip(D, C_train)]
+        LV = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
+              for D_s, C_s in zip(D, C_val)]
         
         if return_all:
-            return D, C, (1-val_pct)*LT + val_pct*LV, LV
+            return D, C_train, (1-val_pct)*LT + val_pct*LV, LV
         else:
             opt = np.argmin(LT)
             return D[opt], C[opt], ((1-val_pct)*LT + val_pct*LV)[opt], LV[opt]

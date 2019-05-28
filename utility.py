@@ -31,7 +31,7 @@ def train_val_split(n, p):
     
     val_idx = nr.choice(n, int(n*p), replace=False)
     train_idx = np.setdiff1d(np.arange(n), val_idx)
-    return train_idx, val_idx
+    return list(train_idx), list(val_idx)
 
 def gram(X, ip):
     """
