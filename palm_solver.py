@@ -315,8 +315,6 @@ class Almm:
         
         C (n x r array) - coefficient estimate
         
-        L (scalar) - negative log likelihood of estimates
-        
         LV (scalar) - negative log likelihood of estimates during validation
         """
         
@@ -353,35 +351,44 @@ class Almm:
             return b
         
         # split observations into training and validation
-        YtY_train, YtY_val, XtX_train, XtX_val, XtY_train, XtY_val = train_test_split(YtY, XtX, XtY)
+        train_idx, val_idx = train_val_split(len(obs), val_pct)
+#        YtY_train = [YtY[i] for i in train_idx]
+        YtY_val = [YtY[i] for i in val_idx]
+        XtX_train = [XtX[i] for i in train_idx]
+        XtX_val = [XtX[i] for i in val_idx]
+        XtY_train = [XtY[i] for i in train_idx]
+        XtY_val = [XtY[i] for i in val_idx]
+#        YtY_train, YtY_val, XtX_train, XtX_val, XtY_train, XtY_val = train_test_split(YtY, XtX, XtY)
         
         # Fit dictionary to training observations with unique initialization
         D = []
+        C_train = []
         for _ in range(k):
-            D_s, _, _, _, _ = self._fit(np.array(XtX_train), 
+            D_s, C_s, _, _, _ = self._fit(np.array(XtX_train), 
                                         np.array(XtY_train), p, r, mu, 
                                         return_path=return_path)
             D.append(D_s)
+            C_train.append(C_s)
             
         # Fit coefficients with LASSO estimator
-        C_train = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-                                   gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
-                                   for XtX_i, XtY_i in zip(XtX_train, XtY_train)]) for D_s in D]
         C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
                                  gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
                                  for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) for D_s in D]
             
         # Calculate negative log likelihood of estimates
-        LT = [self.likelihood(YtY_train, XtX_train, XtY_train, D_s[-1], C_s, mu) 
-              for D_s, C_s in zip(D, C_train)]
+#        LT = [self.likelihood(YtY_train, XtX_train, XtY_train, D_s[-1], C_s, mu) 
+#              for D_s, C_s in zip(D, C_train)]
         LV = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
               for D_s, C_s in zip(D, C_val)]
         
+        # Merge coefficient lists
+        C = [[np.array(Cs) for _, Cs in zip(train_idx, list(Cts)).extend(zip(val_idx, list(Cvs))).sort()] for Cts, Cvs in zip(C_train, C_val)]
+        
         if return_all:
-            return D, C_train, (1-val_pct)*LT + val_pct*LV, LV
+            return D, C, LV
         else:
-            opt = np.argmin(LT)
-            return D[opt], C[opt], ((1-val_pct)*LT + val_pct*LV)[opt], LV[opt]
+            opt = np.argmin(LV)
+            return D[opt], C[opt], LV[opt]
         
     
     def _fit(self, XtX, XtY, p, r, mu, return_path=False):
@@ -563,6 +570,22 @@ class Almm:
         """
         Computes the negative log likelihood of the current dictionary and 
         coefficient estimates.
+        
+        inputs:
+        YtY (list of arrays) - correlation of observations
+        
+        XtX (list of arrays) - sample autocorrelation of observations
+        
+        XtY (list of arrays) - sample autocorrelation of observations
+        
+        D (list arrays) - estimates of autoregressive atoms
+        
+        C (array) - estimate of coefficients; length of YtY x length of D
+        
+        mu (scalar) - penalty parameter
+        
+        outputs:
+        likelihood (scalar) - negative log likelihood of estimates
         """
         
         n = len(XtX)
