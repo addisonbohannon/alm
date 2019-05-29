@@ -7,10 +7,10 @@ Created on Sat May 18 17:21:22 2019
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from utility import (unstack_ar_coeffs, dictionary_distance, 
                      check_almm_condition)
 from sampler import almm_iid_sample
-import matplotlib.pyplot as plt
 from palm_solver import Almm
 
 n = 100

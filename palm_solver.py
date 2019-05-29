@@ -315,7 +315,7 @@ class Almm:
         
         C (n x r array) - coefficient estimate
         
-        LV (scalar) - negative log likelihood of estimates during validation
+        Lv (scalar) - negative log likelihood of estimates during validation
         """
         
         if not isinstance(r, int) or r < 1:
@@ -358,7 +358,6 @@ class Almm:
         XtX_val = [XtX[i] for i in val_idx]
         XtY_train = [XtY[i] for i in train_idx]
         XtY_val = [XtY[i] for i in val_idx]
-#        YtY_train, YtY_val, XtX_train, XtX_val, XtY_train, XtY_val = train_test_split(YtY, XtX, XtY)
         
         # Fit dictionary to training observations with unique initialization
         D = []
@@ -371,24 +370,42 @@ class Almm:
             C_train.append(C_s)
             
         # Fit coefficients with LASSO estimator
-        C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-                                 gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
-                                 for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) for D_s in D]
+        C_val = []
+        for D_s in D:
+            C_s = []
+            for XtX_i, XtY_i in zip(XtX_val, XtY_val):
+                if return_path:
+                    temp = lasso(inner_prod(XtY_i, D_s[-1]), 
+                                 gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
+                else:
+                    temp = lasso(inner_prod(XtY_i, D_s), 
+                                 gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
+                C_s.append(temp)
+            C_val.append(np.array(C_s))
+            
             
         # Calculate negative log likelihood of estimates
-#        LT = [self.likelihood(YtY_train, XtX_train, XtY_train, D_s[-1], C_s, mu) 
-#              for D_s, C_s in zip(D, C_train)]
-        LV = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
-              for D_s, C_s in zip(D, C_val)]
+        if return_path:
+            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
+                  for D_s, C_s in zip(D, C_val)]
+        else:            
+            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu) 
+                  for D_s, C_s in zip(D, C_val)]
         
         # Merge coefficient lists
-        C = [[np.array(Cs) for _, Cs in zip(train_idx, list(Cts)).extend(zip(val_idx, list(Cvs))).sort()] for Cts, Cvs in zip(C_train, C_val)]
+        C = []
+        for Cts, Cvs in zip(C_train, C_val):
+            Cts = [i for i in zip(train_idx, list(Cts))]
+            Cts.extend([i for i in zip(val_idx, list(Cvs))])
+            Cts.sort()
+            Cs = np.array([c for _, c in Cts])
+            C.append(Cs)
         
         if return_all:
-            return D, C, LV
+            return D, C, Lv
         else:
-            opt = np.argmin(LV)
-            return D[opt], C[opt], LV[opt]
+            opt = np.argmin(Lv)
+            return D[opt], C[opt], Lv[opt]
         
     
     def _fit(self, XtX, XtY, p, r, mu, return_path=False):
