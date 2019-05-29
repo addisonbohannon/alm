@@ -11,7 +11,6 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 from sklearn.linear_model import lars_path
-from sklearn.model_selection import train_test_split
 from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
@@ -209,26 +208,6 @@ class Almm:
         else:
             raise TypeError('Max iteration must be a positive integer.')
         
-        # TODO: Incorporate into fit_cv (?)
-        # Fit dictionary and coefficients
-#        self.D = []
-#        self.C = []
-#        self.likelihood = []
-#        self.stop_condition = []
-#        for start in range(self.starts):
-#            Di, Ci, D_residual_i, C_residual_i, stop_condition_i = self.fit()
-#            self.D.append(Di)
-#            self.C.append(Ci)
-#            if self.likelihood_path:
-#                Li = []
-#                for Dii, Cii in zip(Di, Ci):
-#                    Li.append(self.compute_likelihood(Dii, Cii))
-#                self.likelihood.append(Li)
-#            else:
-#                self.likelihood.append(self.compute_likelihood(Di[-1], Ci[-1]))
-#            self.stop_condition.append(stop_condition_i)
-#        self.D
-        
     def fit(self, obs, p, r, mu, return_path=False):
         """
         Fit the autoregressive linear mixture model to observations.
@@ -352,7 +331,6 @@ class Almm:
         
         # split observations into training and validation
         train_idx, val_idx = train_val_split(len(obs), val_pct)
-#        YtY_train = [YtY[i] for i in train_idx]
         YtY_val = [YtY[i] for i in val_idx]
         XtX_train = [XtX[i] for i in train_idx]
         XtX_val = [XtX[i] for i in val_idx]
@@ -369,38 +347,47 @@ class Almm:
             D.append(D_s)
             C_train.append(C_s)
             
-        # Fit coefficients with LASSO estimator
-        C_val = []
-        for D_s in D:
-            C_s = []
-            for XtX_i, XtY_i in zip(XtX_val, XtY_val):
-                if return_path:
-                    temp = lasso(inner_prod(XtY_i, D_s[-1]), 
-                                 gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
-                else:
-                    temp = lasso(inner_prod(XtY_i, D_s), 
-                                 gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y))))
-                C_s.append(temp)
-            C_val.append(np.array(C_s))
-            
-            
-        # Calculate negative log likelihood of estimates
         if return_path:
+            # Fit coefficients with LASSO estimator
+            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
+                                     for D_s in D]
+    
+            # Calculate negative log likelihood of estimates
             Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
                   for D_s, C_s in zip(D, C_val)]
-        else:            
+            
+            # Merge coefficient lists
+            # TODO: Make this a list comprehension
+            C = []
+            for Cts, Cvs in zip(C_train, C_val):
+                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
+                C_s.extend([i for i in zip(val_idx, list(Cvs))])
+                C_s.sort()
+                Cs = np.array([c for _, c in C_s])
+                C.append(Cs)
+        else:
+            # Fit coefficients with LASSO estimator
+            C_val = [np.array([lasso(inner_prod(XtY_i, D_s), 
+                                     gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
+                                     for D_s in D]
+    
+            # Calculate negative log likelihood of estimates
             Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu) 
                   for D_s, C_s in zip(D, C_val)]
-        
-        # Merge coefficient lists
-        C = []
-        for Cts, Cvs in zip(C_train, C_val):
-            Cts = [i for i in zip(train_idx, list(Cts))]
-            Cts.extend([i for i in zip(val_idx, list(Cvs))])
-            Cts.sort()
-            Cs = np.array([c for _, c in Cts])
-            C.append(Cs)
-        
+            
+            # Merge coefficient lists
+            # TODO: Make this a list comprehension
+            C = []
+            for Cts, Cvs in zip(C_train, C_val):
+                C_s = [i for i in zip(train_idx, list(Cts))]
+                C_s.extend([i for i in zip(val_idx, list(Cvs))])
+                C_s.sort()
+                Cs = np.array([c for _, c in C_s])
+                C.append(Cs)
+            
         if return_all:
             return D, C, Lv
         else:
