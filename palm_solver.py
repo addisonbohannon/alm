@@ -404,29 +404,46 @@ class Almm:
         
         # Fit dictionary to training observations for each set of parameters
         D = []
-        C_train = []
-        C_val = []
+        C = []
         Lv = []
-        for (p_i, r_i, mu_i) in product(p, r, mu):
-            D_s, C_s, _ = self._fit_k(obs_train, p_i, r_i, mu_i, 
-                                      return_path=return_path, 
+        params = product(p, r, mu)
+        for (p_i, r_i, mu_i) in params:
+            D_s, Cts, _ = self._fit_k(obs_train, p_i, r_i, mu_i, k=k,
+                                      return_path=return_path, val_pct=val_pct,
                                       return_all=False)
             D.append(D_s)
-            C_train.append(C_s)
             
+            # Prepare validation observations
             YtY_val = [ob.YtY(p_i) for ob in obs_val]
             XtX_val = [ob.XtX(p_i) for ob in obs_val]
             XtY_val = [ob.XtY(p_i) for ob in obs_val]
             
-            # Fit coefficients with LASSO estimator
-            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
-                                     for D_s in D]
+            # Fit coefficients and compute negative log likelihood
+            if return_path:
+                Cvs, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], 
+                                           mu_i)
+            else:
+                Cvs, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s, 
+                                           mu_i)
+            Lv.append(L_s)
             
-            # Calculate negative log likelihood of estimates
-            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
-                  for D_s, C_s in zip(D, C_val)]
+            # Merge coefficient lists
+            # TODO: Make this a list comprehension
+            if return_path:
+                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
+            else:
+                C_s = [i for i in zip(train_idx, list(Cts))]
+            C_s.extend([i for i in zip(val_idx, list(Cvs))])
+            C_s.sort()
+            Cs = np.array([c for _, c in C_s])
+            C.append(Cs)
+        
+        params = [i for i in params]
+        if return_all:
+            return D, C, Lv, params
+        else:
+            opt = np.argmin(Lv)
+            return D[opt], C[opt], Lv[opt], params[opt]
         
     def _fit_k(self, obs, p, r, mu, k=5, val_pct=0.25, return_path=False, 
                return_all=False):
@@ -468,15 +485,6 @@ class Almm:
         YtY = [ob.YtY(p) for ob in obs]
         XtX = [ob.XtX(p) for ob in obs]
         XtY = [ob.XtY(p) for ob in obs]
-#        
-#        n = len(obs)
-#        _, d = XtY[0].shape
-#        
-#        def lasso(Xy, XX):
-#            _, _, b = lars_path(np.zeros([1, p*d]), np.zeros([1]), Xy=Xy, 
-#                                Gram=XX, method='lasso', copy_Gram=False, 
-#                                alpha_min=mu, return_path=False)
-#            return b
         
         # split observations into training and validation
         train_idx, val_idx = train_val_split(len(obs), val_pct)
@@ -506,7 +514,6 @@ class Almm:
             if return_path:
                 C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], 
                                            mu)
-#                C_val.append(C_s[-1])
             else:
                 C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s, mu)
             C_val.append(C_s)
@@ -521,47 +528,6 @@ class Almm:
             C_s.sort()
             Cs = np.array([c for _, c in C_s])
             C.append(Cs)
-            
-#        if return_path:
-#            # Fit coefficients with LASSO estimator
-#            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-#                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-#                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
-#                                     for D_s in D]
-#    
-#            # Calculate negative log likelihood of estimates
-#            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
-#                  for D_s, C_s in zip(D, C_val)]
-            
-            # Merge coefficient lists
-            # TODO: Make this a list comprehension
-#            C = []
-#            for Cts, Cvs in zip(C_train, C_val):
-#                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
-#                C_s.extend([i for i in zip(val_idx, list(Cvs))])
-#                C_s.sort()
-#                Cs = np.array([c for _, c in C_s])
-#                C.append(Cs)
-#        else:
-#            # Fit coefficients with LASSO estimator
-#            C_val = [np.array([lasso(inner_prod(XtY_i, D_s), 
-#                                     gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-#                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
-#                                     for D_s in D]
-#    
-#            # Calculate negative log likelihood of estimates
-#            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu) 
-#                  for D_s, C_s in zip(D, C_val)]
-            
-            # Merge coefficient lists
-            # TODO: Make this a list comprehension
-#            C = []
-#            for Cts, Cvs in zip(C_train, C_val):
-#                C_s = [i for i in zip(train_idx, list(Cts))]
-#                C_s.extend([i for i in zip(val_idx, list(Cvs))])
-#                C_s.sort()
-#                Cs = np.array([c for _, c in C_s])
-#                C.append(Cs)
             
         if return_all:
             return D, C, Lv
