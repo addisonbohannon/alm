@@ -7,6 +7,7 @@ Date: 1 May 2019
 """
 
 # Import required libraries
+from itertools import product
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
@@ -311,23 +312,171 @@ class Almm:
             raise TypeError('Return path must be a boolean.')
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
+            
+        obs = [Observation(obs_i) for obs_i in obs]
         
+        return self._fit_k(obs, p, r, mu, k=k, val_pct=val_pct,
+                           return_path=return_path, return_all=return_all)
         
-        YtY = []
-        XtX = []
-        XtY = []
-        for obs_i in obs:
-            ob = Observation(obs_i)
-            YtY.append(ob.YtY(p))
-            XtX.append(ob.XtX(p))
-            XtY.append(ob.XtY(p))
-        d = ob.d
+    def fit_cv(self, obs, p=None, r=None, mu=None, k=5, val_pct=0.25, 
+               return_path=False, return_all=False):
+        """
+        Fit ALMM model to observations for various values of model order,
+        number of dictionary atoms, and penalty parameter. For each unique
+        tuple of parameters, multiple (k-) models are fit.
         
-        def lasso(Xy, XX):
-            _, _, b = lars_path(np.zeros([1, p*d]), np.zeros([1]), Xy=Xy, 
-                                Gram=XX, method='lasso', copy_Gram=False, 
-                                alpha_min=mu, return_path=False)
-            return b
+        inputs:
+        obs (list) - list of observations; shold be m x d arrays
+        
+        p (list or integer) - model order; must be a positive integer or list
+        of positive integers
+        
+        r (list or integer) - dictionary atoms; must be a positive integer or
+        list of positive integers
+        
+        mu (list or float) - penalty parameter; must be a positive float or
+        list of positive floats
+        
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
+        outputs:
+        D (r x p*d x d array) - dictionary estimate
+        
+        C (n x r array) - coefficient estimate
+        
+        Lv (scalar) - negative log likelihood of estimates during validation
+        """
+        
+        if isinstance(p, int):
+            if p > 0:
+                p = [p]
+            else:
+                raise ValueError('Model order must be a positive integer or list of positive integers.')
+        elif isinstance(p, list):
+            if not all([isinstance(i, int) and i > 0 for i in p]):
+                raise ValueError('Model order must be a positive integer or list of positive integers.')
+        elif p is None:
+            p = [1]
+        else:
+            raise TypeError('Model order must be a positive integer or list of positive integers.')
+        if isinstance(r, int):
+            if r > 0:
+                r = [r]
+            else:
+                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
+        elif isinstance(r, list):
+            if not all([isinstance(i, int) and i > 0 for i in r]):
+                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
+        elif r is None:
+            r = [1]
+        else:
+            raise TypeError('Dictionary atoms must be a positive integer or list of positive integers.')
+        if isinstance(mu, float):
+            if mu >= 0:
+                mu = [mu]
+            else:
+                raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        elif isinstance(mu, list):
+            if not all([isinstance(i, float) and i >= 0 for i in mu]):
+                raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        elif mu is None:
+            mu = [0]
+        else:
+            raise TypeError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        if not isinstance(k, int) or k < 1:
+            raise TypeError('Starts (k) must be a positive integer.')
+            
+        obs = [Observation(obs_i) for obs_i in obs]
+        
+        train_idx, val_idx = train_val_split(len(obs), val_pct)
+        obs_train = [obs[i] for i in train_idx]
+        obs_val = [obs[i] for i in val_idx]
+        
+        # Fit dictionary to training observations for each set of parameters
+        D = []
+        C_train = []
+        C_val = []
+        Lv = []
+        for (p_i, r_i, mu_i) in product(p, r, mu):
+            D_s, C_s, _ = self._fit_k(obs_train, p_i, r_i, mu_i, 
+                                      return_path=return_path, 
+                                      return_all=False)
+            D.append(D_s)
+            C_train.append(C_s)
+            
+            YtY_val = [ob.YtY(p_i) for ob in obs_val]
+            XtX_val = [ob.XtX(p_i) for ob in obs_val]
+            XtY_val = [ob.XtY(p_i) for ob in obs_val]
+            
+            # Fit coefficients with LASSO estimator
+            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
+                                     for D_s in D]
+            
+            # Calculate negative log likelihood of estimates
+            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
+                  for D_s, C_s in zip(D, C_val)]
+        
+    def _fit_k(self, obs, p, r, mu, k=5, val_pct=0.25, return_path=False, 
+               return_all=False):
+        """
+        Fit ALMM model to observations using multiple (k-) starts to address 
+        the nonconvexity of the objective. Internal function to the solver
+        class so it requires no explicit error handling.
+        
+        inputs:
+        obs (list) - list of observation objects
+        
+        p (integer) - model order; must be a positive integer less than the 
+        observation length
+        
+        r (integer) - dictionary atoms; must be a positive integer
+        
+        mu (float) - penalty parameter; must be a positive float
+        
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
+        outputs:
+        D (r x p*d x d array) - dictionary estimate
+        
+        C (n x r array) - coefficient estimate
+        
+        Lv (scalar) - negative log likelihood of estimates during validation
+        """
+        
+        YtY = [ob.YtY(p) for ob in obs]
+        XtX = [ob.XtX(p) for ob in obs]
+        XtY = [ob.XtY(p) for ob in obs]
+#        
+#        n = len(obs)
+#        _, d = XtY[0].shape
+#        
+#        def lasso(Xy, XX):
+#            _, _, b = lars_path(np.zeros([1, p*d]), np.zeros([1]), Xy=Xy, 
+#                                Gram=XX, method='lasso', copy_Gram=False, 
+#                                alpha_min=mu, return_path=False)
+#            return b
         
         # split observations into training and validation
         train_idx, val_idx = train_val_split(len(obs), val_pct)
@@ -345,55 +494,80 @@ class Almm:
                                         np.array(XtY_train), p, r, mu, 
                                         return_path=return_path)
             D.append(D_s)
-            C_train.append(C_s)
+            if return_path:
+                C_train.append(C_s[-1])
+            else:
+                C_train.append(C_s)
             
-        if return_path:
-            # Fit coefficients with LASSO estimator
-            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
-                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
-                                     for D_s in D]
-    
-            # Calculate negative log likelihood of estimates
-            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
-                  for D_s, C_s in zip(D, C_val)]
+        # Fit coefficients and compute negative log likelihood
+        C_val = []
+        Lv = []
+        for D_s in D:
+            if return_path:
+                C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], 
+                                           mu)
+#                C_val.append(C_s[-1])
+            else:
+                C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s, mu)
+            C_val.append(C_s)
+            Lv.append(L_s)
+            
+        # Merge coefficient lists
+        # TODO: Make this a list comprehension
+        C = []
+        for Cts, Cvs in zip(C_train, C_val):
+            C_s = [i for i in zip(train_idx, list(Cts))]
+            C_s.extend([i for i in zip(val_idx, list(Cvs))])
+            C_s.sort()
+            Cs = np.array([c for _, c in C_s])
+            C.append(Cs)
+            
+#        if return_path:
+#            # Fit coefficients with LASSO estimator
+#            C_val = [np.array([lasso(inner_prod(XtY_i, D_s[-1]), 
+#                                     gram(D_s[-1], lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+#                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
+#                                     for D_s in D]
+#    
+#            # Calculate negative log likelihood of estimates
+#            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu) 
+#                  for D_s, C_s in zip(D, C_val)]
             
             # Merge coefficient lists
             # TODO: Make this a list comprehension
-            C = []
-            for Cts, Cvs in zip(C_train, C_val):
-                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
-                C_s.extend([i for i in zip(val_idx, list(Cvs))])
-                C_s.sort()
-                Cs = np.array([c for _, c in C_s])
-                C.append(Cs)
-        else:
-            # Fit coefficients with LASSO estimator
-            C_val = [np.array([lasso(inner_prod(XtY_i, D_s), 
-                                     gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
-                                     for D_s in D]
-    
-            # Calculate negative log likelihood of estimates
-            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu) 
-                  for D_s, C_s in zip(D, C_val)]
+#            C = []
+#            for Cts, Cvs in zip(C_train, C_val):
+#                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
+#                C_s.extend([i for i in zip(val_idx, list(Cvs))])
+#                C_s.sort()
+#                Cs = np.array([c for _, c in C_s])
+#                C.append(Cs)
+#        else:
+#            # Fit coefficients with LASSO estimator
+#            C_val = [np.array([lasso(inner_prod(XtY_i, D_s), 
+#                                     gram(D_s, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+#                                     for XtX_i, XtY_i in zip(XtX_val, XtY_val)]) 
+#                                     for D_s in D]
+#    
+#            # Calculate negative log likelihood of estimates
+#            Lv = [self.likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu) 
+#                  for D_s, C_s in zip(D, C_val)]
             
             # Merge coefficient lists
             # TODO: Make this a list comprehension
-            C = []
-            for Cts, Cvs in zip(C_train, C_val):
-                C_s = [i for i in zip(train_idx, list(Cts))]
-                C_s.extend([i for i in zip(val_idx, list(Cvs))])
-                C_s.sort()
-                Cs = np.array([c for _, c in C_s])
-                C.append(Cs)
+#            C = []
+#            for Cts, Cvs in zip(C_train, C_val):
+#                C_s = [i for i in zip(train_idx, list(Cts))]
+#                C_s.extend([i for i in zip(val_idx, list(Cvs))])
+#                C_s.sort()
+#                Cs = np.array([c for _, c in C_s])
+#                C.append(Cs)
             
         if return_all:
             return D, C, Lv
         else:
             opt = np.argmin(Lv)
             return D[opt], C[opt], Lv[opt]
-        
     
     def _fit(self, XtX, XtY, p, r, mu, return_path=False):
         """
@@ -569,6 +743,46 @@ class Almm:
             return D_path, C_path, residual_D, residual_C, stop_condition
         else:
             return D, C, residual_C, residual_D, stop_condition
+        
+    def _fit_coefs(self, YtY, XtX, XtY, D, mu):
+        """
+        Fit coefficients for a known dictionary of autoregressive atoms and
+        penalty parameter.
+        
+        inputs:
+        YtY (list of arrays) - correlation of observations
+        
+        XtX (list of arrays) - sample autocorrelation of observations
+        
+        XtY (list of arrays) - sample autocorrelation of observations
+        
+        D (list arrays) - estimates of autoregressive atoms
+        
+        mu (scalar) - penalty parameter
+        
+        outputs:
+        C (array) - estimate of coefficients; length of YtY x length of D
+        
+        likelihood (scalar) - negative log likelihood of estimates
+        """        
+        
+        pd, _ = XtX[0].shape
+        
+        def lasso(Xy, XX):
+            _, _, b = lars_path(np.zeros([1, pd]), np.zeros([1]), Xy=Xy, 
+                                Gram=XX, method='lasso', copy_Gram=False, 
+                                alpha_min=mu, return_path=False)
+            return b
+        
+        # Fit coefficients with LASSO estimator
+        C = np.array([lasso(inner_prod(XtY_i, D), 
+                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+                            for XtX_i, XtY_i in zip(XtX, XtY)])
+
+        # Calculate negative log likelihood of estimates
+        L = self.likelihood(YtY, XtX, XtY, D, C, mu)
+        
+        return C, L
     
     def likelihood(self, YtY, XtX, XtY, D, C, mu):
         """

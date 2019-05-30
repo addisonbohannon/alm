@@ -35,7 +35,7 @@ if __name__ == '__main__':
             
     # Fit almm model
     almm_model = Almm(tol=1e-3, coef_penalty_type='l1')
-    D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, 5e-2, return_path=True, return_all=True)
+    D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, 5e-2, return_path=False, return_all=False)
     
     for Ds in D_pred:  
         loss = []
