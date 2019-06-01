@@ -409,7 +409,7 @@ class Almm:
         params = product(p, r, mu)
         for (p_i, r_i, mu_i) in params:
             D_s, Cts, _ = self._fit_k(obs_train, p_i, r_i, mu_i, k=k,
-                                      return_path=return_path, val_pct=val_pct,
+                                      val_pct=val_pct, return_path=return_path, 
                                       return_all=False)
             D.append(D_s)
             
@@ -429,10 +429,7 @@ class Almm:
             
             # Merge coefficient lists
             # TODO: Make this a list comprehension
-            if return_path:
-                C_s = [i for i in zip(train_idx, list(Cts[-1]))]
-            else:
-                C_s = [i for i in zip(train_idx, list(Cts))]
+            C_s = [i for i in zip(train_idx, list(Cts))]
             C_s.extend([i for i in zip(val_idx, list(Cvs))])
             C_s.sort()
             Cs = np.array([c for _, c in C_s])

@@ -36,12 +36,12 @@ if __name__ == '__main__':
     # Fit almm model
     p_list = [1, 2]
     r_list = [5, 10]
-    mu_list = [1e-2, 5e-2, 1e-1]
+    mu_list = [1e-2, 5e-2]
     almm_model = Almm(tol=1e-3, coef_penalty_type='l1')
     D_pred, C_pred, likelihood = almm_model.fit_cv(x, p=p_list, r=r_list,
                                                    mu=mu_list, k=2,
-                                                   return_path=False, 
-                                                   return_all=False)
+                                                   return_path=True, 
+                                                   return_all=True)
     
 #    for Ds in D_pred:  
 #        loss = []
