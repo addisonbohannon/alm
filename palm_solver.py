@@ -11,7 +11,7 @@ from itertools import product
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from sklearn.linear_model import lars_path
+#from sklearn.linear_model import lars_path
 from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
@@ -58,6 +58,59 @@ def prox_dict(z):
     """
     
     return z / sl.norm(z, ord='fro')
+
+def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
+    """
+    Implements an ADMM solver for the penalized least squares problem,
+    argmin_x 1/2 * \|Ax-b\|^2 + mu * \|x\|_p, using the precomputed gram
+    matrix and covariance, i.e. G=A^T.A and C=A^T.b.
+    
+    inputs:
+    A (m x m array) - data matrix
+    b (m x n array) - observations
+    mu (scalar) - penalty parameter
+    p (0 or 1) - p-norm penalty; must be 0 or 1
+    max_iter (int) - maximum iterations of algorithm; must be positive integer
+    tol (scalar) - tolerancde for terminating algorithm
+    
+    outputs:
+    x (m array) - parameters
+    r (list) - residual
+    stop condition (string) - relative condition, absolute condition, or 
+    maximum iteration
+    """
+    
+    m, n = C.shape
+    # initialize variables for solver
+    Z = np.zeros_like(C)
+    U = np.zeros_like(Z)
+    r = []
+    s = []
+    # precompute values for admm loop
+    p = 1e-4
+    G_factor = sl.cho_factor(G + np.eye(m))
+    # admm solver
+    for step in np.arange(int(max_iter)):
+        # update X with ridge regression
+        X = sl.cho_solve(G_factor, C - U + p * Z)
+        # update Z
+        Z_upd = prox(X + (1/p) * U, mu / p)
+        # update dual residual
+        s.append(p * sl.norm(Z_upd-Z))
+        Z = Z_upd
+        # update Lagrange multiplier, U
+        U += p * (X - Z)
+        # update primal residual
+        r.append(sl.norm(X-Z))
+        if (r[step] <= tol*np.maximum(sl.norm(X), sl.norm(Z))) and (s[step] <= tol*sl.norm(U)):
+            break
+        if r[step] > 4 * s[step]:
+            p *= 2
+            G_factor = sl.cho_factor(G + p*np.eye(m))
+        elif s[step] > 4 * r[step]:
+            p /= 2
+            G_factor = sl.cho_factor(G + p*np.eye(m))
+    return X
 
 # Autoregressive observation class
 class Observation:
@@ -408,6 +461,10 @@ class Almm:
         Lv = []
         params = product(p, r, mu)
         for (p_i, r_i, mu_i) in params:
+            #------
+            # Debug
+            print(p_i, r_i, mu_i)
+            #------
             D_s, Cts, _ = self._fit_k(obs_train, p_i, r_i, mu_i, k=k,
                                       val_pct=val_pct, return_path=return_path, 
                                       return_all=False)
@@ -494,10 +551,14 @@ class Almm:
         # Fit dictionary to training observations with unique initialization
         D = []
         C_train = []
-        for _ in range(k):
+        for ki in range(k):
             D_s, C_s, _, _, _ = self._fit(np.array(XtX_train), 
                                         np.array(XtY_train), p, r, mu, 
                                         return_path=return_path)
+            #------
+            # Debug
+            print(p, r, mu, ki)
+            #------
             D.append(D_s)
             if return_path:
                 C_train.append(C_s[-1])
@@ -731,16 +792,19 @@ class Almm:
         
         pd, _ = XtX[0].shape
         
-        def lasso(Xy, XX):
-            _, _, b = lars_path(np.zeros([1, pd]), np.zeros([1]), Xy=Xy, 
-                                Gram=XX, method='lasso', copy_Gram=False, 
-                                alpha_min=mu, return_path=False)
-            return b
+#        def lasso(Xy, XX):
+#            _, _, b = lars_path(np.zeros([1, pd]), np.zeros([1]), Xy=Xy, 
+#                                Gram=XX, method='lasso', copy_Gram=False, 
+#                                alpha_min=mu, return_path=False)
+#            return b
         
         # Fit coefficients with LASSO estimator
-        C = np.array([lasso(inner_prod(XtY_i, D), 
-                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-                            for XtX_i, XtY_i in zip(XtX, XtY)])
+#        C = np.array([lasso(inner_prod(XtY_i, D), 
+#                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
+#                            for XtX_i, XtY_i in zip(XtX, XtY)])
+        C = np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
+                                        inner_prod(XtY_i, D)) for XtX_i, XtY_i
+                                        in zip(XtX, XtY)])
 
         # Calculate negative log likelihood of estimates
         L = self.likelihood(YtY, XtX, XtY, D, C, mu)
