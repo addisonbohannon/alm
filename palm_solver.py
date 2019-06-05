@@ -66,8 +66,8 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
     matrix and covariance, i.e. G=A^T.A and C=A^T.b.
     
     inputs:
-    A (m x m array) - data matrix
-    b (m x n array) - observations
+    G (m x m array) - data matrix
+    C (m array) - observations
     mu (scalar) - penalty parameter
     p (0 or 1) - p-norm penalty; must be 0 or 1
     max_iter (int) - maximum iterations of algorithm; must be positive integer
@@ -75,12 +75,9 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
     
     outputs:
     x (m array) - parameters
-    r (list) - residual
-    stop condition (string) - relative condition, absolute condition, or 
-    maximum iteration
     """
     
-    m, n = C.shape
+    m = len(C)
     # initialize variables for solver
     Z = np.zeros_like(C)
     U = np.zeros_like(Z)
@@ -803,7 +800,7 @@ class Almm:
 #                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
 #                            for XtX_i, XtY_i in zip(XtX, XtY)])
         C = np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
-                                        inner_prod(XtY_i, D)) for XtX_i, XtY_i
+                                        inner_prod(XtY_i, D), self.prox_coef, mu) for XtX_i, XtY_i
                                         in zip(XtX, XtY)])
 
         # Calculate negative log likelihood of estimates
