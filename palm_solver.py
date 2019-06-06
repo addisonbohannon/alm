@@ -11,7 +11,6 @@ from itertools import product
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-#from sklearn.linear_model import lars_path
 from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
@@ -785,23 +784,12 @@ class Almm:
         C (array) - estimate of coefficients; length of YtY x length of D
         
         likelihood (scalar) - negative log likelihood of estimates
-        """        
-        
-        pd, _ = XtX[0].shape
-        
-#        def lasso(Xy, XX):
-#            _, _, b = lars_path(np.zeros([1, pd]), np.zeros([1]), Xy=Xy, 
-#                                Gram=XX, method='lasso', copy_Gram=False, 
-#                                alpha_min=mu, return_path=False)
-#            return b
+        """
         
         # Fit coefficients with LASSO estimator
-#        C = np.array([lasso(inner_prod(XtY_i, D), 
-#                            gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y)))) 
-#                            for XtX_i, XtY_i in zip(XtX, XtY)])
         C = np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
-                                        inner_prod(XtY_i, D), self.prox_coef, mu) for XtX_i, XtY_i
-                                        in zip(XtX, XtY)])
+                                        inner_prod(XtY_i, D), self.prox_coef, mu) 
+                                        for XtX_i, XtY_i in zip(XtX, XtY)])
 
         # Calculate negative log likelihood of estimates
         L = self.likelihood(YtY, XtX, XtY, D, C, mu)

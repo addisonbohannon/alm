@@ -43,12 +43,12 @@ if __name__ == '__main__':
                                                            return_path=True, 
                                                            return_all=True)
     
-#    for Ds in D_pred:  
-#        loss = []
-#        for Di in Ds:
-#            Di_pred = np.zeros([r, p, d, d])
-#            for j in range(r):
-#                Di_pred[j] = unstack_ar_coeffs(Di[j])
-#            d_loss, _, _ = dictionary_distance(D, Di_pred)
-#            loss.append(d_loss)
-#        ax = plt.plot(loss)
+    for Ds, (ps, rs, mus) in zip(D_pred, params):  
+        loss = []
+        for Di in Ds:
+            Di_pred = np.zeros([rs, ps, d, d])
+            for j in range(rs):
+                Di_pred[j] = unstack_ar_coeffs(Di[j])
+            d_loss, _, _ = dictionary_distance(D, Di_pred)
+            loss.append(d_loss)
+        ax = plt.plot(loss)

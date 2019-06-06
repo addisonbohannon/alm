@@ -35,14 +35,14 @@ if __name__ == '__main__':
             
     # Fit almm model
     almm_model = Almm(tol=1e-3, coef_penalty_type='l1')
-    D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, 5e-2, return_path=False, return_all=True)
+    D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, 5e-2, return_path=True, return_all=True)
     
-#    for Ds in D_pred:  
-#        loss = []
-#        for Di in Ds:
-#            Di_pred = np.zeros([r, p, d, d])
-#            for j in range(r):
-#                Di_pred[j] = unstack_ar_coeffs(Di[j])
-#            d_loss, _, _ = dictionary_distance(D, Di_pred)
-#            loss.append(d_loss)
-#        ax = plt.plot(loss)
+    for Ds in D_pred:  
+        loss = []
+        for Di in Ds:
+            Di_pred = np.zeros([r, p, d, d])
+            for j in range(r):
+                Di_pred[j] = unstack_ar_coeffs(Di[j])
+            d_loss, _, _ = dictionary_distance(D, Di_pred)
+            loss.append(d_loss)
+        ax = plt.plot(loss)
