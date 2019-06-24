@@ -7,11 +7,31 @@ Date: 26 Apr 2019
 """
 
 import numpy as np
+import numpy.random as nr
 import scipy.linalg as sl
 import scipy.fftpack as sf
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 import cvxpy as cp
+
+def train_val_split(n, p):
+    """
+    Returns indices for a training set and validation set.
+    
+    inputs:
+    n (integer) - number of samples; must be positive
+    
+    p (float) - fraction of samples for validation; must be between 0 and 1
+    """
+    
+    if not isinstance(n, int) or n < 1:
+        raise TypeError('Number of samples must be a positive integer.')
+    if not isinstance(p, float) or p < 0 or p > 1:
+        raise TypeError('Validation percentage must be between 0 and 1.')
+    
+    val_idx = nr.choice(n, int(n*p), replace=False)
+    train_idx = np.setdiff1d(np.arange(n), val_idx)
+    return list(train_idx), list(val_idx)
 
 def gram(X, ip):
     """

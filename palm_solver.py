@@ -7,10 +7,11 @@ Date: 1 May 2019
 """
 
 # Import required libraries
+from itertools import product
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import gram, inner_prod, ar_toep_op
+from utility import gram, inner_prod, ar_toep_op, train_val_split
 
 # Utility functions
 def shrink(x, t):
@@ -57,76 +58,182 @@ def prox_dict(z):
     
     return z / sl.norm(z, ord='fro')
 
+def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
+    """
+    Implements an ADMM solver for the penalized least squares problem,
+    argmin_x 1/2 * \|Ax-b\|^2 + mu * \|x\|_p, using the precomputed gram
+    matrix and covariance, i.e. G=A^T.A and C=A^T.b.
+    
+    inputs:
+    G (m x m array) - data matrix
+    C (m array) - observations
+    mu (scalar) - penalty parameter
+    p (0 or 1) - p-norm penalty; must be 0 or 1
+    max_iter (int) - maximum iterations of algorithm; must be positive integer
+    tol (scalar) - tolerancde for terminating algorithm
+    
+    outputs:
+    x (m array) - parameters
+    """
+    
+    m = len(C)
+    # initialize variables for solver
+    Z = np.zeros_like(C)
+    U = np.zeros_like(Z)
+    r = []
+    s = []
+    # precompute values for admm loop
+    p = 1e-4
+    G_factor = sl.cho_factor(G + np.eye(m))
+    # admm solver
+    for step in np.arange(int(max_iter)):
+        # update X with ridge regression
+        X = sl.cho_solve(G_factor, C - U + p * Z)
+        # update Z
+        Z_upd = prox(X + (1/p) * U, mu / p)
+        # update dual residual
+        s.append(p * sl.norm(Z_upd-Z))
+        Z = Z_upd
+        # update Lagrange multiplier, U
+        U += p * (X - Z)
+        # update primal residual
+        r.append(sl.norm(X-Z))
+        if (r[step] <= tol*np.maximum(sl.norm(X), sl.norm(Z))) and (s[step] <= tol*sl.norm(U)):
+            break
+        if r[step] > 4 * s[step]:
+            p *= 2
+            G_factor = sl.cho_factor(G + p*np.eye(m))
+        elif s[step] > 4 * r[step]:
+            p /= 2
+            G_factor = sl.cho_factor(G + p*np.eye(m))
+    return X
+
+# Autoregressive observation class
+class Observation:
+    
+    # Class constructor
+    def __init__(self, obs):
+        """
+        Class constructor for ALMM observation. Provides data manipulations 
+        and cross-validation backend for the solver.
+        
+        inputs:
+        obs (m x d array) - autoregressive observation
+        """
+        
+        if len(np.shape(obs)) != 2:
+            raise TypeError('Observation dimension invalid. Should be m x d.')
+        self.x = obs
+        self.m, self.d = obs.shape
+        
+    def Y(self, p):
+        """
+        Returns stacked observations for a maximum likelihood estimator, i.e.,
+        Y = [y[p], ..., y[m]]^T.
+        
+        inputs:
+        p (integer) - model order; must be a positive integer
+        
+        outputs:
+        Y ((m-p) x d array) - stacked observations
+        """
+        
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order must be an integer.')
+        
+        return self.x[p:, :]
+    
+    def X(self, p):
+        """
+        Returns autoregressive operator of p-order lag, i.e.,
+        [[x^T[p], ..., x^T[1]], ..., [x^T[m-1], ..., x^T[m-p]]]
+        
+        inputs:
+        p (integer) - model order; must be a positive integer
+        
+        outputs:
+        X ((m-p) x p*d array) - autoregressive operator
+        """
+        
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order must be an integer.')
+        X, _ = ar_toep_op(self.x, p)
+        return X
+    
+    def YtY(self, p):
+        """
+        Returns sample correlation, i.e., <Y, Y>_F / (m-p)
+        
+        inputs:
+        p (integer) - model order; must be a positive integer
+        
+        outputs:
+        YtY (float) - sample correlation of observation
+            
+        """
+        
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order must be an integer.')
+        _Y = self.Y(p)
+        return inner_prod(_Y, _Y) / (self.m - p)
+    
+    def XtX(self, p):
+        """
+        Returns the sample autocorrelation of the autoregressive process
+        
+        inputs:
+        p (integer) - model order; must be a positive integer
+        
+        outputs:
+        XtX (p*d x p*d array) - sample autocorrelation
+        """
+        
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order must be an integer.')
+        _X = self.X(p)
+        return np.dot(_X.T, _X) / (self.m - p)
+    
+    def XtY(self, p):
+        """
+        Returns sample autocorrelation, i.e., X^T Y
+        
+        inputs:
+        p (integer) - model order; must be a positive integer
+        
+        outputs:
+        XtY (p*d x d array) - sample autocorrelation
+        """
+        
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order must be an integer.')
+        _X = self.X(p)
+        _Y = self.Y(p)
+        return np.dot(_X.T, _Y) / (self.m - p)
+
 # Solver class
 class Almm:
     
     # Class constructor
-    def __init__(self, observations, model_order, atoms, penalty_parameter, 
-                 coef_penalty_type='l1', step_size=10, max_iter=int(2.5e3), 
-                 tol=1e-4, return_path=False, likelihood_path=False,
-                 starts=5):
+    def __init__(self, coef_penalty_type='l1', step_size=10, tol=1e-4, 
+                 max_iter=int(2.5e3)):
         """
-        Class constructor for ALMM solver. Takes as arguments the observations, 
-        desired autoregressive model order, number of atoms to fit, the
-        sparsity penalty, maximum iterations, and tolerance. Pre-computes 
-        re-used quantities and initializes the dictionary and coefficient 
-        estimates.
+        Class constructor for ALMM solver.
         
         inputs:
-        observations (n x m x d tensor) - Observations; first dimension 
-        indexes the observation, second dimension indexes the time, and third
-        dimension indexes the coordinate
-        
-        model order (integer) - Autoregressive model order; must be much less 
-        than observation length for reasonable estimation
-        
-        atoms (integer) - Number of autoregressive components; must be much
-        less than number of observations
-        
-        penalty parameter (scalar) - Relative weight of sparsity penalty; must 
-        be positive
-        
         coef penalty type (string) - Penalty applied to coefficients to enforce
         sparsity; options include {None, 'l0', 'l1' (default)}
         
         step size (scalar) - Factor by which to divide the Lipschitz-based 
         step size
         
-        maximum iterations (integer) - Maximum number of iterations for 
-        algorithm
-        
         tolerance (float) - Tolerance to terminate iterative algorithm; must
         be positive
         
-        return path (boolean) - Whether to record the iterative updates of
-        the dictionary; memory intensive
-        
-        likelihood path (boolean) - Whether to record the likelihood at each
-        step; computationally intensive
-        
-        starts (integer) - How many unique initializations to start
-        the algorithm
+        maximum iterations (integer) - Maximum number of iterations for 
+        algorithm
         """
         
         # Check arguments
-        if isinstance(model_order, int):
-            self.p = model_order
-        else:
-            raise TypeError('Model order must be an integer.')
-        if isinstance(atoms, int):
-            self.r = atoms
-        else:
-            raise TypeError('Atoms must be an integer.')
-        if len(np.shape(observations)) != 3:
-            raise TypeError('Observation dimension invalid. Should be n x m x d.')
-        else:
-            self.n, self.m, self.d = observations.shape
-            self.m -= self.p
-            self.Y = np.zeros([self.n, self.m, self.d])
-            self.X = np.zeros([self.n, self.m, self.p*self.d])
-            for i in range(self.n):
-                self.X[i, :, :], self.Y[i, :, :] = ar_toep_op(observations[i, :, :], 
-                                                              self.p)
         if coef_penalty_type is None:
             self.coef_penalty_type = coef_penalty_type
             self.prox_coef = lambda x, t : x
@@ -138,130 +245,375 @@ class Almm:
             self.prox_coef = shrink
         else:
             raise ValueError(coef_penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
-        if isinstance(penalty_parameter, float) and penalty_parameter > 0:
-            self.mu = penalty_parameter
-        else:
-            raise ValueError('Penalty must be a positive float.')
         if isinstance(float(step_size), float) and step_size > 1:
             self.step_size = float(step_size)
         else:
             raise ValueError('Step size must be a float greater than 1.')
-        if isinstance(max_iter, int) and max_iter > 0:
-            self.max_iter = max_iter
-        else:
-            raise TypeError('Max iteration must be a positive integer.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
             raise ValueError('Tolerance must be a positive float.')
-        if isinstance(return_path, bool):
-            self.return_path = return_path
+        if isinstance(max_iter, int) and max_iter > 0:
+            self.max_iter = max_iter
         else:
-            raise TypeError('return_path must be True/False.')
-        if isinstance(likelihood_path, bool):
-            self.likelihood_path = likelihood_path
-            if self.likelihood_path:
-                self.return_path = True
-        else:
-            raise TypeError('likelihood_path must be True/False.')
-        if isinstance(starts, int) and starts > 0:
-            self.starts = starts
-        else:
-            raise TypeError('Starts must be a positive integer.')
+            raise TypeError('Max iteration must be a positive integer.')
         
-        # Pre-compute re-used quantities
-        self.XtX = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.X)
-        self.XtY = self.m**(-1) * np.matmul(np.moveaxis(self.X, 1, 2), self.Y)
-        self.YtY = self.m**(-1) * np.mean(inner_prod(self.Y, self.Y))
-        
-        # Fit dictionary and coefficients
-        self.D = []
-        self.C = []
-        self.likelihood = []
-        self.stop_condition = []
-        for start in range(self.starts):
-            Di, Ci, D_residual_i, C_residual_i, stop_condition_i = self.fit()
-            self.D.append(Di)
-            self.C.append(Ci)
-            if self.likelihood_path:
-                Li = []
-                for Dii, Cii in zip(Di, Ci):
-                    Li.append(self.compute_likelihood(Dii, Cii))
-                self.likelihood.append(Li)
-            else:
-                self.likelihood.append(self.compute_likelihood(Di[-1], Ci[-1]))
-            self.stop_condition.append(stop_condition_i)
-        self.D
-        
-        # Remove prox_coef method to allow opening class in Spyder
-        del self.prox_coef
-        
-    def initialize_estimates(self):
+    def fit(self, obs, p, r, mu, return_path=False):
         """
-        Initializes the dictionary and coefficient estimates.
+        Fit the autoregressive linear mixture model to observations.
+        
+        inputs:
+        obs (list) - list of observations; should be m x d arrays
+        
+        p (integer) - model order; must be a positive integer less than the 
+        observation length
+        
+        r (integer) - dictionary atoms; must be a positive integer
+        
+        mu (float) - penalty parameter; must be a positive float
+        
+        starts (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary and coefficient estimates
         
         outputs:
-        D (r x p*d x d tensor) - initial dictionary estimate
+        D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
         
-        C (n x r tensor) - initial coefficient estimate
+        C ([k x] n x r array) - coefficient estimate [if return_path=True]
+        
+        L (scalar) - negative log likelihood of estimates
         """
         
-        def coef_lstsq(D):
-            """
-            Fits the coefficients for the current dictionary estimate using an 
-            unpenalized least squares estimator.
-            
-            inputs:
-            D (r x p*d x d tensor) - initial dictionary estimate
-            
-            outputs:
-            C (n x r tensor) - coefficients which minimize the least squares
-            objective
-            """
-            
-            C = np.zeros([self.n, self.r])
-            for i in range(self.n):
-                C[i, :] = sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y))), 
-                                        inner_prod(self.XtY[i, :, :], D), 
-                                        assume_a='pos')
-            return C
+        if not isinstance(r, int) or r < 1:
+            raise TypeError('Atoms (r) must be a positive integer.')
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order (p) must be a positive integer.')
+        if not isinstance(mu, float) and mu < 0:
+            raise ValueError('Penalty parameter (mu) must be a positive float.')
+        if not isinstance(return_path, bool):
+            raise TypeError('Return path must be a boolean.')
         
-        D = nr.randn(self.r, self.p*self.d, self.d)
-        for j in range(self.r):
-            D[j, :, :] = prox_dict(D[j, :, :])
-        C = coef_lstsq(D)
-        return D, C
+        YtY = []
+        XtX = []
+        XtY = []
+        for obs_i in obs:
+            ob = Observation(obs_i)
+            YtY.append(ob.YtY(p))
+            XtX.append(ob.XtX(p))
+            XtY.append(ob.XtY(p))
+        
+        D, C, res_D, res_C, stop_con = self._fit(np.array(XtX), np.array(XtY), 
+                                                 p, r, mu, 
+                                                 return_path=return_path)
+        L = self.likelihood(np.array(YtY), np.array(XtX), np.array(XtY), 
+                            D[-1], C[-1], mu)
+        return D, C, L
+            
+    def fit_k(self, obs, p, r, mu, k=5, val_pct=0.25, return_path=False, 
+              return_all=False):
+        """
+        Fit ALMM model to observations using multiple (k-) starts to address 
+        the nonconvexity of the objective.
+        
+        inputs:
+        obs (list) - list of observations; shold be m x d arrays
+        
+        p (integer) - model order; must be a positive integer less than the 
+        observation length
+        
+        r (integer) - dictionary atoms; must be a positive integer
+        
+        mu (float) - penalty parameter; must be a positive float
+        
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
+        outputs:
+        D (r x p*d x d array) - dictionary estimate
+        
+        C (n x r array) - coefficient estimate
+        
+        Lv (scalar) - negative log likelihood of estimates during validation
+        """
+        
+        if not isinstance(r, int) or r < 1:
+            raise TypeError('Atoms (r) must be a positive integer.')
+        if not isinstance(p, int) or p < 1:
+            raise TypeError('Model order (p) must be a positive integer.')
+        if not isinstance(mu, float) and mu < 0:
+            raise ValueError('Penalty parameter (mu) must be a positive float.')
+        if not isinstance(k, int) or k < 1:
+            raise TypeError('Starts (k) must be a positive integer.')
+        if not isinstance(val_pct, float) or val_pct < 0 or val_pct > 1:
+            raise TypeError('Validation percentage must be between 0 and 1.')
+        if not isinstance(return_path, bool):
+            raise TypeError('Return path must be a boolean.')
+        if not isinstance(return_all, bool):
+            raise TypeError('Return all must be a boolean.')
+            
+        obs = [Observation(obs_i) for obs_i in obs]
+        
+        return self._fit_k(obs, p, r, mu, k=k, val_pct=val_pct,
+                           return_path=return_path, return_all=return_all)
+        
+    def fit_cv(self, obs, p=None, r=None, mu=None, k=5, val_pct=0.25, 
+               return_path=False, return_all=False):
+        """
+        Fit ALMM model to observations for various values of model order,
+        number of dictionary atoms, and penalty parameter. For each unique
+        tuple of parameters, multiple (k-) models are fit.
+        
+        inputs:
+        obs (list) - list of observations; shold be m x d arrays
+        
+        p (list or integer) - model order; must be a positive integer or list
+        of positive integers
+        
+        r (list or integer) - dictionary atoms; must be a positive integer or
+        list of positive integers
+        
+        mu (list or float) - penalty parameter; must be a positive float or
+        list of positive floats
+        
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
+        outputs:
+        D (r x p*d x d array) - dictionary estimate
+        
+        C (n x r array) - coefficient estimate
+        
+        Lv (scalar) - negative log likelihood of estimates during validation
+        """
+        
+        if isinstance(p, int):
+            if p > 0:
+                p = [p]
+            else:
+                raise ValueError('Model order must be a positive integer or list of positive integers.')
+        elif isinstance(p, list):
+            if not all([isinstance(i, int) and i > 0 for i in p]):
+                raise ValueError('Model order must be a positive integer or list of positive integers.')
+        elif p is None:
+            p = [1]
+        else:
+            raise TypeError('Model order must be a positive integer or list of positive integers.')
+        if isinstance(r, int):
+            if r > 0:
+                r = [r]
+            else:
+                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
+        elif isinstance(r, list):
+            if not all([isinstance(i, int) and i > 0 for i in r]):
+                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
+        elif r is None:
+            r = [1]
+        else:
+            raise TypeError('Dictionary atoms must be a positive integer or list of positive integers.')
+        if isinstance(mu, float):
+            if mu >= 0:
+                mu = [mu]
+            else:
+                raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        elif isinstance(mu, list):
+            if not all([isinstance(i, float) and i >= 0 for i in mu]):
+                raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        elif mu is None:
+            mu = [0]
+        else:
+            raise TypeError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+        if not isinstance(k, int) or k < 1:
+            raise TypeError('Starts (k) must be a positive integer.')
+            
+        obs = [Observation(obs_i) for obs_i in obs]
+        
+        train_idx, val_idx = train_val_split(len(obs), val_pct)
+        obs_train = [obs[i] for i in train_idx]
+        obs_val = [obs[i] for i in val_idx]
+        
+        # Fit dictionary to training observations for each set of parameters
+        D = []
+        C = []
+        Lv = []
+        params = product(p, r, mu)
+        for (p_i, r_i, mu_i) in params:
+            #------
+            # Debug
+            print(p_i, r_i, mu_i)
+            #------
+            D_s, Cts, _ = self._fit_k(obs_train, p_i, r_i, mu_i, k=k,
+                                      val_pct=val_pct, return_path=return_path, 
+                                      return_all=False)
+            D.append(D_s)
+            
+            # Prepare validation observations
+            YtY_val = [ob.YtY(p_i) for ob in obs_val]
+            XtX_val = [ob.XtX(p_i) for ob in obs_val]
+            XtY_val = [ob.XtY(p_i) for ob in obs_val]
+            
+            # Fit coefficients and compute negative log likelihood
+            if return_path:
+                Cvs, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], 
+                                           mu_i)
+            else:
+                Cvs, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s, 
+                                           mu_i)
+            Lv.append(L_s)
+            
+            # Merge coefficient lists
+            # TODO: Make this a list comprehension
+            C_s = [i for i in zip(train_idx, list(Cts))]
+            C_s.extend([i for i in zip(val_idx, list(Cvs))])
+            C_s.sort()
+            Cs = np.array([c for _, c in C_s])
+            C.append(Cs)
+        
+        params = [i for i in params]
+        if return_all:
+            return D, C, Lv, params
+        else:
+            opt = np.argmin(Lv)
+            return D[opt], C[opt], Lv[opt], params[opt]
+        
+    def _fit_k(self, obs, p, r, mu, k=5, val_pct=0.25, return_path=False, 
+               return_all=False):
+        """
+        Fit ALMM model to observations using multiple (k-) starts to address 
+        the nonconvexity of the objective. Internal function to the solver
+        class so it requires no explicit error handling.
+        
+        inputs:
+        obs (list) - list of observation objects
+        
+        p (integer) - model order; must be a positive integer less than the 
+        observation length
+        
+        r (integer) - dictionary atoms; must be a positive integer
+        
+        mu (float) - penalty parameter; must be a positive float
+        
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
+        
+        val_pct (float) = percentage of observations to use for validation;
+        must be between 0 and 1
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary estimates; will not return path of coefficient estimates
+        
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
+        
+        outputs:
+        D (r x p*d x d array) - dictionary estimate
+        
+        C (n x r array) - coefficient estimate
+        
+        Lv (scalar) - negative log likelihood of estimates during validation
+        """
+        
+        YtY = [ob.YtY(p) for ob in obs]
+        XtX = [ob.XtX(p) for ob in obs]
+        XtY = [ob.XtY(p) for ob in obs]
+        
+        # split observations into training and validation
+        train_idx, val_idx = train_val_split(len(obs), val_pct)
+        YtY_val = [YtY[i] for i in val_idx]
+        XtX_train = [XtX[i] for i in train_idx]
+        XtX_val = [XtX[i] for i in val_idx]
+        XtY_train = [XtY[i] for i in train_idx]
+        XtY_val = [XtY[i] for i in val_idx]
+        
+        # Fit dictionary to training observations with unique initialization
+        D = []
+        C_train = []
+        for ki in range(k):
+            D_s, C_s, _, _, _ = self._fit(np.array(XtX_train), 
+                                        np.array(XtY_train), p, r, mu, 
+                                        return_path=return_path)
+            #------
+            # Debug
+            print(p, r, mu, ki)
+            #------
+            D.append(D_s)
+            if return_path:
+                C_train.append(C_s[-1])
+            else:
+                C_train.append(C_s)
+            
+        # Fit coefficients and compute negative log likelihood
+        C_val = []
+        Lv = []
+        for D_s in D:
+            if return_path:
+                C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], 
+                                           mu)
+            else:
+                C_s, L_s = self._fit_coefs(YtY_val, XtX_val, XtY_val, D_s, mu)
+            C_val.append(C_s)
+            Lv.append(L_s)
+            
+        # Merge coefficient lists
+        # TODO: Make this a list comprehension
+        C = []
+        for Cts, Cvs in zip(C_train, C_val):
+            C_s = [i for i in zip(train_idx, list(Cts))]
+            C_s.extend([i for i in zip(val_idx, list(Cvs))])
+            C_s.sort()
+            Cs = np.array([c for _, c in C_s])
+            C.append(Cs)
+            
+        if return_all:
+            return D, C, Lv
+        else:
+            opt = np.argmin(Lv)
+            return D[opt], C[opt], Lv[opt]
     
-    def compute_likelihood(self, D, C, gram_C=None):
-        """
-        Computes the log likelihood of the current dictionary and coefficient 
-        estimates.
-        """
-        
-        likelihood = 0.5 * self.YtY
-        if gram_C is None:
-            gram_C = [gram(D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y))) for i in range(self.n)]
-        likelihood += 0.5 * np.mean(np.matmul(np.expand_dims(C, 1), np.matmul(gram_C, np.expand_dims(C, 2))))
-        likelihood -= np.sum([np.mean([C[i, j]*inner_prod(self.XtY[i], D[j]) for i in range(self.n)]) for j in range(self.r)])
-        if self.coef_penalty_type == 'l0':
-            likelihood += self.mu * np.count_nonzero(C[:])
-        elif self.coef_penalty_type == 'l1':
-            likelihood += self.mu * sl.norm(C[:], ord=1)
-        return likelihood
-    
-    def fit(self):
+    def _fit(self, XtX, XtY, p, r, mu, return_path=False):
         """
         Iterative algorithm for ALMM solver. Based on the PALM algorithm
-        of Bolte, Sabach, and Teboulle Math. Program. Ser. A, 2014. Takes
+        of Bolte, Sabach, and Teboulle, Math. Program. Ser. A, 2014. Takes
         linearized proximal gradient steps with respect to each dictionary
         atom and coefficients in turn.
         
-        outputs:
-        D path ([k x] r x p*d x d array) - dictionary estimate [if 
-        return_path=True]
+        inputs:
+        XtX (n x p*d x p*d array) - sample autocorrelation
         
-        C path ([k x] n x r array) - coefficient estimate [if 
-        return_path=True]
+        XtY (n x p*d x d array) - sample autocorrelation
+        
+        p (integer) - model order
+        
+        r (integer) - dictionary atoms
+        
+        mu (float) - penalty parameter
+        
+        return_path (boolean) - whether or not to return the path of
+        dictionary and coefficient estimates
+        
+        outputs:
+        D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
+        
+        C ([k x] n x r array) - coefficient estimate [if return_path=True]
         
         residual D (k array) - residuals of dictionary update
         
@@ -270,6 +622,30 @@ class Almm:
         stopping condition ({maximum iteration, relative tolerance}) -
         condition that terminated the iterative algorithm
         """
+        
+        n, _, d = XtY.shape
+        
+        def initialize_estimates():
+            """
+            Initializes the dictionary and coefficient estimates.
+            
+            outputs:
+            D (r x p*d x d tensor) - initial dictionary estimate
+            
+            C (n x r tensor) - initial coefficient estimate
+            """
+            
+            # Initialize dictionary randomly; enforce unit norm
+            D = nr.randn(r, p*d, d)
+            for j in range(r):
+                D[j, :, :] = prox_dict(D[j, :, :])
+            # Initialize coefficients with unpenalized least squares
+            C = np.zeros([n, r])
+            for i in range(n):
+                C[i, :] = sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))), 
+                                        inner_prod(XtY[i, :, :], D), 
+                                        assume_a='pos')
+            return D, C
             
         def grad_D(D, C, j, G=None):
             """
@@ -291,12 +667,12 @@ class Almm:
             """
             
             if G is None:
-                G = np.tensordot(C[:, j]**2 / self.n, self.XtX, axes=1)
-            grad = - np.tensordot(C[:, j] / self.n, self.XtY, axes=1)
+                G = np.tensordot(C[:, j]**2 / n, XtX, axes=1)
+            grad = - np.tensordot(C[:, j] / n, XtY, axes=1)
             grad += np.dot(G, D[j, :, :])
-            for l in np.setdiff1d(np.arange(self.r), [j]):
-                grad += np.dot(np.tensordot(C[:, j]*C[:, l] / self.n, 
-                                            self.XtX, axes=1), D[l, :, :])
+            for l in np.setdiff1d(np.arange(r), [j]):
+                grad += np.dot(np.tensordot(C[:, j]*C[:, l] / n, 
+                                            XtX, axes=1), D[l, :, :])
             return grad
             
             
@@ -320,17 +696,12 @@ class Almm:
             """
             
             if G is None:
-                G = gram(D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
-            return - inner_prod(self.XtY[i, :, :], D) + np.dot(G, C[i, :].T)
-        
-        alpha = np.zeros([self.r])
-        beta = np.zeros([self.n])
-        residual_D = []
-        residual_C = []
+                G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
+            return - inner_prod(XtY[i, :, :], D) + np.dot(G, C[i, :].T)        
         
         # Initialize estimates of dictionary and coefficients
-        D, C = self.initialize_estimates()
-        if self.return_path:
+        D, C = initialize_estimates()
+        if return_path:
             D_path = []
             D_path.append(np.copy(D))
             C_path = []
@@ -338,14 +709,18 @@ class Almm:
         
         # Begin iterative algorithm
         stop_condition = 'maximum iteration'
+        alpha = np.zeros([r])
+        beta = np.zeros([n])
+        residual_D = []
+        residual_C = []
         for step in range(self.max_iter):
             
             # Update dictionary estimate
             temp = np.copy(D)
-            for j in range(self.r):
+            for j in range(r):
                 
                 # compute step size
-                Gj = np.tensordot(C[:, j]**2 / self.n, self.XtX, axes=1)
+                Gj = np.tensordot(C[:, j]**2 / n, XtX, axes=1)
                 alpha[j] = sl.norm(Gj, ord=2)**(-1) / self.step_size
                 
                 # proximal/gradient step
@@ -353,30 +728,30 @@ class Almm:
             delta_D = D - temp
             
             # Add current dictionary estimate to path
-            if self.return_path:
+            if return_path:
                 D_path.append(np.copy(D))
                 C_path.append(np.copy(C))
                 
             # Update coefficient estimate
             temp = np.copy(C)
-            for i in range(self.n):
+            for i in range(n):
                 
                 # compute step size
-                Gi = gram(D, lambda x, y : inner_prod(x, np.dot(self.XtX[i], y)))
+                Gi = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
                 beta[i] = sl.norm(Gi, ord=2)**(-1) / self.step_size
                 
                 # proximal/gradient step
                 C[i, :] = self.prox_coef(C[i, :] - beta[i] * grad_C(D, C, i, G=Gi), 
-                                         self.mu * beta[i])
+                                         mu * beta[i])
             delta_C = C - temp
             
             # Compute residuals
             """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2)"""
             residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
-                              / ( alpha * self.p**(1/2) * self.d )))            
+                              / ( alpha * p**(1/2) * d )))            
             """(1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
             residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
-                              / ( beta * self.r )))     
+                              / ( beta * r )))     
             
             # Check stopping condition
             if ( step > 0 and residual_D[-1] < self.tol * residual_D[0] 
@@ -384,7 +759,73 @@ class Almm:
                 stop_condition = 'relative tolerance'
                 break
         
-        if self.return_path:
+        if return_path:
             return D_path, C_path, residual_D, residual_C, stop_condition
         else:
             return D, C, residual_C, residual_D, stop_condition
+        
+    def _fit_coefs(self, YtY, XtX, XtY, D, mu):
+        """
+        Fit coefficients for a known dictionary of autoregressive atoms and
+        penalty parameter.
+        
+        inputs:
+        YtY (list of arrays) - correlation of observations
+        
+        XtX (list of arrays) - sample autocorrelation of observations
+        
+        XtY (list of arrays) - sample autocorrelation of observations
+        
+        D (list arrays) - estimates of autoregressive atoms
+        
+        mu (scalar) - penalty parameter
+        
+        outputs:
+        C (array) - estimate of coefficients; length of YtY x length of D
+        
+        likelihood (scalar) - negative log likelihood of estimates
+        """
+        
+        # Fit coefficients with LASSO estimator
+        C = np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
+                                        inner_prod(XtY_i, D), self.prox_coef, mu) 
+                                        for XtX_i, XtY_i in zip(XtX, XtY)])
+
+        # Calculate negative log likelihood of estimates
+        L = self.likelihood(YtY, XtX, XtY, D, C, mu)
+        
+        return C, L
+    
+    def likelihood(self, YtY, XtX, XtY, D, C, mu):
+        """
+        Computes the negative log likelihood of the current dictionary and 
+        coefficient estimates.
+        
+        inputs:
+        YtY (list of arrays) - correlation of observations
+        
+        XtX (list of arrays) - sample autocorrelation of observations
+        
+        XtY (list of arrays) - sample autocorrelation of observations
+        
+        D (list arrays) - estimates of autoregressive atoms
+        
+        C (array) - estimate of coefficients; length of YtY x length of D
+        
+        mu (scalar) - penalty parameter
+        
+        outputs:
+        likelihood (scalar) - negative log likelihood of estimates
+        """
+        
+        n = len(XtX)
+        r, _, _ = D.shape
+        gram_C = [gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))) for i in range(n)]
+        likelihood = 0.5 * ( np.mean(YtY) 
+                            - 2 * np.sum([np.mean([C[i, j]*inner_prod(XtY[i], D[j]) for i in range(n)]) for j in range(r)])
+                            + np.mean(np.matmul(np.expand_dims(C, 1), np.matmul(gram_C, np.expand_dims(C, 2))))  )
+        if self.coef_penalty_type == 'l0':
+            likelihood += mu * np.count_nonzero(C[:])
+        elif self.coef_penalty_type == 'l1':
+            likelihood += mu * sl.norm(C[:], ord=1)
+        return likelihood
