@@ -8,10 +8,9 @@ Created on Sat May 18 17:21:22 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
-from palm_solver import Almm
-from utility import (unstack_ar_coeffs, dictionary_distance, 
-                     check_almm_condition)
-from sampler import almm_iid_sample
+from almm import Almm
+from utility import unstack_ar_coef, dict_distance
+from sampler import almm_sample, check_almm_condition
 
 if __name__ == '__main__':
 
@@ -23,7 +22,7 @@ if __name__ == '__main__':
     s = 3
     
     # Generate almm sample
-    x, C, D = almm_iid_sample(n, m, d, r, p, s)
+    x, C, D = almm_sample(n, m, d, r, p, s)
     flag = True
     while flag:
         k1, k2 = check_almm_condition(x, D, C)
@@ -31,7 +30,7 @@ if __name__ == '__main__':
             flag = False
         else:
             print('fail')
-            x, C, D = almm_iid_sample(n, m, d, r, p, s)
+            x, C, D = almm_sample(n, m, d, r, p, s)
             
     # Fit almm model
     p_list = [1, 2]
@@ -48,7 +47,7 @@ if __name__ == '__main__':
         for Di in Ds:
             Di_pred = np.zeros([rs, ps, d, d])
             for j in range(rs):
-                Di_pred[j] = unstack_ar_coeffs(Di[j])
-            d_loss, _, _ = dictionary_distance(D, Di_pred)
+                Di_pred[j] = unstack_ar_coef(Di[j])
+            d_loss, _, _ = dict_distance(D, Di_pred)
             loss.append(d_loss)
         ax = plt.plot(loss)
