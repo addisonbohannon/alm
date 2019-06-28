@@ -42,6 +42,7 @@ if __name__ == '__main__':
                                                            return_path=True, 
                                                            return_all=True)
     
+    
     for Ds, (ps, rs, mus) in zip(D_pred, params):  
         loss = []
         for Di in Ds:

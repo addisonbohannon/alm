@@ -277,6 +277,11 @@ class Almm:
                                       return_all=False)
             D.append(D_s)
             
+            #------
+            # Debug
+            #------
+            print(p_i, r_i, mu_i)
+            
             # Prepare validation observations
             YtY_val = [ob.YtY(p_i) for ob in ts_val]
             XtX_val = [ob.XtX(p_i) for ob in ts_val]
@@ -303,7 +308,8 @@ class Almm:
             Cs = np.array([c for _, c in C_s])
             C.append(Cs)
         
-        params = [i for i in params]
+#        params = [i for i in params]
+        params = [i for i in product(p, r, mu)]
         if return_all:
             return D, C, Lv, params
         else:

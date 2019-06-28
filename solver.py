@@ -58,7 +58,8 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
     """
     Implements an ADMM solver for the penalized least squares problem,
     argmin_x 1/2 * \|Ax-b\|^2 + mu * \|x\|_p, using the precomputed gram
-    matrix and covariance, i.e. G=A^T.A and C=A^T.b.
+    matrix and covariance, i.e. G=A^T.A and C=A^T.b. Implementation based on
+    Boyd, et al, Foundations and Trends in Machine Learning, 2011.
     
     inputs:
     G (m x m array) - data matrix

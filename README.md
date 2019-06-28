@@ -4,6 +4,5 @@ x<sub>i</sub>[t] = &sum;<sub>s</sub> &sum;<sub>j</sub> c<sub>i,j</sub> A<sub>j</
 
 ## Dependencies
 
-- Numpy/Scipy
+- [Numpy/Scipy](https://www.scipy.org/)
 - [CVXPY](https://www.cvxpy.org/)
-- [scikit-learn](https://scikit-learn.org/stable/)
