@@ -105,14 +105,12 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
             G_factor = sl.cho_factor(G + p*np.eye(m))
     return X
         
-def fit_coefs(YtY, XtX, XtY, D, mu, coef_penalty_type):
+def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
     """
     Fit coefficients for a known dictionary of autoregressive atoms and
     penalty parameter.
     
     inputs:
-    YtY (list of arrays) - correlation of observations
-    
     XtX (list of arrays) - sample autocorrelation of observations
     
     XtY (list of arrays) - sample autocorrelation of observations
@@ -124,7 +122,7 @@ def fit_coefs(YtY, XtX, XtY, D, mu, coef_penalty_type):
     coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
     
     outputs:
-    C (array) - estimate of coefficients; length of YtY x length of D
+    C (array) - estimate of coefficients; length of XtX x length of D
     
     likelihood (scalar) - negative log likelihood of estimates
     """
@@ -142,6 +140,114 @@ def fit_coefs(YtY, XtX, XtY, D, mu, coef_penalty_type):
     return np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
                                     inner_prod(XtY_i, D), prox, mu) 
                                     for XtX_i, XtY_i in zip(XtX, XtY)])
+    
+def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
+                step_size=1e-3, tol=1e-6, return_path=False):
+    """
+    Alternating minimization algorithm for ALMM solver. Alternates between 
+    minimizing the following function with respect to (D_j)_j and (C_ij)_ij:
+    1/2 * \sum_i \| Y_i - \sum_j c_ij D_j X_i \|_F^2 + mu * \|C\|_p.
+    
+    inputs:
+    XtX (n x p*d x p*d array) - sample autocorrelation
+    
+    XtY (n x p*d x d array) - sample autocorrelation
+    
+    p (integer) - model order
+    
+    r (integer) - dictionary atoms
+    
+    mu (float) - penalty parameter
+    
+    coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
+    
+    maximum iterations (integer) - Maximum number of iterations for 
+    algorithm
+        
+    step size (scalar) - Factor by which to divide the Lipschitz-based 
+    step size
+    
+    tolerance (float) - Tolerance to terminate iterative algorithm; must
+    be positive
+    
+    return_path (boolean) - whether or not to return the path of
+    dictionary and coefficient estimates
+    
+    outputs:
+    D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
+    
+    C ([k x] n x r array) - coefficient estimate [if return_path=True]
+    
+    residual D (k array) - residuals of dictionary update
+    
+    residual C (k array) - residuals of coefficient update
+    
+    stopping condition ({maximum iteration, relative tolerance}) -
+    condition that terminated the iterative algorithm
+    """
+        
+    n, _, d = XtY.shape
+        
+    # Initialize dictionary randomly; enforce unit norm
+    D = nr.randn(r, p*d, d)
+    for j in range(r):
+        D[j, :, :] = proj(D[j, :, :])
+        
+    # Initialize coefficients
+    C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+    
+    # Initialize estimate path
+    if return_path:
+        D_path = []
+        D_path.append(np.copy(D))
+        C_path = []
+        C_path.append(np.copy(C))
+    
+    # Begin alternating minimization algorithm
+    stop_condition = 'maximum iteration'
+    residual_D = []
+    residual_C = []
+    for step in range(max_iter):
+        
+        # Update dictionary estimate
+        temp = np.copy(D)
+        for j in range(r):
+            Aj = np.tensordot(C[:, j]**2, XtX, axes=1)
+            bj = np.tensordot(C[:, j], XtY, axes=1)
+            for l in np.setdiff1d(np.arange(r), [j]):
+                bj -= np.dot(np.tensordot(C[:, j]*C[:, l], 
+                                          XtX, axes=1), D[l, :, :])
+            temp[j] = sl.solve(Aj, bj, assume_a='pos')
+        delta_D = D - temp
+            
+        # Update coefficient estimate
+        temp = np.copy(C)
+        C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+        delta_C = C - temp
+        
+        # Add current estimates to path
+        if return_path:
+            D_path.append(np.copy(D))
+            C_path.append(np.copy(C))
+        
+        # Compute residuals
+        """( (1/r) \sum_j \|dD_j\|^2 / (p*d^2) )^(1/2)"""
+        residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
+                          / ( p**(1/2) * d )))            
+        """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
+        residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
+                          / r**(1/2)))     
+        
+        # Check stopping condition
+        if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
+            and residual_C[-1] < tol * residual_C[0] ):
+            stop_condition = 'relative tolerance'
+            break
+    
+    if return_path:
+        return D_path, C_path, residual_D, residual_C, stop_condition
+    else:
+        return D, C, residual_C, residual_D, stop_condition
     
 def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
                 step_size=1e-3, tol=1e-6, return_path=False):
@@ -161,6 +267,17 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     r (integer) - dictionary atoms
     
     mu (float) - penalty parameter
+    
+    coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
+    
+    maximum iterations (integer) - Maximum number of iterations for 
+    algorithm
+        
+    step size (scalar) - Factor by which to divide the Lipschitz-based 
+    step size
+    
+    tolerance (float) - Tolerance to terminate iterative algorithm; must
+    be positive
     
     return_path (boolean) - whether or not to return the path of
     dictionary and coefficient estimates
@@ -291,11 +408,6 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             # proximal/gradient step
             D[j, :, :] = proj(D[j, :, :] - alpha[j] * grad_D(D, C, j, G=Gj))
         delta_D = D - temp
-        
-        # Add current dictionary estimate to path
-        if return_path:
-            D_path.append(np.copy(D))
-            C_path.append(np.copy(C))
             
         # Update coefficient estimate
         temp = np.copy(C)
@@ -310,11 +422,16 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
                                      mu * beta[i])
         delta_C = C - temp
         
+        # Add current estimates to path
+        if return_path:
+            D_path.append(np.copy(D))
+            C_path.append(np.copy(C))
+        
         # Compute residuals
-        """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2)"""
+        """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2) )^(1/2)"""
         residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
                           / ( alpha * p**(1/2) * d )))            
-        """(1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
+        """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
         residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
                           / ( beta * r )))     
         
