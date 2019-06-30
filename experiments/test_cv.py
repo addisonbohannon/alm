@@ -36,7 +36,7 @@ if __name__ == '__main__':
     p_list = [1, 2]
     r_list = [5, 10]
     mu_list = [1e-2, 5e-2]
-    almm_model = Almm(tol=1e-3, coef_penalty_type='l1')
+    almm_model = Almm(tol=1e-3, coef_penalty_type='l1', solver='alt_min')
     D_pred, C_pred, likelihood, params = almm_model.fit_cv(x, p=p_list, r=r_list,
                                                            mu=mu_list, k=2,
                                                            return_path=True, 

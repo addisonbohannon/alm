@@ -289,12 +289,12 @@ class Almm:
             
             # Fit coefficients and compute negative log likelihood
             if return_path:
-                Cvs = fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], mu_i, 
+                Cvs = fit_coefs(XtX_val, XtY_val, D_s[-1], mu_i, 
                                 self.coef_penalty_type)
                 L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], Cvs, mu_i, 
                                  self.coef_penalty_type)
             else:
-                Cvs = fit_coefs(YtY_val, XtX_val, XtY_val, D_s, mu_i,
+                Cvs = fit_coefs(XtX_val, XtY_val, D_s, mu_i,
                                 self.coef_penalty_type)
                 L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s, Cvs, mu_i, 
                                  self.coef_penalty_type)
@@ -387,12 +387,12 @@ class Almm:
         Lv = []
         for D_s in D:
             if return_path:
-                C_s = fit_coefs(YtY_val, XtX_val, XtY_val, D_s[-1], mu, 
+                C_s = fit_coefs(XtX_val, XtY_val, D_s[-1], mu, 
                                 self.coef_penalty_type)
                 L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu, 
                                  self.coef_penalty_type)
             else:
-                C_s = fit_coefs(YtY_val, XtX_val, XtY_val, D_s, mu, 
+                C_s = fit_coefs(XtX_val, XtY_val, D_s, mu, 
                                 self.coef_penalty_type)
                 L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu, 
                                  self.coef_penalty_type)
