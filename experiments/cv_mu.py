@@ -3,7 +3,7 @@
 """
 Author: Addison Bohannon
 Project: Autoregressive Linear Mixture Model (ALMM)
-Date: 1 Jul 19
+Date: 2 Jul 19
 """
 
 from timeit import default_timer as timer
@@ -28,13 +28,14 @@ t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
         
-# Implement solver with multiple runs
+# Implement solver with cross-validation
+mu_list = [1e-3, 5e-3, 1e-2, 5e-2]
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, mu=1e-1, 
-                                              return_path=True, 
-                                              return_all=True)
+D_pred, C_pred, likelihood, params = almm_model.fit_cv(x, p, r, mu=mu_list, 
+                                                       k=5, return_path=True, 
+                                                       return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')

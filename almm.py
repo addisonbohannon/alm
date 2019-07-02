@@ -285,27 +285,29 @@ class Almm:
         if not isinstance(k, int) or k < 1:
             raise TypeError('Starts (k) must be a positive integer.')
             
-        ts = [Timeseries(ts_i) for ts_i in ts]
-        
+        if self.verbose:
+            print('-Formatting and splitting data...', end=" ", flush=True)
+        ts = [Timeseries(ts_i) for ts_i in ts]        
         train_idx, val_idx = train_val_split(len(ts), val_pct)
         ts_train = [ts[i] for i in train_idx]
         ts_val = [ts[i] for i in val_idx]
+        if self.verbose:
+            print('Complete.')
         
+        if self.verbose:
+            print('-Fitting model to training data...')
         D = []
         C = []
         Lv = []
         params = product(p, r, mu)
         for (p_i, r_i, mu_i) in params:
+            print('--Parameters: p=' + str(p_i) + ', r=' + str(r_i) + ', mu=' + str(mu_i))
             # Fit dictionary to training observations for each set of parameters
             D_s, Cts, _ = self._fit_k(ts_train, p_i, r_i, mu_i, k=k,
                                       val_pct=val_pct, return_path=return_path, 
                                       return_all=False)
             D.append(D_s)
-            
-            #------
-            # Debug
-            #------
-            print(p_i, r_i, mu_i)
+            print('-Complete.')
             
             # Prepare validation observations
             YtY_val = [ob.YtY(p_i) for ob in ts_val]
@@ -314,6 +316,9 @@ class Almm:
             
             # Fit coefficients to validation observation and compute negative 
             # log likelihood
+        if self.verbose:
+            print('-Fitting coefficients to validation data...', end=" ", 
+                  flush=True)
             if return_path:
                 Cvs = fit_coefs(XtX_val, XtY_val, D_s[-1], mu_i, 
                                 self.coef_penalty_type)
@@ -325,14 +330,22 @@ class Almm:
                 L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s, Cvs, mu_i, 
                                  self.coef_penalty_type)
             Lv.append(L_s)
+            if self.verbose:
+                print('Complete.')
             
             # Merge coefficient lists
             # TODO: Make this a list comprehension
+            if self.verbose:
+                print('--Merging training and validation coefficients...', 
+                      end=" ", flush=True)
             C_s = [i for i in zip(train_idx, list(Cts))]
             C_s.extend([i for i in zip(val_idx, list(Cvs))])
             C_s.sort()
             Cs = np.array([c for _, c in C_s])
             C.append(Cs)
+            if self.verbose:
+                print('Complete.')
+            
 
         params = [i for i in product(p, r, mu)]
         if return_all:
@@ -379,7 +392,7 @@ class Almm:
         """
         
         if self.verbose:
-            print('-Formatting and splitting data...', end=" ", flush=True)
+            print('--Formatting and splitting data...', end=" ", flush=True)
         YtY = [ts_i.YtY(p) for ts_i in ts]
         XtX = [ts_i.XtX(p) for ts_i in ts]
         XtY = [ts_i.XtY(p) for ts_i in ts]
@@ -396,12 +409,12 @@ class Almm:
         
         # Fit dictionary to training observations with unique initialization
         if self.verbose:
-            print('-Fitting model to training data...')
+            print('--Fitting model to training data...')
         D = []
         C_train = []
         for ki in range(k):
             if self.verbose:
-                print('-Start: ' + str(ki))
+                print('--Start: ' + str(ki))
             D_s, C_s, _, _, _ = self._fit(XtX_train, XtY_train, p, r, mu, 
                                           self.coef_penalty_type,
                                           max_iter=self.max_iter,
@@ -415,12 +428,12 @@ class Almm:
             else:
                 C_train.append(C_s)
         if self.verbose:
-            print('Complete.')
+            print('--Complete.')
             
         # Fit coefficients to validation observation and compute negative log 
         # likelihood
         if self.verbose:
-            print('-Fitting coefficients to validation data...', end=" ", 
+            print('--Fitting coefficients to validation data...', end=" ", 
                   flush=True)
         C_val = []
         Lv = []
@@ -443,7 +456,7 @@ class Almm:
         # Merge coefficient lists
         # TODO: Make this a list comprehension
         if self.verbose:
-            print('-Merging training and validation coefficients...', end=" ", 
+            print('--Merging training and validation coefficients...', end=" ", 
                   flush=True)
         C = []
         for Cts, Cvs in zip(C_train, C_val):
