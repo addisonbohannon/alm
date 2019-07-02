@@ -115,7 +115,7 @@ def coef_sample(model_ord, signal_dim, sample_len, coef_type=None):
     return ar_coef / sl.norm(ar_coef[:])
 
 def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord, 
-                coef_support, coef_type=None):
+                coef_support, coef_type=None, coef_cond=None, dict_cond=None):
     """
     Generates iid autoregressive linear mixture model samples according to
     x_i[t] = \sum_j c_ij A_j[1] x_i[t-1] + ... + \sum_j c_ij A_j[p] x_i[t-m] + n[t]
@@ -128,25 +128,33 @@ def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord,
     num_processes (r) - integer
     model_ord (p) - integer
     coef_support (s) - integer {1,...,r}
-    coef_type - string {None, 'sparse', 'lag_sparse'}        
+    coef_type - string {None, 'sparse', 'lag_sparse'}
+    coef_cond (k1) - scalar
+    dict_cond (k2) - scalar
     
     outputs:
     sample of autoregessive process (X) - m x n x d tensor
     coefficients (C) - m x r tensor
     ar_coef (A) - r x p x d x d tensor
     """
-    A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
-    for i in range(num_processes):
-        A[i, :, :, :] = coef_sample(model_ord, signal_dim, sample_len, 
-                                    coef_type=coef_type)
-    C = np.zeros([num_samples, num_processes])
-    for i in range(num_samples):
-        support = list(nr.choice(num_processes, size=coef_support, replace=False))
-        C[i, support] = signal_dim**(-1/2) * nr.randn(coef_support)
-        while not isstable(np.tensordot(C[i, :], A, axes=1)):
-            C[i, support]  = signal_dim**(-1/2) * nr.randn(coef_support)
-    X = np.zeros([num_samples, sample_len, signal_dim])
-    for i in range(num_samples):
-        X[i, :, :] = ar_sample(sample_len, signal_dim, signal_dim**(-1/2),
-                               np.tensordot(C[i, :], A, axes=1))
+    
+    for step in range(100):
+        A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
+        for i in range(num_processes):
+            A[i, :, :, :] = coef_sample(model_ord, signal_dim, sample_len, 
+                                        coef_type=coef_type)
+        C = np.zeros([num_samples, num_processes])
+        for i in range(num_samples):
+            support = list(nr.choice(num_processes, size=coef_support, replace=False))
+            C[i, support] = signal_dim**(-1/2) * nr.randn(coef_support)
+            while not isstable(np.tensordot(C[i, :], A, axes=1)):
+                C[i, support]  = signal_dim**(-1/2) * nr.randn(coef_support)
+        X = np.zeros([num_samples, sample_len, signal_dim])
+        for i in range(num_samples):
+            X[i, :, :] = ar_sample(sample_len, signal_dim, signal_dim**(-1/2),
+                                   np.tensordot(C[i, :], A, axes=1))
+        
+        k1, k2 = check_almm_condition(X, A, C)
+        if k1 < coef_cond and np.all(k2 < dict_cond):
+            break
     return X, C, A

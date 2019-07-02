@@ -18,7 +18,7 @@ class Almm:
     
     # Class constructor
     def __init__(self, coef_penalty_type='l1', step_size=10, tol=1e-4, 
-                 max_iter=int(2.5e3), solver='palm'):
+                 max_iter=int(2.5e3), solver='palm', verbose=False):
         """
         Class constructor for ALMM solver.
         
@@ -37,6 +37,9 @@ class Almm:
         
         solver (string) - Algorithm used to fit dictionary and coefficients,
         i.e. palm or alt_min
+        
+        verbose (boolean) - Whether to print progress during execution; used 
+        for debugging
         """
         
         # Check arguments
@@ -68,6 +71,10 @@ class Almm:
             self._fit = solver_alt_min
         else:
             raise ValueError('Solver is not a valid option: palm, alt_min.')
+        if isinstance(verbose, bool):
+            self.verbose = verbose
+        else:
+            raise TypeError('Verbose must be a boolean.')
         
     def fit(self, ts, p, r, mu, return_path=False):
         """
@@ -106,6 +113,8 @@ class Almm:
         if not isinstance(return_path, bool):
             raise TypeError('Return path must be a boolean.')
         
+        if self.verbose:
+            print('-Formatting data...', end=" ", flush=True)
         YtY = []
         XtX = []
         XtY = []
@@ -114,16 +123,32 @@ class Almm:
             YtY.append(ts_i.YtY(p))
             XtX.append(ts_i.XtX(p))
             XtY.append(ts_i.XtY(p))
-        
-        D, C, res_D, res_C, stop_con = self._fit(np.array(XtX), np.array(XtY), 
-                                                 p, r, mu, 
+        if self.verbose:
+            print('Complete.')
+            
+        if self.verbose:
+            print('-Fitting model...')
+        D, C, res_D, res_C, stop_con = self._fit(XtX, XtY, p, r, mu, 
                                                  self.coef_penalty_type, 
                                                  max_iter=self.max_iter, 
                                                  step_size=self.step_size, 
                                                  tol=self.tol, 
-                                                 return_path=return_path)
-        L = likelihood(np.array(YtY), np.array(XtX), np.array(XtY), D[-1], 
-                       C[-1], mu, self.coef_penalty_type)
+                                                 return_path=return_path,
+                                                 verbose=self.verbose)
+        if self.verbose:
+            print('-Complete.')
+        
+        if self.verbose:
+            print('-Computing likelihood...', end=" ", flush=True)
+        if return_path:
+            L = [likelihood(YtY, XtX, XtY, Di, Ci, mu, self.coef_penalty_type) 
+                 for Di, Ci in zip(D, C)]
+        else:
+            L = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, 
+                           self.coef_penalty_type)
+        if self.verbose:
+            print('Complete.')
+            
         return D, C, L
             
     def fit_k(self, ts, p, r, mu, k=5, val_pct=0.25, return_path=False, 
@@ -266,12 +291,12 @@ class Almm:
         ts_train = [ts[i] for i in train_idx]
         ts_val = [ts[i] for i in val_idx]
         
-        # Fit dictionary to training observations for each set of parameters
         D = []
         C = []
         Lv = []
         params = product(p, r, mu)
         for (p_i, r_i, mu_i) in params:
+            # Fit dictionary to training observations for each set of parameters
             D_s, Cts, _ = self._fit_k(ts_train, p_i, r_i, mu_i, k=k,
                                       val_pct=val_pct, return_path=return_path, 
                                       return_all=False)
@@ -287,7 +312,8 @@ class Almm:
             XtX_val = [ob.XtX(p_i) for ob in ts_val]
             XtY_val = [ob.XtY(p_i) for ob in ts_val]
             
-            # Fit coefficients and compute negative log likelihood
+            # Fit coefficients to validation observation and compute negative 
+            # log likelihood
             if return_path:
                 Cvs = fit_coefs(XtX_val, XtY_val, D_s[-1], mu_i, 
                                 self.coef_penalty_type)
@@ -307,8 +333,7 @@ class Almm:
             C_s.sort()
             Cs = np.array([c for _, c in C_s])
             C.append(Cs)
-        
-#        params = [i for i in params]
+
         params = [i for i in product(p, r, mu)]
         if return_all:
             return D, C, Lv, params
@@ -353,6 +378,8 @@ class Almm:
         Lv (scalar) - negative log likelihood of estimates during validation
         """
         
+        if self.verbose:
+            print('-Formatting and splitting data...', end=" ", flush=True)
         YtY = [ts_i.YtY(p) for ts_i in ts]
         XtX = [ts_i.XtX(p) for ts_i in ts]
         XtY = [ts_i.XtY(p) for ts_i in ts]
@@ -364,25 +391,37 @@ class Almm:
         XtX_val = [XtX[i] for i in val_idx]
         XtY_train = [XtY[i] for i in train_idx]
         XtY_val = [XtY[i] for i in val_idx]
+        if self.verbose:
+            print('Complete.')
         
         # Fit dictionary to training observations with unique initialization
+        if self.verbose:
+            print('-Fitting model to training data...')
         D = []
         C_train = []
         for ki in range(k):
-            D_s, C_s, _, _, _ = self._fit(np.array(XtX_train), 
-                                          np.array(XtY_train), p, r, mu, 
+            if self.verbose:
+                print('-Start: ' + str(ki))
+            D_s, C_s, _, _, _ = self._fit(XtX_train, XtY_train, p, r, mu, 
                                           self.coef_penalty_type,
                                           max_iter=self.max_iter,
-                                          step_size=self.step_size,
+                                          step_size=self.step_size, 
                                           tol=self.tol, 
-                                          return_path=return_path)
+                                          return_path=return_path,
+                                          verbose=self.verbose)
             D.append(D_s)
             if return_path:
                 C_train.append(C_s[-1])
             else:
                 C_train.append(C_s)
+        if self.verbose:
+            print('Complete.')
             
-        # Fit coefficients and compute negative log likelihood
+        # Fit coefficients to validation observation and compute negative log 
+        # likelihood
+        if self.verbose:
+            print('-Fitting coefficients to validation data...', end=" ", 
+                  flush=True)
         C_val = []
         Lv = []
         for D_s in D:
@@ -398,9 +437,14 @@ class Almm:
                                  self.coef_penalty_type)
             C_val.append(C_s)
             Lv.append(L_s)
+        if self.verbose:
+            print('Complete.')
             
         # Merge coefficient lists
         # TODO: Make this a list comprehension
+        if self.verbose:
+            print('-Merging training and validation coefficients...', end=" ", 
+                  flush=True)
         C = []
         for Cts, Cvs in zip(C_train, C_val):
             C_s = [i for i in zip(train_idx, list(Cts))]
@@ -408,6 +452,8 @@ class Almm:
             C_s.sort()
             Cs = np.array([c for _, c in C_s])
             C.append(Cs)
+        if self.verbose:
+            print('Complete.')
             
         if return_all:
             return D, C, Lv

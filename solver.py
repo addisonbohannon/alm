@@ -6,6 +6,7 @@ Project: Autoregressive Linear Mixture Model (ALMM)
 Date: 27 Jun 19
 """
 
+from timeit import default_timer as timer
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
@@ -142,7 +143,7 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
                                     for XtX_i, XtY_i in zip(XtX, XtY)])
     
 def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
-                step_size=1e-3, tol=1e-6, return_path=False):
+                step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
     """
     Alternating minimization algorithm for ALMM solver. Alternates between 
     minimizing the following function with respect to (D_j)_j and (C_ij)_ij:
@@ -173,6 +174,9 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     return_path (boolean) - whether or not to return the path of
     dictionary and coefficient estimates
     
+    verbose (boolean) - whether or not to print progress during execution; 
+    used for debugging
+    
     outputs:
     D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
     
@@ -185,8 +189,11 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     stopping condition ({maximum iteration, relative tolerance}) -
     condition that terminated the iterative algorithm
     """
+    
+    if verbose:
+        start = timer()
         
-    n, _, d = XtY.shape
+    _, d = XtY[0].shape
         
     # Initialize dictionary randomly; enforce unit norm
     D = nr.randn(r, p*d, d)
@@ -210,6 +217,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     for step in range(max_iter):
         
         # Update dictionary estimate
+        # TODO: Re-use computations; paying an extra O(r)
         temp = np.copy(D)
         for j in range(r):
             Aj = np.tensordot(C[:, j]**2, XtX, axes=1)
@@ -243,6 +251,14 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             and residual_C[-1] < tol * residual_C[0] ):
             stop_condition = 'relative tolerance'
             break
+        
+    if verbose:
+        end = timer()
+        duration = end - start
+        print('*Solver: Alternating Minimization')
+        print('*Stopping condition: ' + stop_condition)
+        print('*Iterations: ' + str(step))
+        print('*Duration: ' + str(duration) + 's')
     
     if return_path:
         return D_path, C_path, residual_D, residual_C, stop_condition
@@ -250,7 +266,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         return D, C, residual_C, residual_D, stop_condition
     
 def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
-                step_size=1e-3, tol=1e-6, return_path=False):
+                step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
     """
     Iterative algorithm for ALMM solver. Based on the PALM algorithm
     of Bolte, Sabach, and Teboulle, Math. Program. Ser. A, 2014. Takes
@@ -282,6 +298,9 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     return_path (boolean) - whether or not to return the path of
     dictionary and coefficient estimates
     
+    verbose (boolean) - whether or not to print progress during execution; 
+    used for debugging
+    
     outputs:
     D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
     
@@ -293,7 +312,10 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     
     stopping condition ({maximum iteration, relative tolerance}) -
     condition that terminated the iterative algorithm
-    """    
+    """
+    
+    if verbose:
+        start = timer()
     
     # Set proximal function for coefficient
     if coef_penalty_type is None:
@@ -305,7 +327,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     else:
         raise ValueError('coef_penalty_type not a valid type, i.e. l0 or l1')
         
-    n, _, d = XtY.shape
+    n = len(XtY)
+    _, d = XtY[0].shape
     
     def initialize_estimates():
         """
@@ -325,7 +348,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         C = np.zeros([n, r])
         for i in range(n):
             C[i, :] = sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))), 
-                                    inner_prod(XtY[i, :, :], D), 
+                                    inner_prod(XtY[i], D), 
                                     assume_a='pos')
         return D, C
         
@@ -379,7 +402,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         
         if G is None:
             G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-        return - inner_prod(XtY[i, :, :], D) + np.dot(G, C[i, :].T)        
+        return - inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)        
     
     # Initialize estimates of dictionary and coefficients
     D, C = initialize_estimates()
@@ -440,6 +463,14 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             and residual_C[-1] < tol * residual_C[0] ):
             stop_condition = 'relative tolerance'
             break
+        
+    if verbose:
+        end = timer()
+        duration = end - start
+        print('*Solver: Proximal Alternating Linearized Minimization')
+        print('*Stopping condition: ' + stop_condition)
+        print('*Iterations: ' + str(step))
+        print('*Duration: ' + str(duration) + 's')
     
     if return_path:
         return D_path, C_path, residual_D, residual_C, stop_condition
