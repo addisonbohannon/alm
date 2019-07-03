@@ -142,8 +142,8 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
                                     inner_prod(XtY_i, D), prox, mu) 
                                     for XtX_i, XtY_i in zip(XtX, XtY)])
     
-def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
-                step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
+def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2, 
+                   step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
     """
     Alternating minimization algorithm for ALMM solver. Alternates between 
     minimizing the following function with respect to (D_j)_j and (C_ij)_ij:
@@ -198,7 +198,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     # Initialize dictionary randomly; enforce unit norm
     D = nr.randn(r, p*d, d)
     for j in range(r):
-        D[j, :, :] = proj(D[j, :, :])
+        D[j] = proj(D[j])
         
     # Initialize coefficients
     C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
@@ -224,8 +224,9 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             bj = np.tensordot(C[:, j], XtY, axes=1)
             for l in np.setdiff1d(np.arange(r), [j]):
                 bj -= np.dot(np.tensordot(C[:, j]*C[:, l], 
-                                          XtX, axes=1), D[l, :, :])
-            temp[j] = sl.solve(Aj, bj, assume_a='pos')
+                                          XtX, axes=1), D[l])
+            D[j] = sl.solve(Aj, bj, assume_a='pos')
+        D = proj(D)
         delta_D = D - temp
             
         # Update coefficient estimate

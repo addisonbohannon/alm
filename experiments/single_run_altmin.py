@@ -28,31 +28,30 @@ t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
         
-# Implement solver with cross-validation
-mu_list = [5e-3, 1e-2, 5e-2, 1e-1]
+# Implement solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, verbose=True)
-D_pred, C_pred, likelihood, params = almm_model.fit_cv(x, p, r, mu=mu_list, 
-                                                       k=5, return_path=True, 
-                                                       return_all=True)
+almm_model = Almm(tol=1e-3, max_iter=50, solver='alt_min', verbose=True)
+D_pred, C_pred, likelihood = almm_model.fit(x, p, r, mu=1e-2, return_path=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
 
-# Computing dictionary error
+# Compute dictionary loss
 print('Computing dictionary error...', end=" ", flush=True)
-fig, axs = plt.subplots()
-axs.set_xlabel('Iteration')
-axs.set_ylabel('Dictionary Error')
+loss = []
 for i, Di in enumerate(D_pred):
-    loss=[]
-    for s, Dis in enumerate(Di):
-        Dis_pred = np.zeros([r, p, d, d])
-        for j in range(r):
-            Dis_pred[j] = unstack_ar_coef(Dis[j])
-        d_loss, _, _ = dict_distance(D, Dis_pred)
-        loss.append(d_loss)
-    axs.plot(loss)
-axs.legend(mu_list)
+    Di_pred = np.zeros([r, p, d, d])
+    for j in range(r):
+        Di_pred[j] = unstack_ar_coef(Di[j])
+    d_loss, _, _ = dict_distance(D, Di_pred)
+    loss.append(d_loss)
 print('Complete.')
+
+# Plot results
+fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True)
+axs[0].plot(loss)
+axs[0].set_ylabel('Dictionary Error')
+axs[1].plot(likelihood)
+axs[1].set_xlabel('Iteration')
+axs[1].set_ylabel('Negative Log Likelihood')

@@ -316,9 +316,9 @@ class Almm:
             
             # Fit coefficients to validation observation and compute negative 
             # log likelihood
-        if self.verbose:
-            print('-Fitting coefficients to validation data...', end=" ", 
-                  flush=True)
+            if self.verbose:
+                print('-Fitting coefficients to validation data...', end=" ", 
+                      flush=True)
             if return_path:
                 Cvs = fit_coefs(XtX_val, XtY_val, D_s[-1], mu_i, 
                                 self.coef_penalty_type)
