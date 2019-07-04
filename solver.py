@@ -193,6 +193,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
     if verbose:
         start = timer()
         
+    n = len(XtY)
     _, d = XtY[0].shape
         
     # Initialize dictionary randomly; enforce unit norm
@@ -243,11 +244,9 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
         
         # Compute residuals
         """( (1/r) \sum_j \|dD_j\|^2 / (p*d^2) )^(1/2)"""
-        residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
-                          / ( p**(1/2) * d )))            
+        residual_D.append(sl.norm(delta_D[:]) / (r**(1/2) * p**(1/2) * d))
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
-        residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
-                          / r**(1/2)))     
+        residual_C.append(sl.norm(delta_C) / (n**(1/2) * r**(1/2)))
         
         # Check stopping condition
         if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
@@ -455,11 +454,10 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         
         # Compute residuals
         """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2) )^(1/2)"""
-        residual_D.append(np.mean(sl.norm(delta_D, ord='fro', axis=(1,2))
-                          / ( alpha * p**(1/2) * d )))            
+        residual_D.append(sl.norm(sl.norm(delta_D, ord='fro', axis=(1, 2))/alpha) 
+                          / (r**(1/2) * p**(1/2) * d))           
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
-        residual_C.append(np.mean(sl.norm(delta_C, axis=1) 
-                          / ( beta * r )))     
+        residual_C.append(sl.norm(sl.norm(delta_C)/beta) / (n**(1/2) * r**(1/2)))
         
         # Check stopping condition
         if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
