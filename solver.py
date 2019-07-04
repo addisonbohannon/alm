@@ -217,14 +217,16 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
     for step in range(max_iter):
         
         # Update dictionary estimate
-        # TODO: Re-use computations; paying an extra O(r)
         temp = np.copy(D)
+        ccXtX = {}
+        triu_index = np.triu_indices(r)
+        for (i, j) in zip(triu_index[0], triu_index[1]):
+            ccXtX[(i, j)] = np.tensordot(C[:, i]*C[:, j], XtX, axes=1)
         for j in range(r):
-            Aj = np.tensordot(C[:, j]**2, XtX, axes=1)
+            Aj = ccXtX[(j, j)]
             bj = np.tensordot(C[:, j], XtY, axes=1)
             for l in np.setdiff1d(np.arange(r), [j]):
-                bj -= np.dot(np.tensordot(C[:, j]*C[:, l], 
-                                          XtX, axes=1), D[l])
+                bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
             D[j] = sl.solve(Aj, bj, assume_a='pos')
         D = proj(D)
         delta_D = D - temp
