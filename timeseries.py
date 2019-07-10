@@ -7,7 +7,7 @@ Date: 27 Jun 19
 """
 
 import numpy as np
-from utility import inner_prod, ar_toep_op
+from almm.utility import inner_prod, ar_toep_op
 
 # Timeseries observation class
 class Timeseries:

@@ -9,7 +9,7 @@ Date: 29 Apr 19
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import gram, inner_prod, ar_toep_op, stack_ar_coef
+from almm.utility import gram, inner_prod, ar_toep_op, stack_ar_coef
     
 def check_almm_condition(x, D, C):
     """Computes and returns the condition number of the linear operators 

@@ -9,9 +9,9 @@ Date: 1 May 19
 # Import required libraries
 from itertools import product
 import numpy as np
-from utility import train_val_split
-from solver import fit_coefs, likelihood
-from timeseries import Timeseries
+from almm.utility import train_val_split
+from almm.solver import fit_coefs, likelihood
+from almm.timeseries import Timeseries
 
 # Solver class
 class Almm:

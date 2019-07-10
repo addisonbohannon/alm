@@ -9,9 +9,9 @@ Date: 3 Jul 19
 from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
-from almm import Almm
-from sampler import almm_sample
-from utility import unstack_ar_coef, dict_distance
+from almm.almm import Almm
+from almm.sampler import almm_sample
+from almm.utility import unstack_ar_coef, dict_distance
 
 n = 400
 dn = 100

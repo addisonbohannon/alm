@@ -10,7 +10,7 @@ from timeit import default_timer as timer
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from utility import gram, inner_prod
+from almm.utility import gram, inner_prod
 
 def shrink(x, t):
     """
