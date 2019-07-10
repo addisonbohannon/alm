@@ -64,10 +64,10 @@ class Almm:
         else:
             raise TypeError('Max iteration must be a positive integer.')
         if solver == 'palm':
-            from solver import solver_palm
+            from almm.solver import solver_palm
             self._fit = solver_palm
         elif solver == 'alt_min':
-            from solver import solver_alt_min
+            from almm.solver import solver_alt_min
             self._fit = solver_alt_min
         else:
             raise ValueError('Solver is not a valid option: palm, alt_min.')
