@@ -3,7 +3,7 @@
 """
 Author: Addison Bohannon
 Project: Autoregressive Linear Mixture Model (ALMM)
-Date: 3 Jul 19
+Date: 11 Jul 19
 """
 
 from os.path import join
@@ -38,7 +38,7 @@ L = []
 for n_i in range(0, n, dn):
     print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
     t1 = timer()
-    almm_model = Almm(tol=1e-3, verbose=True)
+    almm_model = Almm(tol=1e-3, max_iter=100, solver='alt_min', verbose=True)
     Di_pred, Ci_pred, Li = almm_model.fit_k(x[:(n_i+dn-1)], p, r, mu=1e-2, 
                                             return_path=True, return_all=True)
     t2 = timer()
@@ -66,4 +66,4 @@ for clr, Di in zip(['r-', 'b-', 'g-', 'y-'], D_pred):
 print('Complete.')
 
 path = "/home/addison/Python/almm/results"
-plt.savefig(join(path, "num_obs_palm-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+plt.savefig(join(path, "num_obs_altmin-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))

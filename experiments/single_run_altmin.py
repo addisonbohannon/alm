@@ -6,6 +6,8 @@ Project: Autoregressive Linear Mixture Model (ALMM)
 Date: 2 Jul 19
 """
 
+from os.path import join
+from datetime import datetime as dt
 from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,3 +57,6 @@ axs[0].set_ylabel('Dictionary Error')
 axs[1].plot(likelihood)
 axs[1].set_xlabel('Iteration')
 axs[1].set_ylabel('Negative Log Likelihood')
+
+path = "/home/addison/Python/almm/results"
+plt.savefig(join(path, "single_run_altmin-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))

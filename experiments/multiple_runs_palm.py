@@ -6,6 +6,8 @@ Project: Autoregressive Linear Mixture Model (ALMM)
 Date: 1 Jul 19
 """
 
+from os.path import join
+from datetime import datetime as dt
 from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,3 +56,6 @@ for i, Di in enumerate(D_pred):
         loss.append(d_loss)
     axs.plot(loss)
 print('Complete.')
+
+path = "/home/addison/Python/almm/results"
+plt.savefig(join(path, "multiple_runs_palm-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
