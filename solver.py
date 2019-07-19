@@ -229,7 +229,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
             for l in np.setdiff1d(np.arange(r), [j]):
                 bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
             D[j] = sl.solve(Aj, bj, assume_a='pos')
-        D = proj(D)
+        	D[j] = proj(D[j])
         delta_D = D - temp
             
         # Update coefficient estimate
