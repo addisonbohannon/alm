@@ -17,7 +17,7 @@ from almm.timeseries import Timeseries
 class Almm:
     
     # Class constructor
-    def __init__(self, coef_penalty_type='l1', step_size=10, tol=1e-4, 
+    def __init__(self, coef_penalty_type='l1', step_size=1e-1, tol=1e-4, 
                  max_iter=int(2.5e3), solver='palm', verbose=False):
         """
         Class constructor for ALMM solver.
@@ -26,8 +26,8 @@ class Almm:
         coef penalty type (string) - Penalty applied to coefficients to enforce
         sparsity; options include {None, 'l0', 'l1' (default)}
         
-        step size (scalar) - Factor by which to divide the Lipschitz-based 
-        step size
+        step size (scalar) - Factor by which to extend the Lipschitz-based 
+        step size; must be less than 1
         
         tolerance (float) - Tolerance to terminate iterative algorithm; must
         be positive
@@ -51,7 +51,7 @@ class Almm:
             self.coef_penalty_type = coef_penalty_type
         else:
             raise ValueError(coef_penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
-        if isinstance(float(step_size), float) and step_size > 1:
+        if isinstance(float(step_size), float) and step_size < 1:
             self.step_size = float(step_size)
         else:
             raise ValueError('Step size must be a float greater than 1.')

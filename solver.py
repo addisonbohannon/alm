@@ -228,8 +228,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
             bj = np.tensordot(C[:, j], XtY, axes=1)
             for l in np.setdiff1d(np.arange(r), [j]):
                 bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
-            D[j] = sl.solve(Aj, bj, assume_a='pos')
-        	D[j] = proj(D[j])
+            D[j] = proj(sl.solve(Aj, bj, assume_a='pos'))
         delta_D = D - temp
             
         # Update coefficient estimate
@@ -268,7 +267,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
         return D, C, residual_C, residual_D, stop_condition
     
 def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
-                step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
+                step_size=1e-1, tol=1e-6, return_path=False, verbose=False):
     """
     Iterative algorithm for ALMM solver. Based on the PALM algorithm
     of Bolte, Sabach, and Teboulle, Math. Program. Ser. A, 2014. Takes
@@ -291,8 +290,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     maximum iterations (integer) - Maximum number of iterations for 
     algorithm
         
-    step size (scalar) - Factor by which to divide the Lipschitz-based 
-    step size
+    step size (scalar) - Factor by which to extend the Lipschitz-based 
+    step size; must be less than 1
     
     tolerance (float) - Tolerance to terminate iterative algorithm; must
     be positive
@@ -350,8 +349,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         C = np.zeros([n, r])
         for i in range(n):
             C[i, :] = sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))), 
-                                    inner_prod(XtY[i], D), 
-                                    assume_a='pos')
+                                    inner_prod(XtY[i], D), assume_a='pos')
         return D, C
         
     def grad_D(D, C, j, G=None):
@@ -378,8 +376,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         grad = - np.tensordot(C[:, j] / n, XtY, axes=1)
         grad += np.dot(G, D[j, :, :])
         for l in np.setdiff1d(np.arange(r), [j]):
-            grad += np.dot(np.tensordot(C[:, j]*C[:, l] / n, 
-                                        XtX, axes=1), D[l, :, :])
+            grad += np.dot(np.tensordot(C[:, j]*C[:, l] / n, XtX, axes=1), 
+                           D[l, :, :])
         return grad
         
         
@@ -428,7 +426,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             
             # compute step size
             Gj = np.tensordot(C[:, j]**2 / n, XtX, axes=1)
-            alpha[j] = sl.norm(Gj, ord=2)**(-1) / step_size
+            alpha[j] = 2 * sl.norm(Gj, ord=2)**(-1) * step_size
             
             # proximal/gradient step
             D[j, :, :] = proj(D[j, :, :] - alpha[j] * grad_D(D, C, j, G=Gj))
@@ -440,7 +438,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             
             # compute step size
             Gi = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-            beta[i] = sl.norm(Gi, ord=2)**(-1) / step_size
+            beta[i] = sl.norm(Gi, ord=2)**(-1) * step_size
             
             # proximal/gradient step
             C[i, :] = prox_coef(C[i, :] - beta[i] * grad_C(D, C, i, G=Gi), 
