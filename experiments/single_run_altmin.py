@@ -33,7 +33,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Implement solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, max_iter=50, solver='alt_min', verbose=True)
+almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
 D_pred, C_pred, likelihood = almm_model.fit(x, p, r, mu=1e-2, return_path=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)

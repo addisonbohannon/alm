@@ -96,7 +96,8 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
         U += p * (X - Z)
         # update primal residual
         r.append(sl.norm(X-Z))
-        if (r[step] <= tol*np.maximum(sl.norm(X), sl.norm(Z))) and (s[step] <= tol*sl.norm(U)):
+        if (r[step] <= tol*np.maximum(sl.norm(X), sl.norm(Z)) and 
+            s[step] <= tol*sl.norm(U)):
             break
         if r[step] > 4 * s[step]:
             p *= 2
@@ -202,7 +203,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
         D[j] = proj(D[j])
         
     # Initialize coefficients
-    C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+    C = fit_coefs(XtX, XtY, D, n*mu, coef_penalty_type)
     
     # Initialize estimate path
     if return_path:
@@ -233,7 +234,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
             
         # Update coefficient estimate
         temp = np.copy(C)
-        C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+        C = fit_coefs(XtX, XtY, D, n*mu, coef_penalty_type)
         delta_C = C - temp
         
         # Add current estimates to path
@@ -245,7 +246,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
         """( (1/r) \sum_j \|dD_j\|^2 / (p*d^2) )^(1/2)"""
         residual_D.append(sl.norm(delta_D[:]) / (r**(1/2) * p**(1/2) * d))
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
-        residual_C.append(sl.norm(delta_C) / (n**(1/2) * r**(1/2)))
+        residual_C.append(sl.norm(delta_C[:]) / (n**(1/2) * r**(1/2)))
         
         # Check stopping condition
         if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
@@ -285,7 +286,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     
     mu (float) - penalty parameter
     
-    coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
+    coef_penalty_type (string) - coefficient penalty of objective; 
+    {None, l0, l1}
     
     maximum iterations (integer) - Maximum number of iterations for 
     algorithm
@@ -402,7 +404,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         
         if G is None:
             G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-        return - inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)        
+        return - inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)
     
     # Initialize estimates of dictionary and coefficients
     D, C = initialize_estimates()
@@ -426,7 +428,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             
             # compute step size
             Gj = np.tensordot(C[:, j]**2 / n, XtX, axes=1)
-            alpha[j] = 2 * sl.norm(Gj, ord=2)**(-1) * step_size
+            alpha[j] = sl.norm(Gj, ord=2)**(-1) * step_size
             
             # proximal/gradient step
             D[j, :, :] = proj(D[j, :, :] - alpha[j] * grad_D(D, C, j, G=Gj))
@@ -453,7 +455,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         # Compute residuals
         """( (1/r) \sum_j (\|dD_j\|/alpha_j)^2 / (p*d^2) )^(1/2)"""
         residual_D.append(sl.norm(sl.norm(delta_D, ord='fro', axis=(1, 2))/alpha) 
-                          / (r**(1/2) * p**(1/2) * d))           
+                          / (r**(1/2) * p**(1/2) * d))          
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
         residual_C.append(sl.norm(sl.norm(delta_C)/beta) / (n**(1/2) * r**(1/2)))
         
@@ -494,7 +496,8 @@ def likelihood(YtY, XtX, XtY, D, C, mu, coef_penalty_type):
     
     mu (scalar) - penalty parameter
     
-    coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
+    coef_penalty_type (string) - coefficient penalty of objective; 
+    {None, l0, l1}
     
     outputs:
     likelihood (scalar) - negative log likelihood of estimates
