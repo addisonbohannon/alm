@@ -33,8 +33,8 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Implement solver with multiple runs
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, max_iter=100, solver='alt_min', verbose=True)
-D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, mu=1e-2, 
+almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
+D_pred, C_pred, likelihood = almm_model.fit_k(x, p, r, mu=1e-4, 
                                               return_path=True, 
                                               return_all=True)
 t2 = timer()

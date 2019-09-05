@@ -44,8 +44,8 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Fit model with alternating solver
 print('Fitting ALMM model...')
 t3 = timer()
-almm_model = Almm(tol=1e-3, max_iter=int(1e2), solver='alt_min', verbose=True)
-D_altmin, C_altmin, likelihood = almm_model.fit_k(x, p, r, mu=1e-2, 
+almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
+D_altmin, C_altmin, likelihood = almm_model.fit_k(x, p, r, mu=1e-4, 
                                                   return_path=True, 
                                                   return_all=True)
 t4 = timer()

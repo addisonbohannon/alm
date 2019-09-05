@@ -38,8 +38,8 @@ L = []
 for n_i in range(0, n, dn):
     print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
     t1 = timer()
-    almm_model = Almm(tol=1e-3, max_iter=100, solver='alt_min', verbose=True)
-    Di_pred, Ci_pred, Li = almm_model.fit_k(x[:(n_i+dn-1)], p, r, mu=1e-2, 
+    almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
+    Di_pred, Ci_pred, Li = almm_model.fit_k(x[:(n_i+dn-1)], p, r, mu=1e-4, 
                                             return_path=True, return_all=True)
     t2 = timer()
     D_pred.append(Di_pred)

@@ -31,10 +31,10 @@ print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
         
 # Implement solver with cross-validation
-mu_list = [1e-4, 5e-4, 1e-3, 5e-3]
+mu_list = [1e-5, 5e-5, 1e-4, 5e-4]
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, max_iter=100, solver='alt_min',  verbose=True)
+almm_model = Almm(tol=1e-3, solver='alt_min',  verbose=True)
 D_pred, C_pred, likelihood, params = almm_model.fit_cv(x, p, r, mu=mu_list, 
                                                        k=5, return_path=True, 
                                                        return_all=True)
