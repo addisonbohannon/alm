@@ -20,7 +20,7 @@ m = 800
 d = 5
 r = 10
 p = 2
-scale = 1
+scale = 1 / r
 mu = d**(1/2) / (n * m * scale)
 
 # Generate almm sample

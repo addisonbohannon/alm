@@ -13,7 +13,8 @@ from almm.solver import shrink
 from almm.utility import gram, inner_prod, ar_toep_op, stack_ar_coef
     
 def check_almm_condition(x, D, C):
-    """Computes and returns the condition number of the linear operators 
+    """
+    Computes and returns the condition number of the linear operators 
     that participate in the gradient-based method, i.e.,
     G_ij = and
     H_ij[k] = <D_i, (X_k^TX_k) D_j>_F 
@@ -63,7 +64,7 @@ def isstable(A):
     C = np.eye(p*d, k=-d)
     C[:d, :] = np.concatenate(list(A), axis=1)
     v = sl.eigvals(C, overwrite_a=True)
-    return np.all(np.abs(v**(-1)) > 1)
+    return np.all(np.abs(v) < 1)
 
 def ar_sample(sample_len, signal_dim, noise_var, ar_coef):
     """
