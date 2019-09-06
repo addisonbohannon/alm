@@ -40,8 +40,8 @@ D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_palm, C_palm, likelihood = almm_model.fit(x, p, r, mu=1e-4, D_0=D_0,
-                                            return_path=True)
+D_palm, C_palm, palm_likelihood = almm_model.fit(x, p, r, mu=1e-2, D_0=D_0,
+                                                 return_path=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -50,17 +50,19 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t3 = timer()
 almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_altmin, C_altmin, likelihood = almm_model.fit(x, p, r, mu=1e-4, D_0=D_0,
-                                                return_path=True)
+D_altmin, C_altmin, altmin_likelihood = almm_model.fit(x, p, r, mu=1e-2, 
+                                                       D_0=D_0, 
+                                                       return_path=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
 
 # Compute dictionary error
 print('Computing dictionary error...', end=" ", flush=True)
-fig, axs = plt.subplots()
-axs.set_xlabel('Iteration')
-axs.set_ylabel('Dictionary Error')
+fig, axs = plt.subplots(2, 1)
+axs[1].set_xlabel('Iteration')
+axs[0].set_ylabel('Dictionary Error')
+axs[1].set_ylabel('Likelihood')
 # Proximal error
 loss=[]
 for s, Dis in enumerate(D_palm):
@@ -69,7 +71,7 @@ for s, Dis in enumerate(D_palm):
         Dis_pred[j] = unstack_ar_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
-plt_palm, = axs.plot(loss, 'b-')
+plt_palm, = axs[0].plot(loss, 'b-')
 # Alternating error
 loss=[]
 for s, Dis in enumerate(D_altmin):
@@ -78,9 +80,12 @@ for s, Dis in enumerate(D_altmin):
         Dis_pred[j] = unstack_ar_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
-plt_altmin, = axs.plot(loss, 'r-')
-axs.legend((plt_palm, plt_altmin), ('Proximal', 'Alternating'))
+plt_altmin, = axs[0].plot(loss, 'r-')
+axs[0].legend((plt_palm, plt_altmin), ('Proximal', 'Alternating'))
+plt_palm_2, = axs[1].plot(palm_likelihood, 'b-')
+plt_altmin_2, = axs[1].plot(altmin_likelihood, 'r-')
+axs[1].legend((plt_palm, plt_altmin), ('Proximal', 'Alternating'))
 print('Complete.')
 
-path = "/home/addison/Python/almm/results"
-plt.savefig(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+#path = "/home/addison/Python/almm/results"
+#plt.savefig(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
