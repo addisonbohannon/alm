@@ -20,13 +20,12 @@ m = 800
 d = 5
 r = 10
 p = 2
-scale = 1 / r
-mu = d**(1/2) / (n * m * scale)
+s = 3
 
 # Generate almm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
-x, C, D = almm_sample(n, m, d, r, p, scale, coef_cond=1e2, dict_cond=1e2)
+x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e1, dict_cond=1e1)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -35,7 +34,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_pred, C_pred, likelihood = almm_model.fit(x, p, r, mu=mu, return_path=True)
+D_pred, C_pred, likelihood = almm_model.fit(x, p, r, mu=1e-4, return_path=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -59,5 +58,5 @@ axs[1].plot(likelihood)
 axs[1].set_xlabel('Iteration')
 axs[1].set_ylabel('Negative Log Likelihood')
 
-#path = "/home/addison/Python/almm/results"
-#plt.savefig(join(path, "single_run_palm-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+path = "/home/addison/Python/almm/results"
+plt.savefig(join(path, "single_run_palm-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))

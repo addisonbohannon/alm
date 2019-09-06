@@ -9,7 +9,6 @@ Date: 29 Apr 19
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from almm.solver import shrink
 from almm.utility import gram, inner_prod, ar_toep_op, stack_ar_coef
     
 def check_almm_condition(x, D, C):
@@ -93,12 +92,12 @@ def ar_sample(sample_len, signal_dim, noise_var, ar_coef):
     return np.squeeze(x[-sample_len:, :])
 
 def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord, 
-                coef_scale, coef_cond=None, dict_cond=None):
+                coef_support, coef_cond=None, dict_cond=None):
     """
     Generates iid autoregressive linear mixture model samples according to
     x_i[t] = \sum_j c_ij A_j[1] x_i[t-1] + ... + \sum_j c_ij A_j[p] x_i[t-m] 
     + n[t] where (c_ij)_j has support of size coef_support and 
-    i=1,...,num_processes.
+    i=1,...,num_samples.
     
     inputs:
     num_samples (n) - integer
@@ -106,7 +105,7 @@ def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord,
     signal_dim (d) - integer
     num_processes (r) - integer
     model_ord (p) - integer
-    coef_scale (lambda) - scalar
+    coef_support (s) - integer
     coef_cond (k1) - scalar
     dict_cond (k2) - scalar
     
@@ -117,17 +116,15 @@ def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord,
     """
     
     for step in range(100):
-        A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
-        for i in range(num_processes):
-            A[i, :, :, :] = nr.randn(model_ord, signal_dim, signal_dim)
-            A[i, :, :, :] /= sl.norm(A[i, :, :, :])
+        A = nr.randn(num_processes, model_ord, signal_dim, signal_dim)
+        A = np.array([A_i/sl.norm(A_i[:]) for A_i in A])
         C = np.zeros([num_samples, num_processes])
         for i in range(num_samples):
-            C[i, :] = shrink(nr.laplace(scale=coef_scale, size=num_processes),
-                             coef_scale)
-            while not isstable(np.tensordot(C[i, :], A, axes=1)) or np.count_nonzero(C[i, :]) < 2:
-                C[i, :] = shrink(nr.laplace(scale=coef_scale, size=num_processes),
-                                 coef_scale)
+            support = list(nr.choice(num_processes, size=coef_support, 
+                                     replace=False))
+            C[i, support] = signal_dim**(-1/2) * nr.randn(coef_support)
+            while not isstable(np.tensordot(C[i, :], A, axes=1)):
+                C[i, support]  = signal_dim**(-1/2) * nr.randn(coef_support)
         X = np.zeros([num_samples, sample_len, signal_dim])
         for i in range(num_samples):
             X[i, :, :] = ar_sample(sample_len, signal_dim, signal_dim**(-1/2),
