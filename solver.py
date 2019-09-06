@@ -225,6 +225,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
     stop_condition = 'maximum iteration'
     residual_D = []
     residual_C = []
+    wall_time = []
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -257,6 +258,9 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
         residual_C.append(sl.norm(delta_C[:]) / (n**(1/2) * r**(1/2)))
         
+        # Compute wall time
+        wall_time.append(timer()-start)
+        
         # Check stopping condition
         if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
             and residual_C[-1] < tol * residual_C[0] ):
@@ -272,9 +276,9 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
         print('*Duration: ' + str(duration) + 's')
     
     if return_path:
-        return D_path, C_path, residual_D, residual_C, stop_condition
+        return D_path, C_path, residual_D, residual_C, stop_condition, wall_time
     else:
-        return D, C, residual_C, residual_D, stop_condition
+        return D, C, residual_C, residual_D, stop_condition, wall_time
     
 def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3, 
                 step_size=1e-1, tol=1e-6, return_path=False, verbose=False):
@@ -419,6 +423,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
     beta = np.zeros([n])
     residual_D = []
     residual_C = []
+    wall_time = []
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -458,6 +463,9 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
         residual_C.append(sl.norm(sl.norm(delta_C)/beta) / (n**(1/2) * r**(1/2)))
         
+        # Compute wall time
+        wall_time.append(timer()-start)
+        
         # Check stopping condition
         if ( step > 0 and residual_D[-1] < tol * residual_D[0] 
             and residual_C[-1] < tol * residual_C[0] ):
@@ -473,9 +481,9 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         print('*Duration: ' + str(duration) + 's')
     
     if return_path:
-        return D_path, C_path, residual_D, residual_C, stop_condition
+        return D_path, C_path, residual_D, residual_C, stop_condition, wall_time
     else:
-        return D, C, residual_C, residual_D, stop_condition
+        return D, C, residual_C, residual_D, stop_condition, wall_time
     
 def likelihood(YtY, XtX, XtY, D, C, mu, coef_penalty_type):
     """
