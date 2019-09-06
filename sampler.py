@@ -12,7 +12,8 @@ import scipy.linalg as sl
 from almm.utility import gram, inner_prod, ar_toep_op, stack_ar_coef
     
 def check_almm_condition(x, D, C):
-    """Computes and returns the condition number of the linear operators 
+    """
+    Computes and returns the condition number of the linear operators 
     that participate in the gradient-based method, i.e.,
     G_ij = and
     H_ij[k] = <D_i, (X_k^TX_k) D_j>_F 
@@ -62,7 +63,7 @@ def isstable(A):
     C = np.eye(p*d, k=-d)
     C[:d, :] = np.concatenate(list(A), axis=1)
     v = sl.eigvals(C, overwrite_a=True)
-    return np.all(np.abs(v**(-1)) > 1)
+    return np.all(np.abs(v) < 1)
 
 def ar_sample(sample_len, signal_dim, noise_var, ar_coef):
     """
@@ -90,36 +91,13 @@ def ar_sample(sample_len, signal_dim, noise_var, ar_coef):
         x[t, :] = np.sum(np.matmul(ar_coef, x[t-1:t-model_ord-1:-1, :, :]), axis=0) + noise_var * nr.randn(1, signal_dim, 1)
     return np.squeeze(x[-sample_len:, :])
 
-def coef_sample(model_ord, signal_dim, sample_len, coef_type=None):
-    """
-    Generates coefficients for an autoregressive process (A[s])_s as in
-    x[t] = A[1] x[t-1] + ... + A[p] x[t-p] + n[t].
-    
-    inputs:
-    model_ord (p) - integer
-    signal_dim (d) - integer
-    sample len (m) - integer
-    coef_type - string {None, 'sparse', 'lag_sparse'}
-    
-    outputs:
-    ar_coef (A) - p x d x d tensor
-    """
-    ar_coef = nr.randn(model_ord, signal_dim, signal_dim)
-    if coef_type == 'sparse':
-        ar_coef[ar_coef < np.percentile(ar_coef, 90)] = 0
-    elif coef_type == 'lag_sparse':
-        ar_coef[list(nr.randint(model_ord, size=(int(0.9*model_ord),), dtype=np.int)), :, :] = 0
-    elif coef_type is not None:
-        raise ValueError(coef_type+" is not a valid coefficient type, i.e. sparse or lag_sparse.")
-    # Enforce unit Frobenius norm
-    return ar_coef / sl.norm(ar_coef[:])
-
 def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord, 
-                coef_support, coef_type=None, coef_cond=None, dict_cond=None):
+                coef_support, coef_cond=None, dict_cond=None):
     """
     Generates iid autoregressive linear mixture model samples according to
-    x_i[t] = \sum_j c_ij A_j[1] x_i[t-1] + ... + \sum_j c_ij A_j[p] x_i[t-m] + n[t]
-    where (c_ij)_j has support of size coef_support and i=1,...,num_processes.
+    x_i[t] = \sum_j c_ij A_j[1] x_i[t-1] + ... + \sum_j c_ij A_j[p] x_i[t-m] 
+    + n[t] where (c_ij)_j has support of size coef_support and 
+    i=1,...,num_samples.
     
     inputs:
     num_samples (n) - integer
@@ -127,8 +105,7 @@ def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord,
     signal_dim (d) - integer
     num_processes (r) - integer
     model_ord (p) - integer
-    coef_support (s) - integer {1,...,r}
-    coef_type - string {None, 'sparse', 'lag_sparse'}
+    coef_support (s) - integer
     coef_cond (k1) - scalar
     dict_cond (k2) - scalar
     
@@ -139,21 +116,19 @@ def almm_sample(num_samples, sample_len, signal_dim, num_processes, model_ord,
     """
     
     for step in range(100):
-        A = np.zeros([num_processes, model_ord, signal_dim, signal_dim])
-        for i in range(num_processes):
-            A[i, :, :, :] = coef_sample(model_ord, signal_dim, sample_len, 
-                                        coef_type=coef_type)
+        A = nr.randn(num_processes, model_ord, signal_dim, signal_dim)
+        A = np.array([A_i/sl.norm(A_i[:]) for A_i in A])
         C = np.zeros([num_samples, num_processes])
         for i in range(num_samples):
-            support = list(nr.choice(num_processes, size=coef_support, replace=False))
+            support = list(nr.choice(num_processes, size=coef_support, 
+                                     replace=False))
             C[i, support] = signal_dim**(-1/2) * nr.randn(coef_support)
             while not isstable(np.tensordot(C[i, :], A, axes=1)):
                 C[i, support]  = signal_dim**(-1/2) * nr.randn(coef_support)
         X = np.zeros([num_samples, sample_len, signal_dim])
         for i in range(num_samples):
             X[i, :, :] = ar_sample(sample_len, signal_dim, signal_dim**(-1/2),
-                                   np.tensordot(C[i, :], A, axes=1))
-        
+                                   np.tensordot(C[i, :], A, axes=1))        
         k1, k2 = check_almm_condition(X, A, C)
         if k1 < coef_cond and np.all(k2 < dict_cond):
             break
