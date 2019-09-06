@@ -130,21 +130,25 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
     """
     
     if coef_penalty_type is None:
-        prox = lambda x, t : x
+        # Fit coefficients with closed-form solution
+        return np.array([sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
+                                    inner_prod(XtY_i, D)) 
+                                    for XtX_i, XtY_i in zip(XtX, XtY)])
     elif coef_penalty_type == 'l0':
         prox = threshold
     elif coef_penalty_type == 'l1':
         prox = shrink
     else:
-        raise ValueError('coef_penalty_type not a valid type, i.e. l0 or l1')
+        raise ValueError('coef_penalty_type not a valid type, i.e. None, l0, or l1')
     
-    # Fit coefficients with LASSO estimator
+    # Fit coefficients with iterative algorithm
     return np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
                                     inner_prod(XtY_i, D), prox, mu) 
                                     for XtX_i, XtY_i in zip(XtX, XtY)])
     
-def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2, 
-                   step_size=1e-3, tol=1e-6, return_path=False, verbose=False):
+def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, 
+                   max_iter=1e2, step_size=1e-3, tol=1e-6, return_path=False, 
+                   verbose=False):
     """
     Alternating minimization algorithm for ALMM solver. Alternates between 
     minimizing the following function with respect to (D_j)_j and (C_ij)_ij:
@@ -161,7 +165,10 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
     
     mu (float) - penalty parameter
     
-    coef_penalty_type (string) - coefficient penalty of objective; {None, l0, l1}
+    coef_penalty_type (string) - coefficient penalty of objective; 
+    {None, l0, l1}
+        
+    D_0 (r x p*d * d array) - intial dictionary estimate (optional)
     
     maximum iterations (integer) - Maximum number of iterations for 
     algorithm
@@ -198,12 +205,14 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
     _, d = XtY[0].shape
         
     # Initialize dictionary randomly; enforce unit norm
-    D = nr.randn(r, p*d, d)
-    for j in range(r):
-        D[j] = proj(D[j])
+    if D_0 is None:
+        D = nr.randn(r, p*d, d)
+        for j in range(r):
+            D[j] = proj(D[j])
+    else: D = D_0
         
     # Initialize coefficients
-    C = fit_coefs(XtX, XtY, D, n*mu, coef_penalty_type)
+    C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
     
     # Initialize estimate path
     if return_path:
@@ -234,7 +243,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
             
         # Update coefficient estimate
         temp = np.copy(C)
-        C = fit_coefs(XtX, XtY, D, n*mu, coef_penalty_type)
+        C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
         delta_C = C - temp
         
         # Add current estimates to path
@@ -267,7 +276,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e2,
     else:
         return D, C, residual_C, residual_D, stop_condition
     
-def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3, 
+def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3, 
                 step_size=1e-1, tol=1e-6, return_path=False, verbose=False):
     """
     Iterative algorithm for ALMM solver. Based on the PALM algorithm
@@ -288,6 +297,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
     
     coef_penalty_type (string) - coefficient penalty of objective; 
     {None, l0, l1}
+        
+    D_0 (r x p*d * d array) - intial dictionary estimate (optional)
     
     maximum iterations (integer) - Maximum number of iterations for 
     algorithm
@@ -332,28 +343,25 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         
     n = len(XtY)
     _, d = XtY[0].shape
-    
-    def initialize_estimates():
-        """
-        Initializes the dictionary and coefficient estimates.
         
-        outputs:
-        D (r x p*d x d tensor) - initial dictionary estimate
-        
-        C (n x r tensor) - initial coefficient estimate
-        """
-        
-        # Initialize dictionary randomly; enforce unit norm
+    # Initialize dictionary randomly; enforce unit norm
+    if D_0 is None:
         D = nr.randn(r, p*d, d)
         for j in range(r):
-            D[j, :, :] = proj(D[j, :, :])
-        # Initialize coefficients with unpenalized least squares
-        C = np.zeros([n, r])
-        for i in range(n):
-            C[i, :] = sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))), 
-                                    inner_prod(XtY[i], D), assume_a='pos')
-        return D, C
+            D[j] = proj(D[j])
+    else: D = D_0
         
+    # Initialize coefficients
+    C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+    
+    # Initialize estimates of dictionary and coefficients
+    if return_path:
+        D_path = []
+        D_path.append(np.copy(D))
+        C_path = []
+        C_path.append(np.copy(C))
+        
+    # Define gradient functions        
     def grad_D(D, C, j, G=None):
         """
         Computes the gradient of the jth dictionary element for the current 
@@ -380,8 +388,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         for l in np.setdiff1d(np.arange(r), [j]):
             grad += np.dot(np.tensordot(C[:, j]*C[:, l] / n, XtX, axes=1), 
                            D[l, :, :])
-        return grad
-        
+        return grad        
         
     def grad_C(D, C, i, G=None):
         """
@@ -405,14 +412,6 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
         if G is None:
             G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
         return - inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)
-    
-    # Initialize estimates of dictionary and coefficients
-    D, C = initialize_estimates()
-    if return_path:
-        D_path = []
-        D_path.append(np.copy(D))
-        C_path = []
-        C_path.append(np.copy(C))
     
     # Begin iterative algorithm
     stop_condition = 'maximum iteration'
@@ -444,7 +443,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, max_iter=1e3,
             
             # proximal/gradient step
             C[i, :] = prox_coef(C[i, :] - beta[i] * grad_C(D, C, i, G=Gi), 
-                                     mu * beta[i])
+                                     mu * beta[i] / n)
         delta_C = C - temp
         
         # Add current estimates to path
@@ -510,7 +509,7 @@ def likelihood(YtY, XtX, XtY, D, C, mu, coef_penalty_type):
                         - 2 * np.sum([np.mean([C[i, j]*inner_prod(XtY[i], D[j]) for i in range(n)]) for j in range(r)])
                         + np.mean(np.matmul(np.expand_dims(C, 1), np.matmul(gram_C, np.expand_dims(C, 2)))) )
     if coef_penalty_type == 'l0':
-        likelihood += mu * np.count_nonzero(C[:])
+        likelihood += mu * np.count_nonzero(C[:]) / n
     elif coef_penalty_type == 'l1':
-        likelihood += mu * sl.norm(C[:], ord=1)
+        likelihood += mu * sl.norm(C[:], ord=1) / n
     return likelihood

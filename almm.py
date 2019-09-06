@@ -9,6 +9,7 @@ Date: 1 May 19
 # Import required libraries
 from itertools import product
 import numpy as np
+import scipy.linalg as sl
 from almm.utility import train_val_split
 from almm.solver import fit_coefs, likelihood
 from almm.timeseries import Timeseries
@@ -76,7 +77,7 @@ class Almm:
         else:
             raise TypeError('Verbose must be a boolean.')
         
-    def fit(self, ts, p, r, mu, return_path=False):
+    def fit(self, ts, p, r, mu, D_0=None, return_path=False):
         """
         Fit the autoregressive linear mixture model to observations.
         
@@ -89,6 +90,8 @@ class Almm:
         r (integer) - dictionary atoms; must be a positive integer
         
         mu (float) - penalty parameter; must be a positive float
+        
+        D_0 (r x p*d * d array) - intial dictionary estimate (optional)
         
         starts (integer) - unique initializations of the solver; must be a
         positive integer
@@ -110,6 +113,13 @@ class Almm:
             raise TypeError('Model order (p) must be a positive integer.')
         if not isinstance(mu, float) and mu < 0:
             raise ValueError('Penalty parameter (mu) must be a positive float.')
+        if D_0 is not None:
+            _, d = ts[0].shape
+            if np.shape(D_0) != (r, p*d, d):
+                raise ValueError('Initial dictionary estimate must be of shape [r, p*d, d].')
+            elif np.any(sl.norm(D_0, axis=(1,2), ord='fro') != 1):
+                D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
+                print('Initial dictionary estimate scaled to unit norm.')
         if not isinstance(return_path, bool):
             raise TypeError('Return path must be a boolean.')
         
@@ -130,6 +140,7 @@ class Almm:
             print('-Fitting model...')
         D, C, res_D, res_C, stop_con = self._fit(XtX, XtY, p, r, mu, 
                                                  self.coef_penalty_type, 
+                                                 D_0=D_0, 
                                                  max_iter=self.max_iter, 
                                                  step_size=self.step_size, 
                                                  tol=self.tol, 
