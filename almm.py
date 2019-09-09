@@ -138,14 +138,14 @@ class Almm:
             
         if self.verbose:
             print('-Fitting model...')
-        D, C, res_D, res_C, stop_con = self._fit(XtX, XtY, p, r, mu, 
-                                                 self.coef_penalty_type, 
-                                                 D_0=D_0, 
-                                                 max_iter=self.max_iter, 
-                                                 step_size=self.step_size, 
-                                                 tol=self.tol, 
-                                                 return_path=return_path,
-                                                 verbose=self.verbose)
+        D, C, res_D, res_C, stop_con, time = self._fit(XtX, XtY, p, r, mu, 
+                                                       self.coef_penalty_type, 
+                                                       D_0=D_0, 
+                                                       max_iter=self.max_iter, 
+                                                       step_size=self.step_size, 
+                                                       tol=self.tol, 
+                                                       return_path=return_path, 
+                                                       verbose=self.verbose)
         if self.verbose:
             print('-Complete.')
         
@@ -160,7 +160,7 @@ class Almm:
         if self.verbose:
             print('Complete.')
             
-        return D, C, L
+        return D, C, L, (res_D, res_C), time
             
     def fit_k(self, ts, p, r, mu, k=5, val_pct=0.25, return_path=False, 
               return_all=False):
@@ -426,13 +426,13 @@ class Almm:
         for ki in range(k):
             if self.verbose:
                 print('--Start: ' + str(ki))
-            D_s, C_s, _, _, _ = self._fit(XtX_train, XtY_train, p, r, mu, 
-                                          self.coef_penalty_type,
-                                          max_iter=self.max_iter,
-                                          step_size=self.step_size, 
-                                          tol=self.tol, 
-                                          return_path=return_path,
-                                          verbose=self.verbose)
+            D_s, C_s, _, _, _, _ = self._fit(XtX_train, XtY_train, p, r, mu, 
+                                             self.coef_penalty_type, 
+                                             max_iter=self.max_iter, 
+                                             step_size=self.step_size, 
+                                             tol=self.tol, 
+                                             return_path=return_path, 
+                                             verbose=self.verbose)
             D.append(D_s)
             if return_path:
                 C_train.append(C_s[-1])
@@ -450,10 +450,12 @@ class Almm:
         Lv = []
         for D_s in D:
             if return_path:
-                C_s = fit_coefs(XtX_val, XtY_val, D_s[-1], mu, 
-                                self.coef_penalty_type)
-                L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], C_s, mu, 
+                C_s = [fit_coefs(XtX_val, XtY_val, D_is, mu, 
                                  self.coef_penalty_type)
+                                 for D_is in D_s]
+                L_s = [likelihood(YtY_val, XtX_val, XtY_val, D_is, C_is, mu, 
+                                  self.coef_penalty_type) 
+                                  for D_is, C_is in zip(D_s, C_s)]
             else:
                 C_s = fit_coefs(XtX_val, XtY_val, D_s, mu, 
                                 self.coef_penalty_type)

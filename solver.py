@@ -198,8 +198,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
     condition that terminated the iterative algorithm
     """
     
-    if verbose:
-        start = timer()
+    start = timer()
         
     n = len(XtY)
     _, d = XtY[0].shape
@@ -226,6 +225,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
     residual_D = []
     residual_C = []
     wall_time = []
+    wall_time.append(timer()-start)
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -332,8 +332,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
     condition that terminated the iterative algorithm
     """
     
-    if verbose:
-        start = timer()
+    start = timer()
     
     # Set proximal function for coefficient
     if coef_penalty_type is None:
@@ -415,7 +414,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         
         if G is None:
             G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-        return - inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)
+        return (- inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)) / n
     
     # Begin iterative algorithm
     stop_condition = 'maximum iteration'
@@ -424,6 +423,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
     residual_D = []
     residual_C = []
     wall_time = []
+    wall_time.append(timer()-start)
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -437,6 +437,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
             # proximal/gradient step
             D[j, :, :] = proj(D[j, :, :] - alpha[j] * grad_D(D, C, j, G=Gj))
         delta_D = D - temp
+        
+        # TODO: Issue with coefficient update and factor (1/n)
             
         # Update coefficient estimate
         temp = np.copy(C)
@@ -444,7 +446,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
             
             # compute step size
             Gi = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-            beta[i] = sl.norm(Gi, ord=2)**(-1) * step_size
+            beta[i] = n * sl.norm(Gi, ord=2)**(-1) * step_size
             
             # proximal/gradient step
             C[i, :] = prox_coef(C[i, :] - beta[i] * grad_C(D, C, i, G=Gi), 
