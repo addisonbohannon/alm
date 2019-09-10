@@ -77,7 +77,7 @@ class Almm:
         else:
             raise TypeError('Verbose must be a boolean.')
         
-    def fit(self, ts, p, r, mu, D_0=None, return_path=False):
+    def fit(self, ts, p, r, mu, k=5, D_0=None, return_path=False, return_all=False):
         """
         Fit the autoregressive linear mixture model to observations.
         
@@ -90,21 +90,29 @@ class Almm:
         r (integer) - dictionary atoms; must be a positive integer
         
         mu (float) - penalty parameter; must be a positive float
+
+        k (integer) - unique initializations of the solver; must be a
+        positive integer
         
-        D_0 (r x p*d * d array) - intial dictionary estimate (optional)
+        D_0 (r x p*d * d array) - initial dictionary estimate (optional)
         
         starts (integer) - unique initializations of the solver; must be a
         positive integer
         
         return_path (boolean) - whether or not to return the path of
         dictionary and coefficient estimates
+
+        return_all (boolean) - whether to return all dictionary and
+        coefficient estimates or that of maximum likelihood
         
         outputs:
         D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
         
         C ([k x] n x r array) - coefficient estimate [if return_path=True]
         
-        L (scalar) - negative log likelihood of estimates
+        L (list) - negative log likelihood of estimates
+
+        T (list) - wall time of execution
         """
         
         if not isinstance(r, int) or r < 1:
@@ -113,15 +121,19 @@ class Almm:
             raise TypeError('Model order (p) must be a positive integer.')
         if not isinstance(mu, float) and mu < 0:
             raise ValueError('Penalty parameter (mu) must be a positive float.')
-        if D_0 is not None:
+        if not isinstance(k, int) or k < 1:
+            raise ValueError('k must be a positive integer.')
+        if D_0 is not None and k == 1:
             _, d = ts[0].shape
             if np.shape(D_0) != (r, p*d, d):
                 raise ValueError('Initial dictionary estimate must be of shape [r, p*d, d].')
-            elif np.any(sl.norm(D_0, axis=(1,2), ord='fro') != 1):
+            elif np.any(sl.norm(D_0, axis=(1, 2), ord='fro') != 1):
                 D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
                 print('Initial dictionary estimate scaled to unit norm.')
         if not isinstance(return_path, bool):
             raise TypeError('Return path must be a boolean.')
+        if not isinstance(return_all, bool):
+            raise TypeError('Return all must be a boolean.')
         
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
@@ -138,85 +150,42 @@ class Almm:
             
         if self.verbose:
             print('-Fitting model...')
-        D, C, res_D, res_C, stop_con, time = self._fit(XtX, XtY, p, r, mu, 
-                                                       self.coef_penalty_type, 
-                                                       D_0=D_0, 
-                                                       max_iter=self.max_iter, 
-                                                       step_size=self.step_size, 
-                                                       tol=self.tol, 
-                                                       return_path=return_path, 
-                                                       verbose=self.verbose)
+        D = []
+        C = []
+        T = []
+        for ki in range(k):
+            if self.verbose:
+                print('--Start: ' + str(ki))
+            D_i, C_i, res_D, res_C, stop_con, T_i = self._fit(XtX, XtY, p, r, mu, self.coef_penalty_type,  D_0=D_0,
+                                                              max_iter=self.max_iter, step_size=self.step_size,
+                                                              tol=self.tol, return_path=return_path,
+                                                              verbose=self.verbose)
+            D.append(D_i)
+            C.append(C_i)
+            T.append(T_i)
         if self.verbose:
-            print('-Complete.')
+            print('--Complete.')
         
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
-        if return_path:
-            L = [likelihood(YtY, XtX, XtY, Di, Ci, mu, self.coef_penalty_type) 
-                 for Di, Ci in zip(D, C)]
-        else:
-            L = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, 
-                           self.coef_penalty_type)
+        L = []
+        for D_i, C_i in zip(D, C):
+            if return_path:
+                L_i = [likelihood(YtY, XtX, XtY, Dis, Cis, mu, self.coef_penalty_type) for Dis, Cis in zip(D_i, C_i)]
+            else:
+                L_i = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, self.coef_penalty_type)
+            L.append(L_i)
         if self.verbose:
             print('Complete.')
-            
-        return D, C, L, (res_D, res_C), time
-            
-    def fit_k(self, ts, p, r, mu, k=5, val_pct=0.25, return_path=False, 
-              return_all=False):
-        """
-        Fit ALMM model to observations using multiple (k-) starts to address 
-        the nonconvexity of the objective.
-        
-        inputs:
-        ts (list) - list of observations; shold be m x d arrays
-        
-        p (integer) - model order; must be a positive integer less than the 
-        observation length
-        
-        r (integer) - dictionary atoms; must be a positive integer
-        
-        mu (float) - penalty parameter; must be a positive float
-        
-        k (integer) - unique initializations of the solver; must be a
-        positive integer
-        
-        val_pct (float) = percentage of observations to use for validation;
-        must be between 0 and 1
-        
-        return_path (boolean) - whether or not to return the path of
-        dictionary estimates; will not return path of coefficient estimates
-        
-        return_all (boolean) - whether to return all dictionary and
-        coefficient estimates or that of maximum likelihood
-        
-        outputs:
-        D (r x p*d x d array) - dictionary estimate
-        
-        C (n x r array) - coefficient estimate
-        
-        Lv (scalar) - negative log likelihood of estimates during validation
-        """
-        
-        if not isinstance(r, int) or r < 1:
-            raise TypeError('Atoms (r) must be a positive integer.')
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order (p) must be a positive integer.')
-        if not isinstance(mu, float) and mu < 0:
-            raise ValueError('Penalty parameter (mu) must be a positive float.')
-        if not isinstance(k, int) or k < 1:
-            raise TypeError('Starts (k) must be a positive integer.')
-        if not isinstance(val_pct, float) or val_pct < 0 or val_pct > 1:
-            raise TypeError('Validation percentage must be between 0 and 1.')
-        if not isinstance(return_path, bool):
-            raise TypeError('Return path must be a boolean.')
-        if not isinstance(return_all, bool):
-            raise TypeError('Return all must be a boolean.')
-            
-        ts = [Timeseries(ts_i) for ts_i in ts]
-        
-        return self._fit_k(ts, p, r, mu, k=k, val_pct=val_pct,
-                           return_path=return_path, return_all=return_all)
+
+        if return_all:
+            return D, C, L, T
+        else:
+            opt = 0
+            for i in enumerate(L):
+                if L[i][-1] < L[opt][-1]:
+                    opt = i
+            return D[opt], C[opt], L[opt], T[opt]
         
     def fit_cv(self, ts, p=None, r=None, mu=None, k=5, val_pct=0.25, 
                return_path=False, return_all=False):
@@ -226,7 +195,7 @@ class Almm:
         tuple of parameters, multiple (k-) models are fit.
         
         inputs:
-        ts (list) - list of observations; shold be m x d arrays
+        ts (list) - list of observations; should be m x d arrays
         
         p (list or integer) - model order; must be a positive integer or list
         of positive integers
@@ -356,7 +325,6 @@ class Almm:
             C.append(Cs)
             if self.verbose:
                 print('Complete.')
-            
 
         params = [i for i in product(p, r, mu)]
         if return_all:
@@ -364,125 +332,3 @@ class Almm:
         else:
             opt = np.argmin(Lv)
             return D[opt], C[opt], Lv[opt], params[opt]
-        
-    def _fit_k(self, ts, p, r, mu, k=5, val_pct=0.25, return_path=False, 
-               return_all=False):
-        """
-        Fit ALMM model to observations using multiple (k-) starts to address 
-        the nonconvexity of the objective. Internal function to the solver
-        class so it requires no explicit error handling.
-        
-        inputs:
-        ts (list) - list of timeseries objects
-        
-        p (integer) - model order; must be a positive integer less than the 
-        timeseries length
-        
-        r (integer) - dictionary atoms; must be a positive integer
-        
-        mu (float) - penalty parameter; must be a positive float
-        
-        k (integer) - unique initializations of the solver; must be a
-        positive integer
-        
-        val_pct (float) = percentage of observations to use for validation;
-        must be between 0 and 1
-        
-        return_path (boolean) - whether or not to return the path of
-        dictionary estimates; will not return path of coefficient estimates
-        
-        return_all (boolean) - whether to return all dictionary and
-        coefficient estimates or that of maximum likelihood
-        
-        outputs:
-        D (r x p*d x d array) - dictionary estimate
-        
-        C (n x r array) - coefficient estimate
-        
-        Lv (scalar) - negative log likelihood of estimates during validation
-        """
-        
-        if self.verbose:
-            print('--Formatting and splitting data...', end=" ", flush=True)
-        YtY = [ts_i.YtY(p) for ts_i in ts]
-        XtX = [ts_i.XtX(p) for ts_i in ts]
-        XtY = [ts_i.XtY(p) for ts_i in ts]
-        
-        # split observations into training and validation
-        train_idx, val_idx = train_val_split(len(ts), val_pct)
-        YtY_val = [YtY[i] for i in val_idx]
-        XtX_train = [XtX[i] for i in train_idx]
-        XtX_val = [XtX[i] for i in val_idx]
-        XtY_train = [XtY[i] for i in train_idx]
-        XtY_val = [XtY[i] for i in val_idx]
-        if self.verbose:
-            print('Complete.')
-        
-        # Fit dictionary to training observations with unique initialization
-        if self.verbose:
-            print('--Fitting model to training data...')
-        D = []
-        C_train = []
-        for ki in range(k):
-            if self.verbose:
-                print('--Start: ' + str(ki))
-            D_s, C_s, _, _, _, _ = self._fit(XtX_train, XtY_train, p, r, mu, 
-                                             self.coef_penalty_type, 
-                                             max_iter=self.max_iter, 
-                                             step_size=self.step_size, 
-                                             tol=self.tol, 
-                                             return_path=return_path, 
-                                             verbose=self.verbose)
-            D.append(D_s)
-            if return_path:
-                C_train.append(C_s[-1])
-            else:
-                C_train.append(C_s)
-        if self.verbose:
-            print('--Complete.')
-            
-        # Fit coefficients to validation observation and compute negative log 
-        # likelihood
-        if self.verbose:
-            print('--Fitting coefficients to validation data...', end=" ", 
-                  flush=True)
-        C_val = []
-        Lv = []
-        for D_s in D:
-            if return_path:
-                C_s = [fit_coefs(XtX_val, XtY_val, D_is, mu, 
-                                 self.coef_penalty_type)
-                                 for D_is in D_s]
-                L_s = [likelihood(YtY_val, XtX_val, XtY_val, D_is, C_is, mu, 
-                                  self.coef_penalty_type) 
-                                  for D_is, C_is in zip(D_s, C_s)]
-            else:
-                C_s = fit_coefs(XtX_val, XtY_val, D_s, mu, 
-                                self.coef_penalty_type)
-                L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s, C_s, mu, 
-                                 self.coef_penalty_type)
-            C_val.append(C_s)
-            Lv.append(L_s)
-        if self.verbose:
-            print('Complete.')
-            
-        # Merge coefficient lists
-        # TODO: Make this a list comprehension
-        if self.verbose:
-            print('--Merging training and validation coefficients...', end=" ", 
-                  flush=True)
-        C = []
-        for Cts, Cvs in zip(C_train, C_val):
-            C_s = [i for i in zip(train_idx, list(Cts))]
-            C_s.extend([i for i in zip(val_idx, list(Cvs))])
-            C_s.sort()
-            Cs = np.array([c for _, c in C_s])
-            C.append(Cs)
-        if self.verbose:
-            print('Complete.')
-            
-        if return_all:
-            return D, C, Lv
-        else:
-            opt = np.argmin(Lv)
-            return D[opt], C[opt], Lv[opt]

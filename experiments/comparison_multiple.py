@@ -34,9 +34,9 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_palm, C_palm, palm_likelihood = almm_model.fit_k(x, p, r, k=5, mu=1e-2, 
-                                                   return_path=True, 
-                                                   return_all=True)
+D_palm, C_palm, palm_likelihood, _ = almm_model.fit(x, p, r, k=5, mu=1e-2, 
+                                                    return_path=True, 
+                                                    return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -45,9 +45,10 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t3 = timer()
 almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_altmin, C_altmin, altmin_likelihood = almm_model.fit_k(x, p, r, k=5, mu=1e-2, 
-                                                         return_path=True, 
-                                                         return_all=True)
+D_altmin, C_altmin, altmin_likelihood, _ = almm_model.fit(x, p, r, k=5, 
+                                                          mu=1e-2, 
+                                                          return_path=True, 
+                                                          return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')

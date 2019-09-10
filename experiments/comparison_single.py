@@ -40,10 +40,10 @@ D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_palm, C_palm, palm_likelihood, _, palm_time = almm_model.fit(x, p, r, 
-                                                               mu=1e-2, 
-                                                               D_0=D_0,
-                                                               return_path=True)
+D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=1,
+                                                            mu=1e-2, D_0=D_0,
+                                                            return_path=True,
+															return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -52,10 +52,12 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t3 = timer()
 almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_altmin, C_altmin, altmin_likelihood, _, altmin_time = almm_model.fit(x, p, r, 
-                                                                       mu=1e-2, 
-                                                                       D_0=D_0, 
-                                                                       return_path=True)
+D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, 
+                                                                    k=1, 
+                                                                    mu=1e-2, 
+																	D_0=D_0, 
+																	return_path=True,
+																	return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
@@ -69,30 +71,30 @@ axs[0, 0].set_ylabel('Dictionary Error')
 axs[1, 0].set_ylabel('Likelihood')
 # Proximal error
 loss=[]
-for s, Dis in enumerate(D_palm):
+for s, Dis in enumerate(D_palm[0]):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_ar_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_palm00, = axs[0, 0].plot(loss, 'b-')
-plt_palm01, = axs[0, 1].plot(palm_time, loss, 'b-')
+plt_palm01, = axs[0, 1].plot(palm_time[0], loss, 'b-')
 # Alternating error
 loss=[]
-for s, Dis in enumerate(D_altmin):
+for s, Dis in enumerate(D_altmin[0]):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_ar_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_altmin00, = axs[0, 0].plot(loss, 'r-')
-plt_altmin01, = axs[0, 1].plot(altmin_time, loss, 'r-')
+plt_altmin01, = axs[0, 1].plot(altmin_time[0], loss, 'r-')
 axs[0, 0].legend((plt_palm00, plt_altmin00), ('Proximal', 'Alternating'))
 axs[0, 1].legend((plt_palm01, plt_altmin01), ('Proximal', 'Alternating'))
-plt_palm10, = axs[1, 0].plot(palm_likelihood, 'b-')
-plt_altmin10, = axs[1, 0].plot(altmin_likelihood, 'r-')
-plt_palm11, = axs[1, 1].plot(palm_time, palm_likelihood, 'b-')
-plt_altmin11, = axs[1, 1].plot(altmin_time, altmin_likelihood, 'r-')
+plt_palm10, = axs[1, 0].plot(palm_likelihood[0], 'b-')
+plt_altmin10, = axs[1, 0].plot(altmin_likelihood[0], 'r-')
+plt_palm11, = axs[1, 1].plot(palm_time[0], palm_likelihood[0], 'b-')
+plt_altmin11, = axs[1, 1].plot(altmin_time[0], altmin_likelihood[0], 'r-')
 axs[1, 0].legend((plt_palm10, plt_altmin10), ('Proximal', 'Alternating'))
 axs[1, 1].legend((plt_palm11, plt_altmin11), ('Proximal', 'Alternating'))
 print('Complete.')
