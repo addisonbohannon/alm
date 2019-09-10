@@ -15,8 +15,8 @@ from almm.almm import Almm
 from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
-n = 100
-m = 800
+n = 1000
+m = 10000
 d = 5
 r = 10
 p = 2
@@ -33,8 +33,9 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Implement solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_pred, C_pred, likelihood = almm_model.fit(x, p, r, mu=1e-4, return_path=True)
+almm_model = Almm(tol=1e-3, solver='palm', verbose=True)
+D_pred, C_pred, likelihood, time = almm_model.fit(x, p, r, mu=1e-2, k=1,
+                                                  return_path=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -58,5 +59,5 @@ axs[1].plot(likelihood)
 axs[1].set_xlabel('Iteration')
 axs[1].set_ylabel('Negative Log Likelihood')
 
-path = "/home/addison/Python/almm/results"
-plt.savefig(join(path, "single_run_altmin-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+#path = "/home/addison/Python/almm/results"
+#plt.savefig(join(path, "single_run_altmin-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))

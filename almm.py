@@ -179,11 +179,14 @@ class Almm:
             print('Complete.')
 
         if return_all:
-            return D, C, L, T
+            if (k > 1):
+                return D, C, L, T
+            else:
+                return D[0], C[0], L[0], T[0]
         else:
             opt = 0
-            for i in enumerate(L):
-                if L[i][-1] < L[opt][-1]:
+            for i, L_i in enumerate(L):
+                if L_i[-1] < L_i[-1]:
                     opt = i
             return D[opt], C[opt], L[opt], T[opt]
         
