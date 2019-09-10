@@ -51,8 +51,8 @@ for i in range(N):
         print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
         t1 = timer()
         almm_model = Almm(tol=1e-3)
-        Di_palm, _, Li_palm = almm_model.fit_k(x[:(n_i+dn-1), :(m_i+dm-1), :], 
-                                               p, r, mu=1e-2, return_all=True)
+        Di_palm, _, Li_palm, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
+                                                p, r, mu=1e-2, k=5)
         t2 = timer()
         L_palm.append(Li_palm)        
         loss_palm = []
@@ -68,9 +68,8 @@ for i in range(N):
         print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
         t3 = timer()
         almm_model = Almm(tol=1e-3, solver='alt_min')
-        Di_altmin, _, Li_altmin = almm_model.fit_k(x[:(n_i+dn-1), :(m_i+dm-1), :], 
-                                                   p, r, mu=1e-2, 
-                                                   return_all=True)
+        Di_altmin, _, Li_altmin, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
+                                                    p, r, mu=1e-2, k=5)
         t4 = timer()
         L_altmin.append(Li_altmin)
         loss_altmin = []
