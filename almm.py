@@ -159,9 +159,14 @@ class Almm:
         for ki in range(k):
             if self.verbose:
                 print('--Start: ' + str(ki))
-            D_i, C_i, res_D, res_C, stop_con, T_i = self._fit(XtX, XtY, p, r, mu, self.coef_penalty_type,  D_0=D_0,
-                                                              max_iter=self.max_iter, step_size=self.step_size,
-                                                              tol=self.tol, return_path=return_path,
+            D_i, C_i, res_D, res_C, stop_con, T_i = self._fit(XtX, XtY, p, r, 
+                                                              mu, 
+                                                              self.coef_penalty_type,  
+                                                              D_0=D_0,
+                                                              max_iter=self.max_iter, 
+                                                              step_size=self.step_size,
+                                                              tol=self.tol, 
+                                                              return_path=return_path,
                                                               verbose=self.verbose)
             D.append(D_i)
             C.append(C_i)
@@ -174,18 +179,20 @@ class Almm:
         L = []
         for D_i, C_i in zip(D, C):
             if return_path:
-                L_i = [likelihood(YtY, XtX, XtY, Dis, Cis, mu, self.coef_penalty_type) for Dis, Cis in zip(D_i, C_i)]
+                L_i = [likelihood(YtY, XtX, XtY, Dis, Cis, mu, 
+                                  self.coef_penalty_type) 
+                                  for Dis, Cis in zip(D_i, C_i)]
             else:
-                L_i = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, self.coef_penalty_type)
+                L_i = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, 
+                                 self.coef_penalty_type)
             L.append(L_i)
         if self.verbose:
             print('Complete.')
 
-        if return_all:
-			if k > 1:
-                return D, C, L, T
-            else:
-                return D[0], C[0], L[0], T[0]
+        if k == 1:
+            return D[0], C[0], L[0], T[0]
+        elif return_all:
+            return D, C, L, T
         else:
             opt = 0
             for i, L_i in enumerate(L):
@@ -273,68 +280,101 @@ class Almm:
             
         if self.verbose:
             print('-Formatting and splitting data...', end=" ", flush=True)
-        ts = [Timeseries(ts_i) for ts_i in ts]        
         train_idx, val_idx = train_val_split(len(ts), val_pct)
+        ts = [Timeseries(ts_i) for ts_i in ts]
         ts_train = [ts[i] for i in train_idx]
         ts_val = [ts[i] for i in val_idx]
         if self.verbose:
             print('Complete.')
         
-        if self.verbose:
-            print('-Fitting model to training data...')
         D = []
         C = []
-        Lv = []
-        params = product(p, r, mu)
-        for (p_i, r_i, mu_i) in params:
-            print('--Parameters: p=' + str(p_i) + ', r=' + str(r_i) + ', mu=' + str(mu_i))
-            # Fit dictionary to training observations for each set of parameters
-            D_s, Cts, _ = self._fit_k(ts_train, p_i, r_i, mu_i, k=k,
-                                      val_pct=val_pct, return_path=return_path, 
-                                      return_all=False)
-            D.append(D_s)
-            print('-Complete.')
+        L = []
+        params = []
+        for (p_i, r_i, mu_i) in product(p, r, mu):
+            if self.verbose:
+                print('-Parameters: p=' + str(p_i) + ', r=' + str(r_i) + ', mu=' + str(mu_i))
+            
+            # Prepare training observations
+            XtX_train = [ob.XtX(p_i) for ob in ts_train]
+            XtY_train = [ob.XtY(p_i) for ob in ts_train]
             
             # Prepare validation observations
             YtY_val = [ob.YtY(p_i) for ob in ts_val]
             XtX_val = [ob.XtX(p_i) for ob in ts_val]
             XtY_val = [ob.XtY(p_i) for ob in ts_val]
             
-            # Fit coefficients to validation observation and compute negative 
-            # log likelihood
+            D_i = []
+            C_i = []
+            L_i = []
+            for ki in range(k):
+                if self.verbose:
+                    print('--Start: ' + str(ki))
+                    
+                # Fit dictionary to training observations for each set of 
+                # parameters
+                if self.verbose:
+                    print('---Fitting model to training data...')
+                D_ii, C_iit, _, _, _, _ = self._fit(XtX_train, XtY_train, p_i, 
+                                                    r_i, mu_i, 
+                                                    self.coef_penalty_type, 
+                                                    max_iter=self.max_iter, 
+                                                    step_size=self.step_size, 
+                                                    tol=self.tol, 
+                                                    return_path=return_path, 
+                                                    verbose=self.verbose)
+                if self.verbose:
+                    print('---Complete.')
+                D_i.append(D_ii)
+                
+                # Fit coefficients to validation observations, compute 
+                # negative log likelihood, and merge and order the training 
+                # and validation coefficient lists
+                if self.verbose:
+                    print('---Fitting coefficients and computing likelihood... ', 
+                          end=" ", flush=True)
+                if return_path:
+                    C_iiv = [fit_coefs(XtX_val, XtY_val, D_iii, mu_i,
+                                       self.coef_penalty_type)
+                                       for D_iii in D_ii]
+                    L_i.append([likelihood(YtY_val, XtX_val, XtY_val, D_iii, 
+                                           C_iiiv, mu_i, self.coef_penalty_type)
+                                           for D_iii, C_iiiv in zip(D_ii, C_iiv)])
+                    C_ii = []
+                    for C_iits, C_iivs in zip(C_iit, C_iiv):
+                        C_iis = [i for i in zip(train_idx, list(C_iits))]
+                        C_iis.extend([i for i in zip(val_idx, list(C_iivs))])
+                        C_iis.sort()
+                        C_ii.append(np.array([c for _, c in C_iis]))
+                    C_i.append(C_ii)
+                else:
+                    C_iiv = fit_coefs(XtX_val, XtY_val, D_ii[-1], mu_i, 
+                                      self.coef_penalty_type)
+                    L_i.append(likelihood(YtY_val, XtX_val, XtY_val, D_ii[-1], 
+                                          C_iiv, mu_i, self.coef_penalty_type))
+                    C_ii = [i for i in zip(train_idx, list(C_iit))]
+                    C_ii.extend([i for i in zip(val_idx, list(C_iiv))])
+                    C_ii.sort()
+                    C_i.append(np.array([c for _, c in C_ii]))
+                if self.verbose:
+                    print('Complete.')
+                    
             if self.verbose:
-                print('-Fitting coefficients to validation data...', end=" ", 
-                      flush=True)
-            if return_path:
-                Cvs = fit_coefs(XtX_val, XtY_val, D_s[-1], mu_i, 
-                                self.coef_penalty_type)
-                L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s[-1], Cvs, mu_i, 
-                                 self.coef_penalty_type)
-            else:
-                Cvs = fit_coefs(XtX_val, XtY_val, D_s, mu_i,
-                                self.coef_penalty_type)
-                L_s = likelihood(YtY_val, XtX_val, XtY_val, D_s, Cvs, mu_i, 
-                                 self.coef_penalty_type)
-            Lv.append(L_s)
-            if self.verbose:
-                print('Complete.')
+                print('-Complete.')
+            D.append(D_i)
+            C.append(C_i)
+            L.append(L_i)
+            params.append((p_i, r_i, mu_i))      
             
-            # Merge coefficient lists
-            # TODO: Make this a list comprehension
-            if self.verbose:
-                print('--Merging training and validation coefficients...', 
-                      end=" ", flush=True)
-            C_s = [i for i in zip(train_idx, list(Cts))]
-            C_s.extend([i for i in zip(val_idx, list(Cvs))])
-            C_s.sort()
-            Cs = np.array([c for _, c in C_s])
-            C.append(Cs)
-            if self.verbose:
-                print('Complete.')
-
-        params = [i for i in product(p, r, mu)]
-        if return_all:
-            return D, C, Lv, params
+        if k == 1:
+            return D[0], C[0], L[0], params[0]
+        elif return_all:
+            return D, C, L, params
         else:
-            opt = np.argmin(Lv)
-            return D[opt], C[opt], Lv[opt], params[opt]
+            opt = 0
+            L_min = L[opt][-1]
+            for i, L_i in enumerate(L):
+                if L_i[-1] < L_min:
+                    opt = i
+                    L_min = L_i[-1]
+            return D[opt], C[opt], L[opt], params[opt]

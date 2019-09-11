@@ -17,8 +17,8 @@ from almm.almm import Almm
 from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
-n = 100
-m = 800
+n = 1000
+m = 10000
 d = 5
 r = 10
 p = 2
@@ -27,7 +27,7 @@ s = 3
 # Generate almm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
-x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e1, dict_cond=1e1)
+x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e2, dict_cond=1e2)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -61,6 +61,18 @@ D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r,
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
+        
+# Fit model with two-stage solver
+print('Fitting ALMM model...')
+t5 = timer()
+almm_model = Almm(tol=1e-6, solver='two_stage', verbose=True)
+D_two, C_two, two_likelihood, two_time = almm_model.fit(x, p, r, k=1, mu=1e-2, 
+                                                         D_0=D_0, 
+                                                         return_path=True, 
+                                                         return_all=True)
+t6 = timer()
+print('Complete.', end=" ", flush=True)
+print('Elapsed time: ' + str(t6-t5) + 's')
 
 # Compute dictionary error
 print('Computing dictionary error...', end=" ", flush=True)
@@ -89,14 +101,26 @@ for s, Dis in enumerate(D_altmin):
     loss.append(d_loss)
 plt_altmin00, = axs[0, 0].plot(loss, 'r-')
 plt_altmin01, = axs[0, 1].plot(altmin_time, loss, 'r-')
-axs[0, 0].legend((plt_palm00, plt_altmin00), ('Proximal', 'Alternating'))
-axs[0, 1].legend((plt_palm01, plt_altmin01), ('Proximal', 'Alternating'))
+# Two-stage error
+loss=[]
+for s, Dis in enumerate(D_two):
+    Dis_pred = np.zeros([r, p, d, d])
+    for j in range(r):
+        Dis_pred[j] = unstack_ar_coef(Dis[j])
+    d_loss, _, _ = dict_distance(D, Dis_pred)
+    loss.append(d_loss)
+plt_two00, = axs[0, 0].plot(loss, 'g-')
+plt_two01, = axs[0, 1].plot(two_time, loss, 'g-')
+axs[0, 0].legend((plt_palm00, plt_altmin00, plt_two00), ('Proximal', 'Alternating', 'Two-stage'))
+axs[0, 1].legend((plt_palm01, plt_altmin01, plt_two01), ('Proximal', 'Alternating', 'Two-stage'))
 plt_palm10, = axs[1, 0].plot(palm_likelihood, 'b-')
 plt_altmin10, = axs[1, 0].plot(altmin_likelihood, 'r-')
+plt_two10, = axs[1, 0].plot(two_likelihood, 'g-')
 plt_palm11, = axs[1, 1].plot(palm_time, palm_likelihood, 'b-')
 plt_altmin11, = axs[1, 1].plot(altmin_time, altmin_likelihood, 'r-')
-axs[1, 0].legend((plt_palm10, plt_altmin10), ('Proximal', 'Alternating'))
-axs[1, 1].legend((plt_palm11, plt_altmin11), ('Proximal', 'Alternating'))
+plt_two11, = axs[1, 1].plot(two_time, two_likelihood, 'g-')
+axs[1, 0].legend((plt_palm10, plt_altmin10, plt_two10), ('Proximal', 'Alternating', 'Two-stage'))
+axs[1, 1].legend((plt_palm11, plt_altmin11, plt_two11), ('Proximal', 'Alternating', 'Two-stage'))
 print('Complete.')
 
 path = "/home/addison/Python/almm/results"

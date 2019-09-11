@@ -25,7 +25,7 @@ s = 3
 # Generate almm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
-x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e1, dict_cond=1e1)
+x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e9, dict_cond=1e9)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -33,9 +33,12 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Implement solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, solver='two_stage', verbose=True)
-D_pred, C_pred, likelihood, time = almm_model.fit(x, p, r, mu=1e-2, k=1, 
+almm_model = Almm(tol=1e-6, solver='alt_min', verbose=True)
+D_pred, C_pred, likelihood, time = almm_model.fit(x, p, r, mu=1e-2, k=1,
                                                   return_path=True)
+#D_pred, C_pred, likelihood, time = almm_model.fit_cv(x, p, r, 
+#                                                     mu=list(np.logspace(-4, -1, 10)), 
+#                                                     k=10)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
