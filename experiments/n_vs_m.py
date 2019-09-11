@@ -17,10 +17,10 @@ from almm.almm import Almm
 from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
-n = 400
-dn = 100
-m = 1000
-dm = 200
+n = 1000
+dn = 200
+m = 10000
+dm = 2000
 d = 5
 r = 10
 p = 2
@@ -35,7 +35,7 @@ for i in range(N):
     # Generate almm samples
     print('Generating ALMM samples...', end=" ", flush=True)
     t1 = timer()
-    x, _, D = almm_sample(n, m, d, r, p, s, coef_cond=1e1, dict_cond=1e1)
+    x, _, D = almm_sample(n, m, d, r, p, s, coef_cond=1e2, dict_cond=1e2)
     t2 = timer()
     print('Complete.', end=" ", flush=True)
     print('Elapsed time: ' + str(t2-t1) + 's')

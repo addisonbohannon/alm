@@ -43,7 +43,7 @@ almm_model = Almm(tol=1e-3, verbose=True)
 D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=1,
                                                             mu=1e-2, D_0=D_0,
                                                             return_path=True,
-															return_all=True)
+                                                            return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -54,10 +54,10 @@ t3 = timer()
 almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
 D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, 
                                                                     k=1, 
-                                                                    mu=1e-2, 
-																	D_0=D_0, 
-																	return_path=True,
-																	return_all=True)
+                                                                    mu=1e-2,
+                                                                    D_0=D_0,
+                                                                    return_path=True,
+                                                                    eturn_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
@@ -66,10 +66,10 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 print('Fitting ALMM model...')
 t5 = timer()
 almm_model = Almm(tol=1e-6, solver='two_stage', verbose=True)
-D_two, C_two, two_likelihood, two_time = almm_model.fit(x, p, r, k=1, mu=1e-2, 
-                                                         D_0=D_0, 
-                                                         return_path=True, 
-                                                         return_all=True)
+D_two, C_two, two_likelihood, two_time = almm_model.fit(x, p, r, k=1, mu=1e-2,
+                                                        D_0=D_0,
+                                                        return_path=True,
+                                                        return_all=True)
 t6 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t6-t5) + 's')
