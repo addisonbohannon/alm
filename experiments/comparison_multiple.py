@@ -34,7 +34,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, verbose=True)
-D_palm, C_palm, palm_likelihood, _ = almm_model.fit(x, p, r, k=2, mu=1e-2, 
+D_palm, C_palm, palm_likelihood, _ = almm_model.fit(x, p, r, k=5, mu=1e-2, 
                                                     return_path=True, 
                                                     return_all=True)
 t2 = timer()
@@ -45,13 +45,24 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t3 = timer()
 almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_altmin, C_altmin, altmin_likelihood, _ = almm_model.fit(x, p, r, k=2, 
+D_altmin, C_altmin, altmin_likelihood, _ = almm_model.fit(x, p, r, k=5, 
                                                           mu=1e-2, 
                                                           return_path=True, 
                                                           return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
+        
+# Fit model with two-stage solver
+print('Fitting ALMM model...')
+t5 = timer()
+almm_model = Almm(tol=1e-6, solver='two_stage', verbose=True)
+D_two, C_two, two_likelihood, two_time = almm_model.fit(x, p, r, k=5, mu=1e-2, 
+                                                        return_path=True, 
+                                                        return_all=True)
+t6 = timer()
+print('Complete.', end=" ", flush=True)
+print('Elapsed time: ' + str(t6-t5) + 's')
 
 # Compute dictionary error
 print('Computing dictionary error...', end=" ", flush=True)
@@ -81,12 +92,25 @@ for i, Di in enumerate(D_altmin):
         d_loss, _, _ = dict_distance(D, Dis_pred)
         loss.append(d_loss)
     plt_altmin0, = axs[0].plot(loss, 'r-')
-axs[0].legend((plt_palm0, plt_altmin0), ('Proximal', 'Alternating'))
+# Two-stage error
+loss=[]
+for i, Di in enumerate(D_two):
+    loss = []
+    for s, Dis in enumerate(Di):
+        Dis_pred = np.zeros([r, p, d, d])
+        for j in range(r):
+            Dis_pred[j] = unstack_ar_coef(Dis[j])
+        d_loss, _, _ = dict_distance(D, Dis_pred)
+        loss.append(d_loss)
+    plt_two0, = axs[0].plot(loss, 'g-')
+axs[0].legend((plt_palm0, plt_altmin0, plt_two0), ('Proximal', 'Alternating', 'Two-stage'))
 for likelihood in palm_likelihood:
     plt_palm1, = axs[1].plot(likelihood, 'b-')
 for likelihood in altmin_likelihood:
     plt_altmin1, = axs[1].plot(likelihood, 'r-')
-axs[1].legend((plt_palm1, plt_altmin1), ('Proximal', 'Alternating'))
+for likelihood in two_likelihood:
+    plt_two1, = axs[1].plot(likelihood, 'g-')
+axs[1].legend((plt_palm1, plt_altmin1, plt_two1), ('Proximal', 'Alternating', 'Two-stage'))
 print('Complete.')
 
 path = "/home/addison/Python/almm/results"

@@ -45,8 +45,11 @@ for i in range(N):
     L_palm = []
     D_altmin = []
     L_altmin = []
+    D_two = []
+    L_two = []
     for (n_i, m_i) in product(range(0, n, dn), range(0, m, dm)):
         print(n_i, m_i)
+        
         # PALM
         print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
         t1 = timer()
@@ -81,12 +84,23 @@ for i in range(N):
         print('Complete.', end=" ", flush=True)
         print('Elapsed time: ' + str(t4-t3) + 's')
         
-    palm_dict_loss.append(D_palm)
-    palm_likelihood.append(L_palm)
-    altmin_dict_loss.append(D_altmin)
-    altmin_likelihood.append(L_altmin)
+        # Two-stage
+        print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
+        t5 = timer()
+        almm_model = Almm(tol=1e-6, solver='two_stage')
+        Di_two, _, Li_two, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
+                                              p, r, mu=1e-2, k=5)
+        t6 = timer()
+        L_two.append(Li_two)
+        loss_two = []
+        for Dis_two in Di_two:
+            D_pred = [unstack_ar_coef(Dj) for Dj in Dis_two]
+            d_loss, _, _ = dict_distance(D, D_pred)
+            loss_two.append(d_loss)
+        D_two.append(loss_altmin)
+        print('Complete.', end=" ", flush=True)
+        print('Elapsed time: ' + str(t6-t5) + 's')
         
 path = "/home/addison/Python/almm/results"
 with open(join(path, "n_vs_m-"+dt.now().strftime("%y%b%d_%H%M")+".svg"), 'wb') as f:
-    pickle.dump([palm_dict_loss, palm_likelihood, altmin_dict_loss, 
-                 altmin_likelihood], f)
+    pickle.dump([D_palm, D_altmin, D_two, L_palm, L_altmin, L_two], f)
