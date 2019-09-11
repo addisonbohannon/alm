@@ -130,21 +130,154 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
     """
     
     if coef_penalty_type is None:
-        # Fit coefficients with closed-form solution
-        return np.array([sl.solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
-                                    inner_prod(XtY_i, D)) 
-                                    for XtX_i, XtY_i in zip(XtX, XtY)])
+        solve = lambda a, b : sl.solve(a, b, assume_a='pos')
     elif coef_penalty_type == 'l0':
-        prox = threshold
+        solve = lambda a, b : penalized_ls_gram(a, b, threshold, mu)
     elif coef_penalty_type == 'l1':
-        prox = shrink
+        solve = lambda a, b : penalized_ls_gram(a, b, shrink, mu)
     else:
         raise ValueError('coef_penalty_type not a valid type, i.e. None, l0, or l1')
     
     # Fit coefficients with iterative algorithm
-    return np.array([penalized_ls_gram(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), 
-                                    inner_prod(XtY_i, D), prox, mu) 
-                                    for XtX_i, XtY_i in zip(XtX, XtY)])
+    return np.array([solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), inner_prod(XtY_i, D))
+                     for XtX_i, XtY_i in zip(XtX, XtY)])
+
+def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e2, step_size=1e-3, tol=1e-6,
+                     return_path=False, verbose=False):
+    """
+    Two-stage algorithm for solve the almm model. It begins by fitting autoregressive coefficients to each observation.
+    Then, it attempts to solve the sparse coding problem using alternating minimization.
+    
+    inputs:
+    XtX (n x p*d x p*d array) - sample autocorrelation
+    
+    XtY (n x p*d x d array) - sample autocorrelation
+    
+    p (integer) - model order
+    
+    r (integer) - dictionary atoms
+    
+    mu (float) - penalty parameter
+    
+    coef_penalty_type (string) - coefficient penalty of objective; 
+    {None, l0, l1}
+        
+    D_0 (r x p*d * d array) - intial dictionary estimate (optional)
+    
+    maximum iterations (integer) - Maximum number of iterations for 
+    algorithm
+        
+    step size (scalar) - Factor by which to extend the Lipschitz-based 
+    step size; must be less than 1
+    
+    tolerance (float) - Tolerance to terminate iterative algorithm; must
+    be positive
+    
+    return_path (boolean) - whether or not to return the path of
+    dictionary and coefficient estimates
+    
+    verbose (boolean) - whether or not to print progress during execution; 
+    used for debugging
+    
+    outputs:
+    D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
+    
+    C ([k x] n x r array) - coefficient estimate [if return_path=True]
+    
+    residual D (k array) - residuals of dictionary update
+    
+    residual C (k array) - residuals of coefficient update
+    
+    stopping condition ({maximum iteration, relative tolerance}) -
+    condition that terminated the iterative algorithm
+    """
+
+    start = timer()
+
+    n = len(XtY)
+    _, d = XtY[0].shape
+    
+    # Define coefficient update rule
+    if coef_penalty_type is None:
+        solve = lambda a, b : sl.solve(a, b, assume_a='pos')
+    elif coef_penalty_type == 'l0':
+        solve = lambda a, b : penalized_ls_gram(a, b, threshold, mu)
+    elif coef_penalty_type == 'l1':
+        solve = lambda a, b : penalized_ls_gram(a, b, shrink, mu)
+    else:
+        raise ValueError('coef_penalty_type not a valid type, i.e. None, l0, or l1')
+
+    # Initialize dictionary randomly; enforce unit norm
+    if D_0 is None:
+        D = nr.randn(r, p*d, d)
+        for j in range(r):
+            D[j] = proj(D[j])
+    else: D = D_0
+
+    # Initialize coefficients
+    C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
+
+    # Initialize estimate path
+    if return_path:
+        D_path = [np.copy(D)]
+        C_path = [np.copy(C)]
+    D = np.reshape(D, [r, -1])
+
+    # Estimate autoregressive coefficients for each observation
+    A = [sl.solve(XtX_i, XtY_i, assume_a='pos') for XtX_i, XtY_i in zip(XtX, XtY)]
+    A = np.reshape(A, [n, -1])
+
+    # Decompose autoregressive components into sparse dictionary atoms with alternating minimization algorithm
+    stop_condition = 'maximum iteration'
+    residual_D = []
+    residual_C = []
+    wall_time = [timer()-start]
+    for step in range(max_iter):
+
+        # Update dictionary estimate
+        temp = np.copy(D)
+        D = sl.solve(np.dot(C.T, C), np.dot(C.T, A), assume_a='pos')
+        D = np.array([proj(Dj) for Dj in D])
+        delta_D = D - temp
+
+        # Update coefficient estimate
+        temp = np.copy(C)
+        C = solve(np.dot(D, D.T), np.dot(D, A.T)).T
+        delta_C = C - temp
+
+        # Add current estimates to path
+        if return_path:
+            D_path.append(np.reshape(np.copy(D), [r, p*d, d]))
+            C_path.append(np.copy(C))
+
+        # Compute residuals
+        """( (1/r) \sum_j \|dD_j\|^2 / (p*d^2) )^(1/2)"""
+        residual_D.append(sl.norm(delta_D[:]) / (r**(1/2) * p**(1/2) * d))
+        """( (1/n) \sum_i (\|dC_i\|/beta_i)^2 / r )^(1/2)"""
+        residual_C.append(sl.norm(delta_C[:]) / (n**(1/2) * r**(1/2)))
+
+        # Compute wall time
+        wall_time.append(timer()-start)
+
+        # Check stopping condition
+        if ( step > 0 and residual_D[-1] < tol * residual_D[0]
+            and residual_C[-1] < tol * residual_C[0] ):
+            stop_condition = 'relative tolerance'
+            break
+
+    if verbose:
+        end = timer()
+        duration = end - start
+        print('*Solver: Two-stage')
+        print('*Stopping condition: ' + stop_condition)
+        print('*Iterations: ' + str(step))
+        print('*Duration: ' + str(duration) + 's')
+
+    if return_path:
+        return D_path, C_path, residual_D, residual_C, stop_condition, wall_time
+    else:
+        return np.reshape(D, [r, p*d, d]), C, residual_C, residual_D, stop_condition, wall_time
+
     
 def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, 
                    max_iter=1e2, step_size=1e-3, tol=1e-6, return_path=False, 
@@ -215,17 +348,14 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
     
     # Initialize estimate path
     if return_path:
-        D_path = []
-        D_path.append(np.copy(D))
-        C_path = []
-        C_path.append(np.copy(C))
+        D_path = [np.copy(D)]
+        C_path = [np.copy(C)]
     
     # Begin alternating minimization algorithm
     stop_condition = 'maximum iteration'
     residual_D = []
     residual_C = []
-    wall_time = []
-    wall_time.append(timer()-start)
+    wall_time = [timer()-start]
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -359,10 +489,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
     
     # Initialize estimates of dictionary and coefficients
     if return_path:
-        D_path = []
-        D_path.append(np.copy(D))
-        C_path = []
-        C_path.append(np.copy(C))
+        D_path = [np.copy(D)]
+        C_path = [np.copy(C)]
         
     # Define gradient functions        
     def grad_D(D, C, j, G=None):
@@ -422,8 +550,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
     beta = np.zeros([n])
     residual_D = []
     residual_C = []
-    wall_time = []
-    wall_time.append(timer()-start)
+    wall_time = [timer()-start]
     for step in range(max_iter):
         
         # Update dictionary estimate
@@ -437,8 +564,6 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
             # proximal/gradient step
             D[j, :, :] = proj(D[j, :, :] - alpha[j] * grad_D(D, C, j, G=Gj))
         delta_D = D - temp
-        
-        # TODO: Issue with coefficient update and factor (1/n)
             
         # Update coefficient estimate
         temp = np.copy(C)

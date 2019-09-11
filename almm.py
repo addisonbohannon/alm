@@ -70,8 +70,11 @@ class Almm:
         elif solver == 'alt_min':
             from almm.solver import solver_alt_min
             self._fit = solver_alt_min
+        elif solver == 'two_stage':
+            from almm.solver import solver_two_stage
+            self._fit = solver_two_stage
         else:
-            raise ValueError('Solver is not a valid option: palm, alt_min.')
+            raise ValueError('Solver is not a valid option: palm, alt_min, two_stage.')
         if isinstance(verbose, bool):
             self.verbose = verbose
         else:
@@ -179,7 +182,7 @@ class Almm:
             print('Complete.')
 
         if return_all:
-            if (k > 1):
+			if k > 1:
                 return D, C, L, T
             else:
                 return D[0], C[0], L[0], T[0]
