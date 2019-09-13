@@ -195,9 +195,18 @@ class Almm:
             return D, C, L, T
         else:
             opt = 0
-            for i, L_i in enumerate(L):
-                if L_i[-1] < L_i[-1]:
-                    opt = i
+            if return_path:
+                L_min = L[0][-1]
+                for i, L_i in enumerate(L):
+                    if L_i[-1] < L_min:
+                        opt = i
+                        L_min = L_i[-1]
+            else:
+                L_min = L[0]
+                for i, L_i in enumerate(L):
+                    if L_i < L_min:
+                        opt = i
+                        L_min = L_i
             return D[opt], C[opt], L[opt], T[opt]
         
     def fit_cv(self, ts, p=None, r=None, mu=None, k=5, val_pct=0.25, 
@@ -372,9 +381,16 @@ class Almm:
             return D, C, L, params
         else:
             opt = 0
-            L_min = L[opt][-1]
-            for i, L_i in enumerate(L):
-                if L_i[-1] < L_min:
-                    opt = i
-                    L_min = L_i[-1]
+            if return_path:
+                L_min = L[0][-1]
+                for i, L_i in enumerate(L):
+                    if L_i[-1] < L_min:
+                        opt = i
+                        L_min = L_i[-1]
+            else:
+                L_min = L[0]
+                for i, L_i in enumerate(L):
+                    if L_i < L_min:
+                        opt = i
+                        L_min = L_i
             return D[opt], C[opt], L[opt], params[opt]

@@ -57,7 +57,7 @@ D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r,
                                                                     mu=1e-2,
                                                                     D_0=D_0,
                                                                     return_path=True,
-                                                                    eturn_all=True)
+                                                                    return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
