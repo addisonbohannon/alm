@@ -108,5 +108,5 @@ for i in range(N):
     two_likelihood.append(L_two)
         
 path = "/home/addison/Python/almm/results"
-with open(join(path, "n_vs_m-"+dt.now().strftime("%y%b%d_%H%M")+".svg"), 'wb') as f:
+with open(join(path, "n_vs_m-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
     pickle.dump([D_palm, D_altmin, D_two, L_palm, L_altmin, L_two], f)
