@@ -23,7 +23,9 @@ d = 5
 r = 10
 p = 2
 s = 3
-N = 5
+N = 1
+k = 3
+mu = 1e-2
 
 palm_dict_loss, palm_likelihood = [], []
 altmin_dict_loss, altmin_likelihood = [], []
@@ -42,14 +44,14 @@ for i in range(N):
     D_altmin, L_altmin = [], []
     D_two, L_two = [], []
     for (n_i, m_i) in product(range(0, n, dn), range(0, m, dm)):
-        print(n_i, m_i)
+        print(n_i+dn, m_i+dm)
         
         # PALM
-        print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
+        print('Fitting PALM...')
         t1 = timer()
         almm_model = Almm(tol=1e-3)
         Di_palm, _, Li_palm, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
-                                                p, r, mu=1e-2, k=5, 
+                                                p, r, mu=mu, k=k, 
                                                 return_all=True)
         t2 = timer()
         L_palm.append(Li_palm)        
@@ -63,11 +65,11 @@ for i in range(N):
         print('Elapsed time: ' + str(t2-t1) + 's')
         
         # AltMin
-        print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
+        print('Fitting AltMin...')
         t3 = timer()
         almm_model = Almm(tol=1e-3, solver='alt_min')
         Di_altmin, _, Li_altmin, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
-                                                    p, r, mu=1e-2, k=5, 
+                                                    p, r, mu=mu, k=k, 
                                                     return_all=True)
         t4 = timer()
         L_altmin.append(Li_altmin)
@@ -81,11 +83,11 @@ for i in range(N):
         print('Elapsed time: ' + str(t4-t3) + 's')
         
         # Two-stage
-        print('Fitting ALMM model for n=' + str(n_i+dn) + '...')
+        print('Fitting Two-stage...')
         t5 = timer()
         almm_model = Almm(tol=1e-6, solver='two_stage')
         Di_two, _, Li_two, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], 
-                                              p, r, mu=1e-2, k=5, 
+                                              p, r, mu=mu, k=k, 
                                               return_all=True)
         t6 = timer()
         L_two.append(Li_two)
@@ -94,7 +96,7 @@ for i in range(N):
             D_pred = [unstack_ar_coef(Dj) for Dj in Dis_two]
             d_loss, _, _ = dict_distance(D, D_pred)
             loss_two.append(d_loss)
-        D_two.append(loss_altmin)
+        D_two.append(loss_two)
         print('Complete.', end=" ", flush=True)
         print('Elapsed time: ' + str(t6-t5) + 's')
 
