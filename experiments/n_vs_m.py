@@ -23,8 +23,8 @@ d = 5
 r = 10
 p = 2
 s = 3
-N = 1
-k = 3
+N = 10
+k = 10
 mu = 1e-2
 
 palm_dict_loss, palm_likelihood = [], []
