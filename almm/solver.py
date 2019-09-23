@@ -142,52 +142,52 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
     return np.array([solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), inner_prod(XtY_i, D))
                      for XtX_i, XtY_i in zip(XtX, XtY)])
 
-def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e2, step_size=1e-3, tol=1e-6,
-                     return_path=False, verbose=False):
+
+def solver_altmin(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e2, step_size=1e-3, tol=1e-6,
+                  return_path=False, verbose=False):
     """
-    Two-stage algorithm for solve the almm model. It begins by fitting autoregressive coefficients to each observation.
-    Then, it attempts to solve the sparse coding problem using alternating minimization.
-    
+    Alternating minimization algorithm for ALMM solver.
+
     inputs:
     XtX (n x p*d x p*d array) - sample autocorrelation
-    
+
     XtY (n x p*d x d array) - sample autocorrelation
-    
+
     p (integer) - model order
-    
+
     r (integer) - dictionary atoms
-    
+
     mu (float) - penalty parameter
-    
-    coef_penalty_type (string) - coefficient penalty of objective; 
+
+    coef_penalty_type (string) - coefficient penalty of objective;
     {None, l0, l1}
-        
+
     D_0 (r x p*d * d array) - intial dictionary estimate (optional)
-    
-    maximum iterations (integer) - Maximum number of iterations for 
+
+    maximum iterations (integer) - Maximum number of iterations for
     algorithm
-        
-    step size (scalar) - Factor by which to extend the Lipschitz-based 
-    step size; must be less than 1
-    
+
+    step size (scalar) - Factor by which to divide the Lipschitz-based
+    step size
+
     tolerance (float) - Tolerance to terminate iterative algorithm; must
     be positive
-    
+
     return_path (boolean) - whether or not to return the path of
     dictionary and coefficient estimates
-    
-    verbose (boolean) - whether or not to print progress during execution; 
+
+    verbose (boolean) - whether or not to print progress during execution;
     used for debugging
-    
+
     outputs:
     D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
-    
+
     C ([k x] n x r array) - coefficient estimate [if return_path=True]
-    
+
     residual D (k array) - residuals of dictionary update
-    
+
     residual C (k array) - residuals of coefficient update
-    
+
     stopping condition ({maximum iteration, relative tolerance}) -
     condition that terminated the iterative algorithm
     """
@@ -202,7 +202,8 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
         D = nr.randn(r, p*d, d)
         for j in range(r):
             D[j] = proj(D[j])
-    else: D = D_0
+    else:
+        D = D_0
 
     # Initialize coefficients
     C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
@@ -211,39 +212,36 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
     if return_path:
         D_path = [np.copy(D)]
         C_path = [np.copy(C)]
-    wall_time = [timer()-start]
 
-    # Estimate autoregressive coefficients for each observation
-    A = [sl.solve(XtX_i, XtY_i, assume_a='pos') for XtX_i, XtY_i in zip(XtX, XtY)]
-
-    # Decompose autoregressive components into sparse dictionary atoms with alternating minimization algorithm
+    # Begin alternating algorithm
     stop_condition = 'maximum iteration'
     residual_D = []
     residual_C = []
+    wall_time = [timer()-start]
     for step in range(max_iter):
 
-        # Update dictionary estimate
+        # Update autoregressive component estimates
         temp = np.copy(D)
         ccXtX = {}
         triu_index = np.triu_indices(r)
         for (i, j) in zip(triu_index[0], triu_index[1]):
-            ccXtX[(i, j)] = np.tensordot(C[:, i] * C[:, j], XtX, axes=1)
+            ccXtX[(i, j)] = np.tensordot(C[:, i]*C[:, j], XtX, axes=1)
         for j in range(r):
             Aj = ccXtX[(j, j)]
-            bj = np.tensordot(C[:, j], np.matmul(XtX, A), axes=1)
+            bj = np.tensordot(C[:, j], XtY, axes=1)
             for l in np.setdiff1d(np.arange(r), [j]):
                 bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
             D[j] = proj(sl.solve(Aj, bj, assume_a='pos'))
         delta_D = D - temp
 
-        # Update coefficient estimate
+        # Update coefficient estimates
         temp = np.copy(C)
-        C = fit_coefs(XtX, np.matmul(XtX, A), D, mu, coef_penalty_type)
+        C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
         delta_C = C - temp
 
         # Add current estimates to path
         if return_path:
-            D_path.append(np.reshape(np.copy(D), [r, p*d, d]))
+            D_path.append(np.copy(D))
             C_path.append(np.copy(C))
 
         # Compute residuals
@@ -264,7 +262,7 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
     if verbose:
         end = timer()
         duration = end - start
-        print('*Solver: Two-stage')
+        print('*Solver: Alternating Minimization')
         print('*Stopping condition: ' + stop_condition)
         print('*Iterations: ' + str(step))
         print('*Duration: ' + str(duration) + 's')
@@ -272,16 +270,14 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
     if return_path:
         return D_path, C_path, residual_D, residual_C, stop_condition, wall_time
     else:
-        return np.reshape(D, [r, p*d, d]), C, residual_C, residual_D, stop_condition, wall_time
+        return D, C, residual_C, residual_D, stop_condition, wall_time
 
     
-def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, 
+def solver_bcd(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
                    max_iter=1e2, step_size=1e-3, tol=1e-6, return_path=False, 
                    verbose=False):
     """
-    Alternating minimization algorithm for ALMM solver. Alternates between 
-    minimizing the following function with respect to (D_j)_j and (C_ij)_ij:
-    1/2 * \sum_i \| Y_i - \sum_j c_ij D_j X_i \|_F^2 + mu * \|C\|_p.
+    Block coordinate descent algorithm for ALMM solver.
     
     inputs:
     XtX (n x p*d x p*d array) - sample autocorrelation
@@ -337,7 +333,8 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
         D = nr.randn(r, p*d, d)
         for j in range(r):
             D[j] = proj(D[j])
-    else: D = D_0
+    else:
+        D = D_0
         
     # Initialize coefficients
     C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
@@ -347,14 +344,14 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
         D_path = [np.copy(D)]
         C_path = [np.copy(C)]
     
-    # Begin alternating minimization algorithm
+    # Begin block coordinate descent algorithm
     stop_condition = 'maximum iteration'
     residual_D = []
     residual_C = []
     wall_time = [timer()-start]
     for step in range(max_iter):
         
-        # Update dictionary estimate
+        # Update autoregressive component estimates
         temp = np.copy(D)
         ccXtX = {}
         triu_index = np.triu_indices(r)
@@ -368,7 +365,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
             D[j] = proj(sl.solve(Aj, bj, assume_a='pos'))
         delta_D = D - temp
             
-        # Update coefficient estimate
+        # Update coefficient estimates
         temp = np.copy(C)
         C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)
         delta_C = C - temp
@@ -396,7 +393,7 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
     if verbose:
         end = timer()
         duration = end - start
-        print('*Solver: Alternating Minimization')
+        print('*Solver: Block Coordinate Descent')
         print('*Stopping condition: ' + stop_condition)
         print('*Iterations: ' + str(step))
         print('*Duration: ' + str(duration) + 's')
@@ -409,10 +406,8 @@ def solver_alt_min(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None,
 def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3, 
                 step_size=1e-1, tol=1e-6, return_path=False, verbose=False):
     """
-    Iterative algorithm for ALMM solver. Based on the PALM algorithm
-    of Bolte, Sabach, and Teboulle, Math. Program. Ser. A, 2014. Takes
-    linearized proximal gradient steps with respect to each dictionary
-    atom and coefficients in turn.
+    Proximal alternating linearized minimization algorithm for ALMM solver.
+    Based on Bolte, Sabach, and Teboulle, Math. Program. Ser. A, 2014.
     
     inputs:
     XtX (n x p*d x p*d array) - sample autocorrelation
@@ -478,7 +473,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         D = nr.randn(r, p*d, d)
         for j in range(r):
             D[j] = proj(D[j])
-    else: D = D_0
+    else:
+        D = D_0
         
     # Initialize coefficients
     C = fit_coefs(XtX, XtY, D, mu, coef_penalty_type)

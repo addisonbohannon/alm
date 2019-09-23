@@ -18,7 +18,7 @@ from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
 n = 200
-m = 400
+m = 800
 d = 5
 r = 10
 p = 2
@@ -38,40 +38,32 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 D_0 = nr.randn(r, p*d, d)
 D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
 
-# Fit model with proximal solver
+# Fit model with alternating minimization solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, verbose=True)
-D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=k,
-                                                            mu=mu, D_0=D_0,
-                                                            return_path=True,
-                                                            return_all=True)
+almm_model = Almm(tol=1e-3, solver='altmin', verbose=True)
+D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, k=k, mu=mu, D_0=D_0, return_path=True,
+                                                                    return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
         
-# Fit model with alternating solver
+# Fit model with block coordinate descent solver
 print('Fitting ALMM model...')
 t3 = timer()
-almm_model = Almm(tol=1e-3, solver='alt_min', verbose=True)
-D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, 
-                                                                    k=k, 
-                                                                    mu=mu,
-                                                                    D_0=D_0,
-                                                                    return_path=True,
-                                                                    return_all=True)
+almm_model = Almm(tol=1e-3, solver='bcd', verbose=True)
+D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_model.fit(x, p, r,  k=k, mu=mu, D_0=D_0, return_path=True,
+                                                        return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
         
-# Fit model with two-stage solver
+# Fit model with proximal alternating linearized minimization solver
 print('Fitting ALMM model...')
 t5 = timer()
-almm_model = Almm(tol=1e-6, solver='two_stage', verbose=True)
-D_two, C_two, two_likelihood, two_time = almm_model.fit(x, p, r, k=k, mu=mu,
-                                                        D_0=D_0,
-                                                        return_path=True,
-                                                        return_all=True)
+almm_model = Almm(tol=1e-6, solver='palm', verbose=True)
+D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=k, mu=mu, D_0=D_0, return_path=True,
+                                                            return_all=True)
 t6 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t6-t5) + 's')
@@ -83,7 +75,7 @@ axs[1, 0].set_xlabel('Iteration')
 axs[1, 1].set_xlabel('Wall Time')
 axs[0, 0].set_ylabel('Dictionary Error')
 axs[1, 0].set_ylabel('Likelihood')
-# Proximal error
+# Proximal alternating linearized minimization error
 loss=[]
 for s, Dis in enumerate(D_palm):
     Dis_pred = np.zeros([r, p, d, d])
@@ -93,7 +85,7 @@ for s, Dis in enumerate(D_palm):
     loss.append(d_loss)
 plt_palm00, = axs[0, 0].plot(loss, 'b-')
 plt_palm01, = axs[0, 1].plot(palm_time, loss, 'b-')
-# Alternating error
+# Alternating minimization error
 loss=[]
 for s, Dis in enumerate(D_altmin):
     Dis_pred = np.zeros([r, p, d, d])
@@ -103,26 +95,26 @@ for s, Dis in enumerate(D_altmin):
     loss.append(d_loss)
 plt_altmin00, = axs[0, 0].plot(loss, 'r-')
 plt_altmin01, = axs[0, 1].plot(altmin_time, loss, 'r-')
-# Two-stage error
+# Block coordinate descent error
 loss=[]
-for s, Dis in enumerate(D_two):
+for s, Dis in enumerate(D_bcd):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_ar_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
-plt_two00, = axs[0, 0].plot(loss, 'g-')
-plt_two01, = axs[0, 1].plot(two_time, loss, 'g-')
-axs[0, 0].legend((plt_palm00, plt_altmin00, plt_two00), ('Proximal', 'Alternating', 'Two-stage'))
-axs[0, 1].legend((plt_palm01, plt_altmin01, plt_two01), ('Proximal', 'Alternating', 'Two-stage'))
+plt_bcd00, = axs[0, 0].plot(loss, 'g-')
+plt_bcd01, = axs[0, 1].plot(bcd_time, loss, 'g-')
+axs[0, 0].legend((plt_palm00, plt_altmin00, plt_bcd00), ('PALM', 'AltMin', 'BCD'))
+axs[0, 1].legend((plt_palm01, plt_altmin01, plt_bcd01), ('PALM', 'AltMin', 'BCD'))
 plt_palm10, = axs[1, 0].plot(palm_likelihood, 'b-')
 plt_altmin10, = axs[1, 0].plot(altmin_likelihood, 'r-')
-plt_two10, = axs[1, 0].plot(two_likelihood, 'g-')
+plt_bcd10, = axs[1, 0].plot(bcd_likelihood, 'g-')
 plt_palm11, = axs[1, 1].plot(palm_time, palm_likelihood, 'b-')
 plt_altmin11, = axs[1, 1].plot(altmin_time, altmin_likelihood, 'r-')
-plt_two11, = axs[1, 1].plot(two_time, two_likelihood, 'g-')
-axs[1, 0].legend((plt_palm10, plt_altmin10, plt_two10), ('Proximal', 'Alternating', 'Two-stage'))
-axs[1, 1].legend((plt_palm11, plt_altmin11, plt_two11), ('Proximal', 'Alternating', 'Two-stage'))
+plt_bcd11, = axs[1, 1].plot(bcd_time, bcd_likelihood, 'g-')
+axs[1, 0].legend((plt_palm10, plt_altmin10, plt_bcd10), ('PALM', 'AltMin', 'BCD'))
+axs[1, 1].legend((plt_palm11, plt_altmin11, plt_bcd11), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 
 path = "/home/addison/Python/almm/results"

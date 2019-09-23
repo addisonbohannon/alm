@@ -37,7 +37,7 @@ class Almm:
         algorithm
         
         solver (string) - Algorithm used to fit dictionary and coefficients,
-        i.e. palm or alt_min
+        i.e. altmin, bcd, or palm
         
         verbose (boolean) - Whether to print progress during execution; used 
         for debugging
@@ -67,14 +67,14 @@ class Almm:
         if solver == 'palm':
             from almm.solver import solver_palm
             self._fit = solver_palm
-        elif solver == 'alt_min':
-            from almm.solver import solver_alt_min
-            self._fit = solver_alt_min
-        elif solver == 'two_stage':
-            from almm.solver import solver_two_stage
-            self._fit = solver_two_stage
+        elif solver == 'altmin':
+            from almm.solver import solver_altmin
+            self._fit = solver_altmin
+        elif solver == 'bcd':
+            from almm.solver import solver_bcd
+            self._fit = solver_bcd
         else:
-            raise ValueError('Solver is not a valid option: palm, alt_min, two_stage.')
+            raise ValueError('Solver is not a valid option: altmin, bcd, palm.')
         if isinstance(verbose, bool):
             self.verbose = verbose
         else:
