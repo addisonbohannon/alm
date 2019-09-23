@@ -196,16 +196,6 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
 
     n = len(XtY)
     _, d = XtY[0].shape
-    
-    # Define coefficient update rule
-    if coef_penalty_type is None:
-        solve = lambda a, b : sl.solve(a, b, assume_a='pos')
-    elif coef_penalty_type == 'l0':
-        solve = lambda a, b : penalized_ls_gram(a, b, threshold, mu)
-    elif coef_penalty_type == 'l1':
-        solve = lambda a, b : penalized_ls_gram(a, b, shrink, mu)
-    else:
-        raise ValueError('coef_penalty_type not a valid type, i.e. None, l0, or l1')
 
     # Initialize dictionary randomly; enforce unit norm
     if D_0 is None:
@@ -221,28 +211,34 @@ def solver_two_stage(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1
     if return_path:
         D_path = [np.copy(D)]
         C_path = [np.copy(C)]
-    D = np.reshape(D, [r, -1])
+    wall_time = [timer()-start]
 
     # Estimate autoregressive coefficients for each observation
     A = [sl.solve(XtX_i, XtY_i, assume_a='pos') for XtX_i, XtY_i in zip(XtX, XtY)]
-    A = np.reshape(A, [n, -1])
 
     # Decompose autoregressive components into sparse dictionary atoms with alternating minimization algorithm
     stop_condition = 'maximum iteration'
     residual_D = []
     residual_C = []
-    wall_time = [timer()-start]
     for step in range(max_iter):
 
         # Update dictionary estimate
         temp = np.copy(D)
-        D = sl.solve(np.dot(C.T, C), np.dot(C.T, A), assume_a='pos')
-        D = np.array([proj(Dj) for Dj in D])
+        ccXtX = {}
+        triu_index = np.triu_indices(r)
+        for (i, j) in zip(triu_index[0], triu_index[1]):
+            ccXtX[(i, j)] = np.tensordot(C[:, i] * C[:, j], XtX, axes=1)
+        for j in range(r):
+            Aj = ccXtX[(j, j)]
+            bj = np.tensordot(C[:, j], np.matmul(XtX, A), axes=1)
+            for l in np.setdiff1d(np.arange(r), [j]):
+                bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
+            D[j] = proj(sl.solve(Aj, bj, assume_a='pos'))
         delta_D = D - temp
 
         # Update coefficient estimate
         temp = np.copy(C)
-        C = solve(np.dot(D, D.T), np.dot(D, A.T)).T
+        C = fit_coefs(XtX, np.matmul(XtX, A), D, mu, coef_penalty_type)
         delta_C = C - temp
 
         # Add current estimates to path

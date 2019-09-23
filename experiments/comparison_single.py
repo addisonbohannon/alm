@@ -17,8 +17,8 @@ from almm.almm import Almm
 from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
-n = 1000
-m = 10000
+n = 200
+m = 400
 d = 5
 r = 10
 p = 2
