@@ -157,7 +157,7 @@ class Almm:
         C = []
         T = []
         for ki in range(k):
-            if self.verbose:
+            if self.verbose and k > 1:
                 print('--Start: ' + str(ki))
             D_i, C_i, res_D, res_C, stop_con, T_i = self._fit(XtX, XtY, p, r, 
                                                               mu, 
@@ -172,7 +172,7 @@ class Almm:
             C.append(C_i)
             T.append(T_i)
         if self.verbose:
-            print('--Complete.')
+            print('-Complete.')
         
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
@@ -317,7 +317,7 @@ class Almm:
             C_i = []
             L_i = []
             for ki in range(k):
-                if self.verbose:
+                if self.verbose and k > 1:
                     print('--Start: ' + str(ki))
                     
                 # Fit dictionary to training observations for each set of 

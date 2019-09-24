@@ -9,6 +9,7 @@ Date: 2 Jul 19
 from os.path import join
 from datetime import datetime as dt
 from timeit import default_timer as timer
+import pickle
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
@@ -17,8 +18,8 @@ from almm.almm import Almm
 from almm.sampler import almm_sample
 from almm.utility import unstack_ar_coef, dict_distance
 
-n = 200
-m = 800
+n = 1000
+m = 10000
 d = 5
 r = 10
 p = 2
@@ -61,7 +62,7 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 # Fit model with proximal alternating linearized minimization solver
 print('Fitting ALMM model...')
 t5 = timer()
-almm_model = Almm(tol=1e-6, solver='palm', verbose=True)
+almm_model = Almm(tol=1e-3, solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=k, mu=mu, D_0=D_0, return_path=True,
                                                             return_all=True)
 t6 = timer()
@@ -119,3 +120,5 @@ print('Complete.')
 
 path = "/home/addison/Python/almm/results"
 plt.savefig(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+with open(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
+    pickle.dump([D_palm, D_altmin, D_bcd, palm_likelihood, altmin_likelihood, bcd_likelihood, palm_time, altmin_time, bcd_time], f)

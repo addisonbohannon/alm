@@ -68,7 +68,7 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
     mu (scalar) - penalty parameter
     p (0 or 1) - p-norm penalty; must be 0 or 1
     max_iter (int) - maximum iterations of algorithm; must be positive integer
-    tol (scalar) - tolerancde for terminating algorithm
+    tol (scalar) - tolerance for terminating algorithm
     
     outputs:
     x (m array) - parameters
@@ -226,12 +226,16 @@ def solver_altmin(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e2,
         triu_index = np.triu_indices(r)
         for (i, j) in zip(triu_index[0], triu_index[1]):
             ccXtX[(i, j)] = np.tensordot(C[:, i]*C[:, j], XtX, axes=1)
+        A = np.zeros([r*p*d, r*p*d])
+        for (i, j) in zip(triu_index[0], triu_index[1]):
+            A[i*p*d:(i+1)*(p*d), (j*p*d):(j+1)*(p*d)] = ccXtX[(i, j)]
+        tril_index = np.tril_indices(r, k=-1)
+        A[tril_index] = A.T[tril_index]
+        b = np.zeros([r*p*d, d])
         for j in range(r):
-            Aj = ccXtX[(j, j)]
-            bj = np.tensordot(C[:, j], XtY, axes=1)
-            for l in np.setdiff1d(np.arange(r), [j]):
-                bj -= np.dot(ccXtX[tuple(sorted((j, l)))], D[l])
-            D[j] = proj(sl.solve(Aj, bj, assume_a='pos'))
+            b[(j*p*d):(j+1)*p*d, :] = np.tensordot(C[:, j], XtY, axes=1)
+        D = sl.solve(A, b, assume_a='pos')
+        D = np.array([proj(D[(j*p*d):(j+1)*p*d, :]) for j in range(r)])
         delta_D = D - temp
 
         # Update coefficient estimates
