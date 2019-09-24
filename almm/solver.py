@@ -68,7 +68,7 @@ def penalized_ls_gram(G, C, prox, mu, max_iter=1e3, tol=1e-4):
     mu (scalar) - penalty parameter
     p (0 or 1) - p-norm penalty; must be 0 or 1
     max_iter (int) - maximum iterations of algorithm; must be positive integer
-    tol (scalar) - tolerancde for terminating algorithm
+    tol (scalar) - tolerance for terminating algorithm
     
     outputs:
     x (m array) - parameters
