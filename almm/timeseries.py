@@ -1,112 +1,91 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Author: Addison Bohannon
-Project: Autoregressive Linear Mixture Model (ALMM)
-Date: 27 Jun 19
-"""
 
 import numpy as np
-from almm.utility import inner_prod, ar_toep_op
+from almm.utility import inner_product, circulant_matrix
 
-# Timeseries observation class
+
 class Timeseries:
-    
-    # Class constructor
-    def __init__(self, obs):
+    """
+    Defines a convenient class for computations on the observations
+    """
+
+    def __init__(self, observation):
         """
-        Class constructor for ALMM observation. Provides data manipulations 
-        and cross-validation backend for the solver.
-        
-        inputs:
-        obs (m x d array) - autoregressive observation
+        :param observation: observation_length x dimension numpy array
         """
-        
-        if len(np.shape(obs)) != 2:
-            raise TypeError('Observation dimension invalid. Should be m x d.')
-        self.x = obs
-        self.m, self.d = obs.shape
-        
-    def Y(self, p):
+
+        if len(np.shape(observation)) != 2:
+            raise TypeError('Observation dimension invalid; expected m x d numpy array.')
+
+        self.observation = observation
+        self.observation_length, self.dimension = observation.shape
+
+    def Y(self, model_order):
         """
-        Returns stacked observations for a maximum likelihood estimator, i.e.,
-        Y = [y[p], ..., y[m]]^T.
-        
-        inputs:
-        p (integer) - model order; must be a positive integer
-        
-        outputs:
-        Y ((m-p) x d array) - stacked observations
+        Returns observations without the first (model_order) observations
+        :param model_order: positive integer
+        :return: stacked observation: (observation_length-model_order) x dimension numpy array
         """
-        
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order must be an integer.')
-        
-        return self.x[p:, :]
-    
-    def X(self, p):
+
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
+
+        return self.observation[model_order:, :]
+
+    def X(self, model_order):
         """
-        Returns autoregressive operator of p-order lag, i.e.,
-        [[x^T[p], ..., x^T[1]], ..., [x^T[m-1], ..., x^T[m-p]]]
-        
-        inputs:
-        p (integer) - model order; must be a positive integer
-        
-        outputs:
-        X ((m-p) x p*d array) - autoregressive operator
+        Return the circulant observation matrix
+        :param model_order: positive integer
+        :return: circulant observation: (observation_length-model_order) x (model_order*dimension) numpy array
         """
+
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
         
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order must be an integer.')
-        X, _ = ar_toep_op(self.x, p)
-        return X
-    
-    def YtY(self, p):
+        _X, _ = circulant_matrix(self.observation, model_order)
+        
+        return _X
+
+    def YtY(self, model_order):
         """
-        Returns sample correlation, i.e., <Y, Y>_F / (m-p)
-        
-        inputs:
-        p (integer) - model order; must be a positive integer
-        
-        outputs:
-        YtY (float) - sample correlation of observation
-            
+        Return the sample covariance of the observation
+        :param model_order: positive integer
+        :return: sample covariance: (observation_length-model_order) x dimension x dimension numpy array
         """
+
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
         
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order must be an integer.')
-        _Y = self.Y(p)
-        return inner_prod(_Y, _Y) / (self.m - p)
-    
-    def XtX(self, p):
+        _Y = self.Y(model_order)
+        
+        return inner_product(_Y, _Y) / (self.observation_length - model_order)
+
+    def XtX(self, model_order):
         """
-        Returns the sample autocorrelation of the autoregressive process
-        
-        inputs:
-        p (integer) - model order; must be a positive integer
-        
-        outputs:
-        XtX (p*d x p*d array) - sample autocorrelation
+        Returns the sample autocovariance of the observation
+        :param model_order: positive integer
+        :return: sample autocovariance: (observation_length-model_order) x (model_order*dimension) x (model_order*dimension)
         """
+
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
         
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order must be an integer.')
-        _X = self.X(p)
-        return np.dot(_X.T, _X) / (self.m - p)
-    
-    def XtY(self, p):
+        _X = self.X(model_order)
+        
+        return np.dot(_X.T, _X) / (self.observation_length - model_order)
+
+    def XtY(self, model_order):
         """
-        Returns sample autocorrelation, i.e., X^T Y
-        
-        inputs:
-        p (integer) - model order; must be a positive integer
-        
-        outputs:
-        XtY (p*d x d array) - sample autocorrelation
+        Returns the sample autocovariance of the observation
+        :param model_order: positive integer
+        :return: sample autocovariance: (observation_length-model_order) x (model_order*dimension) x dimension
         """
+
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
         
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order must be an integer.')
-        _X = self.X(p)
-        _Y = self.Y(p)
-        return np.dot(_X.T, _Y) / (self.m - p)
+        _X = self.X(model_order)
+        _Y = self.Y(model_order)
+
+        return np.dot(_X.T, _Y) / (self.observation_length - model_order)

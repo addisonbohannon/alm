@@ -10,7 +10,7 @@ from timeit import default_timer as timer
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from almm.utility import gram, inner_prod
+from almm.utility import gram_matrix, inner_product
 
 def shrink(x, t):
     """
@@ -139,7 +139,7 @@ def fit_coefs(XtX, XtY, D, mu, coef_penalty_type):
         raise ValueError('coef_penalty_type not a valid type, i.e. None, l0, or l1')
     
     # Fit coefficients with iterative algorithm
-    return np.array([solve(gram(D, lambda x, y : inner_prod(x, np.dot(XtX_i, y))), inner_prod(XtY_i, D))
+    return np.array([solve(gram_matrix(D, lambda x, y : inner_product(x, np.dot(XtX_i, y))), inner_product(XtY_i, D))
                      for XtX_i, XtY_i in zip(XtX, XtY)])
 
 
@@ -537,8 +537,8 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         """
         
         if G is None:
-            G = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
-        return (- inner_prod(XtY[i], D) + np.dot(G, C[i, :].T)) / n
+            G = gram_matrix(D, lambda x, y : inner_product(x, np.dot(XtX[i], y)))
+        return (- inner_product(XtY[i], D) + np.dot(G, C[i, :].T)) / n
     
     # Begin iterative algorithm
     stop_condition = 'maximum iteration'
@@ -566,7 +566,7 @@ def solver_palm(XtX, XtY, p, r, mu, coef_penalty_type, D_0=None, max_iter=1e3,
         for i in range(n):
             
             # compute step size
-            Gi = gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y)))
+            Gi = gram_matrix(D, lambda x, y : inner_product(x, np.dot(XtX[i], y)))
             beta[i] = n * sl.norm(Gi, ord=2)**(-1) * step_size
             
             # proximal/gradient step
@@ -635,9 +635,9 @@ def likelihood(YtY, XtX, XtY, D, C, mu, coef_penalty_type):
     
     n = len(XtX)
     r, _, _ = D.shape
-    gram_C = [gram(D, lambda x, y : inner_prod(x, np.dot(XtX[i], y))) for i in range(n)]
+    gram_C = [gram_matrix(D, lambda x, y : inner_product(x, np.dot(XtX[i], y))) for i in range(n)]
     likelihood = 0.5 * ( np.mean(YtY) 
-                        - 2 * np.sum([np.mean([C[i, j]*inner_prod(XtY[i], D[j]) for i in range(n)]) for j in range(r)])
+                        - 2 * np.sum([np.mean([C[i, j] * inner_product(XtY[i], D[j]) for i in range(n)]) for j in range(r)])
                         + np.mean(np.matmul(np.expand_dims(C, 1), np.matmul(gram_C, np.expand_dims(C, 2)))) )
     if coef_penalty_type == 'l0':
         likelihood += mu * np.count_nonzero(C[:]) / n

@@ -16,7 +16,7 @@ import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from almm.almm import Almm
 from almm.sampler import almm_sample
-from almm.utility import unstack_ar_coef, dict_distance
+from experiments.utility import component_distance
 
 n = 1000
 m = 10000
@@ -81,7 +81,7 @@ loss=[]
 for s, Dis in enumerate(D_palm):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
-        Dis_pred[j] = unstack_ar_coef(Dis[j])
+        Dis_pred[j] = unstack_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_palm00, = axs[0, 0].plot(loss, 'b-')
@@ -91,7 +91,7 @@ loss=[]
 for s, Dis in enumerate(D_altmin):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
-        Dis_pred[j] = unstack_ar_coef(Dis[j])
+        Dis_pred[j] = unstack_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_altmin00, = axs[0, 0].plot(loss, 'r-')
@@ -101,7 +101,7 @@ loss=[]
 for s, Dis in enumerate(D_bcd):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
-        Dis_pred[j] = unstack_ar_coef(Dis[j])
+        Dis_pred[j] = unstack_coef(Dis[j])
     d_loss, _, _ = dict_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_bcd00, = axs[0, 0].plot(loss, 'g-')

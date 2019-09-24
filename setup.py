@@ -9,9 +9,11 @@ setup(
     author='Addison Bohannon',
     author_email='addison.bohannon@gmail.com',
     description='Autoregressive Linear Mixture Model',
-	scripts=[
-			 'experiments/comparison_single.py',
-			 'experiments/comparison_multiple.py',
-			 'experiments/n_vs_m.py'
-			]
+    install_requires=['numpy', 'scipy', 'cvxpy'],
+    scripts=[
+        'experiments/comparison_single.py',
+        'experiments/comparison_multiple.py',
+        'experiments/n_vs_m.py',
+        'experiments/utility.py'
+    ]
 )

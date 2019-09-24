@@ -13,7 +13,7 @@ from itertools import product
 import pickle
 from almm.almm import Almm
 from almm.sampler import almm_sample
-from almm.utility import unstack_ar_coef, dict_distance
+from experiments.utility import component_distance
 
 n = 1000
 dn = 200
@@ -57,7 +57,7 @@ for i in range(N):
         L_palm.append(Li_palm)        
         loss_palm = []
         for Dis_palm in Di_palm:
-            D_pred = [unstack_ar_coef(Dj) for Dj in Dis_palm]
+            D_pred = [unstack_coef(Dj) for Dj in Dis_palm]
             d_loss, _, _ = dict_distance(D, D_pred)
             loss_palm.append(d_loss)
         D_palm.append(loss_palm)
@@ -75,7 +75,7 @@ for i in range(N):
         L_altmin.append(Li_altmin)
         loss_altmin = []
         for Dis_altmin in Di_altmin:
-            D_pred = [unstack_ar_coef(Dj) for Dj in Dis_altmin]
+            D_pred = [unstack_coef(Dj) for Dj in Dis_altmin]
             d_loss, _, _ = dict_distance(D, D_pred)
             loss_altmin.append(d_loss)
         D_altmin.append(loss_altmin)
@@ -93,7 +93,7 @@ for i in range(N):
         L_bcd.append(Li_bcd)
         loss_bcd = []
         for Dis_bcd in Di_bcd:
-            D_pred = [unstack_ar_coef(Dj) for Dj in Dis_bcd]
+            D_pred = [unstack_coef(Dj) for Dj in Dis_bcd]
             d_loss, _, _ = dict_distance(D, D_pred)
             loss_bcd.append(d_loss)
         D_bcd.append(loss_bcd)
