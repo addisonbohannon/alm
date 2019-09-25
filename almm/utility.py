@@ -116,3 +116,56 @@ def initialize_components(num_components, model_order, signal_dimension):
     component = nr.randn(num_components, model_order, signal_dimension, signal_dimension)
 
     return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
+
+
+def component_gram_matrix(autocorrelation, component):
+    """
+    Computes component Gram matrix with respect to sample autocorrelation
+    :param autocorrelation: [num_observations x] model_order*signal_dimension x model_order*signal_dimension numpy array
+    :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return: component_gram_matrix: [num_observations x] num_components x num_components numpy array
+    """
+
+    return [gram_matrix(component, lambda comp_1, comp_2: inner_product(comp_1, np.dot(autocorrelation_i, comp_2)))
+            for autocorrelation_i in autocorrelation]
+
+
+def component_corr_matrix(correlation, component):
+    """
+    Computes component correlation matrix
+    :param correlation: model_order*signal_dimension x signal_dimension numpy array
+    :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return: component_corr_matrix: num_components numpy array (list)
+    """
+
+    return [inner_product(correlation, component_j) for component_j in component]
+
+
+def coef_gram_matrix(autocorrelation, coef):
+    """
+    Computes the coefficient gram matrix with respect to sample autocovariance
+    :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
+    :param coef: num_observations x num_components numpy array
+    :return: coef_gram: dictionary of model_order*signal_dimension x model_order*signal_dimension numpy arrays indexed
+    by upper triangular indices
+    """
+
+    _, num_components = coef.shape
+    coef_gram = {}
+    triu_index = np.triu_indices(num_components)
+    for (i, j) in zip(triu_index[0], triu_index[1]):
+        coef_gram[(i, j)] = np.tensordot(coef[:, i] * coef[:, j], autocorrelation, axes=1) / num_components
+
+    return coef_gram
+
+
+def coef_corr_matrix(correlation, coef):
+    """
+    Computes coefficient correlation matrix
+    :param correlation: model_order*signal_dimension x signal_dimension numpy array
+    :param coef: num_observations x num_components numpy array
+    :return:
+    """
+
+    num_observations, num_components = coef.shape
+    return [np.tensordot(coef[:, j], correlation, axes=1) / num_observations for j in range(num_components)]

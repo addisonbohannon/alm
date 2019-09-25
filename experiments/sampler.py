@@ -30,7 +30,7 @@ def check_almm_condition(observation, component, mixing_coef):
     component_matrix = np.zeros([model_order*signal_dimension*number_components,
                                  model_order*signal_dimension*number_components])
     for i in range(number_observations):
-        component_matrix += np.kron(np.outer(mixing_coef[i, :], mixing_coef[i, :]) / number_observations, XtX[i])
+        component_matrix += np.kron(np.outer(mixing_coef[i, :], mixing_coef[i, :]), XtX[i]) / number_observations
     component_singvals = sl.svdvals(component_matrix)
     component = [stack_coef(component_j) for component_j in component]
     coef_matrix = np.zeros([number_observations, number_components, number_components])
