@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Author: Addison Bohannon
-Project: Autoregressive Linear Mixture Model (ALMM)
-Date: 2 Jul 19
-"""
 
 from os.path import join
 from datetime import datetime as dt
@@ -15,7 +10,9 @@ import numpy.random as nr
 import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from almm.almm import Almm
+from almm.utility import unstack_coef
 from experiments.sampler import almm_sample
+from experiments.utility import component_distance
 
 n = 1000
 m = 10000
@@ -42,8 +39,8 @@ D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
 print('Fitting ALMM model...')
 t1 = timer()
 almm_model = Almm(tol=1e-3, solver='altmin', verbose=True)
-D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, k=k, mu=mu, D_0=D_0, return_path=True,
-                                                                    return_all=True)
+D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                                                    return_path=True, return_all=True)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -52,8 +49,8 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM model...')
 t3 = timer()
 almm_model = Almm(tol=1e-3, solver='bcd', verbose=True)
-D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_model.fit(x, p, r,  k=k, mu=mu, D_0=D_0, return_path=True,
-                                                        return_all=True)
+D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                                        return_path=True, return_all=True)
 t4 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t4-t3) + 's')
@@ -62,8 +59,8 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 print('Fitting ALMM model...')
 t5 = timer()
 almm_model = Almm(tol=1e-3, solver='palm', verbose=True)
-D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, k=k, mu=mu, D_0=D_0, return_path=True,
-                                                            return_all=True)
+D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                                            return_path=True, return_all=True)
 t6 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t6-t5) + 's')
@@ -81,7 +78,7 @@ for s, Dis in enumerate(D_palm):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_coef(Dis[j])
-    d_loss, _, _ = dict_distance(D, Dis_pred)
+    d_loss, _, _ = component_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_palm00, = axs[0, 0].plot(loss, 'b-')
 plt_palm01, = axs[0, 1].plot(palm_time, loss, 'b-')
@@ -91,7 +88,7 @@ for s, Dis in enumerate(D_altmin):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_coef(Dis[j])
-    d_loss, _, _ = dict_distance(D, Dis_pred)
+    d_loss, _, _ = component_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_altmin00, = axs[0, 0].plot(loss, 'r-')
 plt_altmin01, = axs[0, 1].plot(altmin_time, loss, 'r-')
@@ -101,7 +98,7 @@ for s, Dis in enumerate(D_bcd):
     Dis_pred = np.zeros([r, p, d, d])
     for j in range(r):
         Dis_pred[j] = unstack_coef(Dis[j])
-    d_loss, _, _ = dict_distance(D, Dis_pred)
+    d_loss, _, _ = component_distance(D, Dis_pred)
     loss.append(d_loss)
 plt_bcd00, = axs[0, 0].plot(loss, 'g-')
 plt_bcd01, = axs[0, 1].plot(bcd_time, loss, 'g-')

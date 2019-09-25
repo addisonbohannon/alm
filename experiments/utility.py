@@ -10,7 +10,9 @@ def component_distance(component_1, component_2, p=2):
     :param component_1: list of numpy arrays
     :param component_2: list of numpy arrays
     :param p: positive float
-    :return: distance, component-wise distance, permutation: float, numpy array, numpy array
+    :return distance: float
+    :return component-wise distance: numpy array
+    :return permutation: numpy array
     """
 
     n = len(component_1)

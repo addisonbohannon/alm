@@ -25,7 +25,7 @@ class Timeseries:
         """
         Returns observations without the first (model_order) observations
         :param model_order: positive integer
-        :return: stacked observation: (observation_length-model_order) x dimension numpy array
+        :return stacked observation: (observation_length-model_order) x dimension numpy array
         """
 
         if not isinstance(model_order, int) or model_order < 1:
@@ -37,7 +37,7 @@ class Timeseries:
         """
         Return the circulant observation matrix
         :param model_order: positive integer
-        :return: circulant observation: (observation_length-model_order) x (model_order*dimension) numpy array
+        :return circulant observation: (observation_length-model_order) x (model_order*dimension) numpy array
         """
 
         if not isinstance(model_order, int) or model_order < 1:
@@ -51,7 +51,7 @@ class Timeseries:
         """
         Return the sample covariance of the observation
         :param model_order: positive integer
-        :return: sample covariance: (observation_length-model_order) x dimension x dimension numpy array
+        :return sample covariance: (observation_length-model_order) x dimension x dimension numpy array
         """
 
         if not isinstance(model_order, int) or model_order < 1:
@@ -65,7 +65,7 @@ class Timeseries:
         """
         Returns the sample autocovariance of the observation
         :param model_order: positive integer
-        :return: sample autocovariance: (observation_length-model_order) x (model_order*dimension) x (model_order*dimension)
+        :return sample autocovariance: (observation_length-model_order) x (model_order*dimension) x (model_order*dimension)
         """
 
         if not isinstance(model_order, int) or model_order < 1:
@@ -79,7 +79,7 @@ class Timeseries:
         """
         Returns the sample autocovariance of the observation
         :param model_order: positive integer
-        :return: sample autocovariance: (observation_length-model_order) x (model_order*dimension) x dimension
+        :return sample autocovariance: (observation_length-model_order) x (model_order*dimension) x dimension
         """
 
         if not isinstance(model_order, int) or model_order < 1:

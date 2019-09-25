@@ -11,7 +11,7 @@ def train_val_split(samples, val_pct):
     Returns the indices of a random training-validation split
     :param samples: positive integer
     :param val_pct: float (0, 1)
-    :return: train_idx, val_idx: lists
+    :return train_idx, val_idx: lists
     """
     
     if not isinstance(samples, int) or samples < 1:
@@ -30,7 +30,7 @@ def gram_matrix(data, inner_product):
     Computes the gram matrix for a list of elements for a given inner product
     :param data: list
     :param inner_product: symmetric function of two arguments
-    :return: g: len(x) x len(x) numpy array
+    :return g: len(x) x len(x) numpy array
     """
 
     n = len(data)
@@ -49,7 +49,7 @@ def inner_product(matrix_1, matrix_2):
     Returns the Frobenius inner product
     :param matrix_1: numpy array
     :param matrix_2: numpy array
-    :return: ab: numpy array
+    :return ab: numpy array
     """
 
     if len(matrix_1.shape) == 3 or len(matrix_2.shape) == 3:
@@ -63,7 +63,7 @@ def circulant_matrix(observation, model_order):
     Returns the circulant observation matrix
     :param observation: sample_length x signal_dimension numpy array
     :param model_order: positive integer
-    :return: circulant_observation, stacked_observation: (sample_length-model_order) x (model_order*signal_dimension),
+    :return circulant_observation, stacked_observation: (sample_length-model_order) x (model_order*signal_dimension),
     (sample_length-model_order) x signal_dimension
     """
 
@@ -84,7 +84,7 @@ def stack_coef(coef):
     """
     Returns the stacked coefficients of an autoregressive model
     :param coef: model_order x signal_dimension x signal_dimension numpy array
-    :return: stacked_coef: (model_order*signal_dimension) x signal_dimension numpy array
+    :return stacked_coef: (model_order*signal_dimension) x signal_dimension numpy array
     """
 
     model_order, signal_dimension, _ = coef.shape
@@ -96,7 +96,7 @@ def unstack_coef(coef):
     """
     Returns the unstacked coefficients of an autoregressive model
     :param coef: (model_order*signal_dimension) x signal_dimension numpy array
-    :return: unstacked_coef: model_order x signal_dimension x signal_dimension numpy array
+    :return unstacked_coef: model_order x signal_dimension x signal_dimension numpy array
     """
     
     model_order_by_signal_dimension, signal_dimension = coef.shape
@@ -104,16 +104,20 @@ def unstack_coef(coef):
 
     return np.stack(np.split(coef.T, model_order, axis=1), axis=0)
 
-def initialize_components(num_components, model_order, signal_dimension):
+def initialize_components(num_components, model_order, signal_dimension, stacked=True):
     """
     Initialize random components for ALMM
     :param num_components: integer
     :param model_order: integer
     :param signal_dimension: integer
-    :return: num_components x model_order x signal_dimension x signal_dimension numpy array
+    :param stacked: boolean
+    :return initial_component: num_components x model_order x signal_dimension x signal_dimension numpy array
     """
 
-    component = nr.randn(num_components, model_order, signal_dimension, signal_dimension)
+    if stacked:
+        component = nr.randn(num_components, model_order*signal_dimension, signal_dimension)
+    else:
+        component = nr.randn(num_components, model_order, signal_dimension, signal_dimension)
 
     return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
 
@@ -123,7 +127,7 @@ def component_gram_matrix(autocorrelation, component):
     Computes component Gram matrix with respect to sample autocorrelation
     :param autocorrelation: [num_observations x] model_order*signal_dimension x model_order*signal_dimension numpy array
     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: component_gram_matrix: [num_observations x] num_components x num_components numpy array
+    :return component_gram_matrix: [num_observations x] num_components x num_components numpy array
     """
 
     return [gram_matrix(component, lambda comp_1, comp_2: inner_product(comp_1, np.dot(autocorrelation_i, comp_2)))
@@ -135,7 +139,7 @@ def component_corr_matrix(correlation, component):
     Computes component correlation matrix
     :param correlation: model_order*signal_dimension x signal_dimension numpy array
     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: component_corr_matrix: num_components numpy array (list)
+    :return component_corr_matrix: num_components numpy array (list)
     """
 
     return [inner_product(correlation, component_j) for component_j in component]
@@ -146,7 +150,7 @@ def coef_gram_matrix(autocorrelation, coef):
     Computes the coefficient gram matrix with respect to sample autocovariance
     :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
     :param coef: num_observations x num_components numpy array
-    :return: coef_gram: dictionary of model_order*signal_dimension x model_order*signal_dimension numpy arrays indexed
+    :return coef_gram: dictionary of model_order*signal_dimension x model_order*signal_dimension numpy arrays indexed
     by upper triangular indices
     """
 
@@ -162,9 +166,9 @@ def coef_gram_matrix(autocorrelation, coef):
 def coef_corr_matrix(correlation, coef):
     """
     Computes coefficient correlation matrix
-    :param correlation: model_order*signal_dimension x signal_dimension numpy array
+    :param correlation: num_observations x model_order*signal_dimension x signal_dimension numpy array
     :param coef: num_observations x num_components numpy array
-    :return:
+    :return coef_corr: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
 
     num_observations, num_components = coef.shape

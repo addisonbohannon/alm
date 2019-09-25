@@ -12,7 +12,7 @@ def shrink(x, t):
     Implements the proximal operator of the l1-norm (shrink operator)
     :param x: float
     :param t: float
-    :return: x: float
+    :return x: float
     """
     
     return np.sign(x) * np.maximum(np.abs(x)-t, 0)
@@ -23,7 +23,7 @@ def threshold(x, t):
     Implements the proximal operator of the l0-norm (threshold operator).
     :param x: float
     :param t: float
-    :return: x: float
+    :return x: float
     """
     
     x[x**2 < 2*t] = 0
@@ -35,7 +35,7 @@ def project(z):
     """
     Projects onto the l2-ball
     :param z: float
-    :return: z: float
+    :return z: float
     """
     
     return z / sl.norm(z[:])
@@ -48,8 +48,8 @@ def component_update_altmin(XtX, XtY, current_component, current_coef):
     :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
     :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     :param current_coef: num_observations x num_components numpy array
-    :return: new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
 
     num_observations = len(XtX)
@@ -80,8 +80,8 @@ def component_update_bcd(XtX, XtY, current_component, current_coef):
     :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
     :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     :param current_coef: num_observations x num_components numpy array
-    :return: new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
 
     num_components, _, _ = current_component.shape
@@ -106,8 +106,8 @@ def component_update_palm(XtX, XtY, current_component, current_coef, step_size):
     :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     :param current_coef: num_observations x num_components numpy array
     :param step_size: float
-    :return: new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
 
     num_observations = len(XtX)
@@ -139,8 +139,8 @@ def coef_update(XtX, XtY, current_component, current_coef, penalty_parameter, co
     :param current_coef: num_observations x num_components numpy array
     :param penalty_parameter: float
     :param coef_penalty_type: None, 'l0', or 'l1'
-    :return: new_coef: num_observations x num_components numpy array
-    :return: change_in_coef: num_observations x num_components numpy array
+    :return new_coef: num_observations x num_components numpy array
+    :return change_in_coef: num_observations x num_components numpy array
     """
     
     if coef_penalty_type is None:
@@ -169,8 +169,8 @@ def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_paramete
     :param penalty_parameter: float
     :param coef_penalty_type: None, 'l0', or 'l1'
     :param step_size: float
-    :return: new_coef: num_observations x num_components numpy array
-    :return: change_in_coef: num_observations x num_components numpy array
+    :return new_coef: num_observations x num_components numpy array
+    :return change_in_coef: num_observations x num_components numpy array
     """
 
     if coef_penalty_type is None:
@@ -208,7 +208,7 @@ def penalized_ls_gram(gram_matrix, covariance, proximal_function, penalty_parame
     :param penalty_parameter: float
     :param max_iter: integer
     :param tol: float
-    :return: m x n numpy array
+    :return m x n numpy array
     """
 
     def update_lagrange_parameter(penalty_param, pri_res, dual_res):
@@ -262,12 +262,12 @@ def fit_almm(XtX, XtY, model_order, num_components, penalty_parameter, coef_pena
     :param tol: float; (0, 1)
     :param return_path: boolean
     :param verbose: boolean
-    :return: component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return: mixing_coef: [list of] num_observations x num_components numpy array
-    :return: coef_residual: list of float
-    :return: component_residual: list of float
-    :return: stop_condition: string
-    :return: elapsed_time: list of float
+    :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return mixing_coef: [list of] num_observations x num_components numpy array
+    :return coef_residual: list of float
+    :return component_residual: list of float
+    :return stop_condition: string
+    :return elapsed_time: list of float
     """
 
     if solver == 'bcd':
@@ -350,7 +350,7 @@ def negative_log_likelihood(YtY, XtX, XtY, component, coef, penalty_parameter, c
     :param coef: numpy array
     :param penalty_parameter: float
     :param coef_penalty_type: None, 'l0', or 'l1'
-    :return: nll: float
+    :return nll: float
     """
     
     num_observations = len(XtX)

@@ -5,7 +5,7 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 from almm.timeseries import Timeseries
-from almm.utility import gram_matrix, inner_product, stack_coef, initialize_components
+from almm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix
 
 MIXING_FACTOR = 4
 MAX_ITER = int(1e2)
@@ -17,7 +17,7 @@ def check_almm_condition(observation, component, mixing_coef):
     :param observation: number_observations x observation_length x signal_dimension numpy array
     :param component: number_components x model_order x signal_dimension x signal_dimension numpy array
     :param mixing_coef: number_observations x number_components numpy array
-    :return: component_condition, coef_condition: float, float
+    :return component_condition, coef_condition: float, float
     """
 
     number_observations, _, signal_dimension = observation.shape
@@ -27,17 +27,21 @@ def check_almm_condition(observation, component, mixing_coef):
     for x_i in observation:
         x_i = Timeseries(x_i)
         XtX.append(x_i.XtX(model_order))
+    coef_gram_list =  coef_gram_matrix(XtX, mixing_coef)
     component_matrix = np.zeros([model_order*signal_dimension*number_components,
                                  model_order*signal_dimension*number_components])
-    for i in range(number_observations):
-        component_matrix += np.kron(np.outer(mixing_coef[i, :], mixing_coef[i, :]), XtX[i]) / number_observations
+    for (i, j), coef_gram in coef_gram_list:
+        component_matrix[(i*model_order*signal_dimension):((i+1)*model_order*signal_dimension),
+                         (j*model_order*signal_dimension):(j+1)*model_order*signal_dimension] = coef_gram
+        if i != j:
+            component_matrix[(j * model_order * signal_dimension):((j + 1) * model_order * signal_dimension),
+                             (i * model_order * signal_dimension):(i + 1) * model_order * signal_dimension] = coef_gram
     component_singvals = sl.svdvals(component_matrix)
     component = [stack_coef(component_j) for component_j in component]
-    coef_matrix = np.zeros([number_observations, number_components, number_components])
+    component_gram = component_gram_matrix(XtX, component)
     coef_singvals = np.zeros([number_observations, number_components])
     for i in range(number_observations):
-        coef_matrix[i] = gram_matrix(component, lambda x_1, x_2: inner_product(x_1, np.dot(XtX[i], x_2)))
-        coef_singvals[i] = sl.svdvals(coef_matrix[i])
+        coef_singvals[i] = sl.svdvals(component_gram[i])
 
     return np.max(component_singvals) / np.min(component_singvals), \
            np.max(coef_singvals, axis=1) / np.min(coef_singvals, axis=1)
@@ -49,7 +53,7 @@ def isstable(autoregressive_coef):
     check that det(I-zC)=0 only for |z|>1; if so, return True and otherwise
     False.
     :param autoregressive_coef: model_order x signal_dimension x signal_dimension numpy array
-    :return: stability: boolean
+    :return stability: boolean
     """
 
     model_order, signal_dimension, _ = autoregressive_coef.shape
@@ -67,7 +71,7 @@ def autoregressive_sample(observation_length, signal_dimension, noise_variance, 
     :param signal_dimension: positive integer
     :param noise_variance: positive float
     :param autoregressive_coef: model_order x signal_dimension x signal_dimension
-    :return: observation: observation_length x signal_dimension numpy array
+    :return observation: observation_length x signal_dimension numpy array
     """
 
     model_order, _, _ = autoregressive_coef.shape
@@ -96,13 +100,13 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
     :param coef_support: positive integer less than number_components
     :param coef_condition: positive float
     :param component_condition: positive float
-    :return: observation, mixing_coef, components: number_observations x observation_length x
-    signal_dimension numpy array, number_observations x number_components numpy array, number_components x model_order
-    x signal_dimension x signal_dimension numpy array
+    :return observation: number_observations x observation_length x signal_dimension numpy array
+    :return mixing_coef: number_observations x number_components numpy array
+    :return components: number_components x model_order x signal_dimension x signal_dimension numpy array
     """
     
     for step in range(MAX_ITER):
-        components = initialize_components(number_components, model_order, signal_dimension)
+        components = initialize_components(number_components, model_order, signal_dimension, stacked=False)
         mixing_coef = np.zeros([number_observations, number_components])
         for i in range(number_observations):
             support = list(nr.choice(number_components, size=coef_support,
