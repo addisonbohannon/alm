@@ -11,7 +11,7 @@ from itertools import product
 import numpy as np
 import scipy.linalg as sl
 from almm.utility import train_val_split
-from almm.solver import fit_coefs, likelihood
+from almm.solver import fit_coefs, negative_log_likelihood
 from almm.timeseries import Timeseries
 
 # Solver class
@@ -179,12 +179,12 @@ class Almm:
         L = []
         for D_i, C_i in zip(D, C):
             if return_path:
-                L_i = [likelihood(YtY, XtX, XtY, Dis, Cis, mu, 
-                                  self.coef_penalty_type) 
-                                  for Dis, Cis in zip(D_i, C_i)]
+                L_i = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, mu,
+                                               self.coef_penalty_type)
+                       for Dis, Cis in zip(D_i, C_i)]
             else:
-                L_i = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, 
-                                 self.coef_penalty_type)
+                L_i = negative_log_likelihood(YtY, XtX, XtY, D[-1], C[-1], mu,
+                                              self.coef_penalty_type)
             L.append(L_i)
         if self.verbose:
             print('Complete.')
@@ -346,9 +346,9 @@ class Almm:
                     C_iiv = [fit_coefs(XtX_val, XtY_val, D_iii, mu_i,
                                        self.coef_penalty_type)
                                        for D_iii in D_ii]
-                    L_i.append([likelihood(YtY_val, XtX_val, XtY_val, D_iii, 
-                                           C_iiiv, mu_i, self.coef_penalty_type)
-                                           for D_iii, C_iiiv in zip(D_ii, C_iiv)])
+                    L_i.append([negative_log_likelihood(YtY_val, XtX_val, XtY_val, D_iii,
+                                                        C_iiiv, mu_i, self.coef_penalty_type)
+                                for D_iii, C_iiiv in zip(D_ii, C_iiv)])
                     C_ii = []
                     for C_iits, C_iivs in zip(C_iit, C_iiv):
                         C_iis = [i for i in zip(train_idx, list(C_iits))]
@@ -359,8 +359,8 @@ class Almm:
                 else:
                     C_iiv = fit_coefs(XtX_val, XtY_val, D_ii[-1], mu_i, 
                                       self.coef_penalty_type)
-                    L_i.append(likelihood(YtY_val, XtX_val, XtY_val, D_ii[-1], 
-                                          C_iiv, mu_i, self.coef_penalty_type))
+                    L_i.append(negative_log_likelihood(YtY_val, XtX_val, XtY_val, D_ii[-1],
+                                                       C_iiv, mu_i, self.coef_penalty_type))
                     C_ii = [i for i in zip(train_idx, list(C_iit))]
                     C_ii.extend([i for i in zip(val_idx, list(C_iiv))])
                     C_ii.sort()

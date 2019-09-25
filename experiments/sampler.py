@@ -5,12 +5,12 @@ import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
 from almm.timeseries import Timeseries
-from almm.utility import gram_matrix, inner_product, stack_coef
+from almm.utility import gram_matrix, inner_product, stack_coef, initialize_components
 
 MIXING_FACTOR = 4
 MAX_ITER = int(1e2)
 
-    
+
 def check_almm_condition(observation, component, mixing_coef):
     """
     Computes the condition numbers that show-up in the various iterative procedures
@@ -102,8 +102,7 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
     """
     
     for step in range(MAX_ITER):
-        components = nr.randn(number_components, model_order, signal_dimension, signal_dimension)
-        components = np.array([A_i/sl.norm(A_i[:]) for A_i in components])
+        components = initialize_components(number_components, model_order, signal_dimension)
         mixing_coef = np.zeros([number_observations, number_components])
         for i in range(number_observations):
             support = list(nr.choice(number_components, size=coef_support,

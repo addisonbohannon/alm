@@ -3,6 +3,7 @@
 
 import numpy as np
 import numpy.random as nr
+import scipy.linalg as sl
 
 
 def train_val_split(samples, val_pct):
@@ -24,37 +25,37 @@ def train_val_split(samples, val_pct):
     return list(train_idx), list(val_idx)
 
 
-def gram_matrix(x, inner_product):
+def gram_matrix(data, inner_product):
     """
     Computes the gram matrix for a list of elements for a given inner product
-    :param x: list
+    :param data: list
     :param inner_product: symmetric function of two arguments
     :return: g: len(x) x len(x) numpy array
     """
 
-    n = len(x)
+    n = len(data)
     g = np.zeros([n, n])
     triu_index = np.triu_indices(n)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-        g[i, j] = inner_product(x[i], x[j])
+        g[i, j] = inner_product(data[i], data[j])
     tril_index = np.tril_indices(n, k=-1)
     g[tril_index] = g.T[tril_index]
 
     return g
 
 
-def inner_product(a, b):
+def inner_product(matrix_1, matrix_2):
     """
     Returns the Frobenius inner product
-    :param a: numpy array
-    :param b: numpy array
+    :param matrix_1: numpy array
+    :param matrix_2: numpy array
     :return: ab: numpy array
     """
 
-    if len(a.shape) == 3 or len(b.shape) == 3:
-        return np.sum(np.multiply(a, b), axis=(1, 2))
+    if len(matrix_1.shape) == 3 or len(matrix_2.shape) == 3:
+        return np.sum(np.multiply(matrix_1, matrix_2), axis=(1, 2))
     else:
-        return np.sum(np.multiply(a, b))
+        return np.sum(np.multiply(matrix_1, matrix_2))
 
 
 def circulant_matrix(observation, model_order):
@@ -102,3 +103,16 @@ def unstack_coef(coef):
     model_order = int(model_order_by_signal_dimension/signal_dimension)
 
     return np.stack(np.split(coef.T, model_order, axis=1), axis=0)
+
+def initialize_components(num_components, model_order, signal_dimension):
+    """
+    Initialize random components for ALMM
+    :param num_components: integer
+    :param model_order: integer
+    :param signal_dimension: integer
+    :return: num_components x model_order x signal_dimension x signal_dimension numpy array
+    """
+
+    component = nr.randn(num_components, model_order, signal_dimension, signal_dimension)
+
+    return np.array([component_j/sl.norm(component_j[:]) for component_j in component])

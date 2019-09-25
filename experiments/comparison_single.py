@@ -15,8 +15,7 @@ import numpy.random as nr
 import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from almm.almm import Almm
-from almm.sampler import almm_sample
-from experiments.utility import component_distance
+from experiments.sampler import almm_sample
 
 n = 1000
 m = 10000

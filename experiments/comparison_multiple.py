@@ -13,9 +13,8 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from almm.almm import Almm
-from almm.sampler import almm_sample
+from experiments.sampler import almm_sample
 from almm.utility import unstack_coef
-from experiments.utility import component_distance
 
 n = 1000
 m = 10000
