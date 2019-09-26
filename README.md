@@ -5,10 +5,10 @@
 This project offers multiple solvers for estimating the parameters of an Autoregressive Linear Mixture Model (ALMM):
 
 ```math
-\mathbf{x}_i[t] = \sum_{s=1}^m \sum_{j=1}^r c_{i, j} \mathbf{D}_j[s] \mathbf{x}_i[t-s] + \mathbf{x}_i[t],
+\mathbf{x}[t] = \sum_{s=1}^p \sum_{j=1}^r c_j \mathbf{D}_j[s] \mathbf{x}[t-s] + \mathbf{x}[t],
 ```
 
-where $`i\in\{1,\ldots,n\}`$. The maximum likelihood estimator (MLE) for this model is nonconvex and thus nontrivial to solve. This package has implementations for block coordinate descent, alternating minimization, and proximal gradient algorithms.
+where $`p`$ is the model order and $`r`$ is the number of autoregressive components. The maximum likelihood estimator (MLE) for this model is nonconvex and thus nontrivial to solve. This package has implementations for block coordinate descent, alternating minimization, and proximal gradient algorithms.
 
 ## Dependencies
 
