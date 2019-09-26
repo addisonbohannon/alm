@@ -55,17 +55,18 @@ def component_update_altmin(XtX, XtY, current_component, current_coef, step_size
     num_components, model_order_by_signal_dimension, signal_dimension = current_component.shape
     model_order = int(model_order_by_signal_dimension/signal_dimension)
     coef_gram = coef_gram_matrix(XtX, current_coef)
-    A = np.zeros([num_components * model_order * signal_dimension, num_components * model_order * signal_dimension])
+    a = np.zeros([num_components * model_order * signal_dimension, num_components * model_order * signal_dimension])
     for (i, j), coef_gram_ij in coef_gram.items():
-        A[i * model_order * signal_dimension:(i + 1) * (model_order * signal_dimension),
+        a[i * model_order * signal_dimension:(i + 1) * (model_order * signal_dimension),
           (j * model_order * signal_dimension):(j + 1) * (model_order * signal_dimension)] = coef_gram_ij
-    tril_index = np.tril_indices(num_components, k=-1)
-    A[tril_index] = A.T[tril_index]
+        if i != j:
+            a[j * model_order * signal_dimension:(j + 1) * (model_order * signal_dimension),
+              (i * model_order * signal_dimension):(i + 1) * (model_order * signal_dimension)] = coef_gram_ij.T
     coef_corr = coef_corr_matrix(XtY, current_coef)
     b = np.zeros([num_components * model_order * signal_dimension, signal_dimension])
     for j in range(num_components):
         b[(j * model_order * signal_dimension):(j + 1) * model_order * signal_dimension, :] = coef_corr[j]
-    new_component = sl.solve(A, b, assume_a='pos')
+    new_component = sl.solve(a, b, assume_a='pos')
     new_component = np.array([project(new_component[(j * model_order * signal_dimension):(j + 1) * model_order * signal_dimension, :])
                               for j in range(num_components)])
 
@@ -89,11 +90,11 @@ def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
     coef_gram = coef_gram_matrix(XtX, current_coef)
     coef_corr = coef_corr_matrix(XtY, current_coef)
     for j in range(num_components):
-        Aj = coef_gram[(j, j)]
-        bj = coef_corr[j]
+        a = coef_gram[(j, j)]
+        b = coef_corr[j]
         for l in np.setdiff1d(np.arange(num_components), [j]):
-            bj -= np.dot(coef_gram[tuple(sorted((j, l)))], new_component[l])
-        new_component[j] = project(sl.solve(Aj, bj, assume_a='pos'))
+            b -= np.dot(coef_gram[tuple(sorted((j, l)))], new_component[l])
+        new_component[j] = project(sl.solve(a, b, assume_a='pos'))
 
     return new_component, new_component - current_component
 
