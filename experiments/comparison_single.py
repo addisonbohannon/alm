@@ -114,7 +114,7 @@ axs[1, 0].legend((plt_palm10, plt_altmin10, plt_bcd10), ('PALM', 'AltMin', 'BCD'
 axs[1, 1].legend((plt_palm11, plt_altmin11, plt_bcd11), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 
-#path = "/home/addison/Python/almm/results"
-#plt.savefig(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+path = "/home/addison/Python/almm/results"
+plt.savefig(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
 #with open(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
 #    pickle.dump([D_palm, D_altmin, D_bcd, palm_likelihood, altmin_likelihood, bcd_likelihood, palm_time, altmin_time, bcd_time], f)

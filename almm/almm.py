@@ -65,6 +65,8 @@ class Almm:
             self.verbose = verbose
         else:
             raise TypeError('Verbose must be a boolean.')
+        self.component, self.mixing_coef, self.solver_time, self.nll, self.params, self.residual, self.stop_condition \
+            = [], [], [], [], [], [], []
 
     def fit(self, observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None,
             return_path=False, return_all=False):
@@ -95,7 +97,7 @@ class Almm:
         _, signal_dimension = observation[0].shape
         if initial_component is None:
             initial_component = [initialize_components(num_components, model_order, signal_dimension)
-                                 for start_k in range(num_starts)]
+                                 for _ in range(num_starts)]
         elif np.shape(initial_component) != (num_starts, num_components, model_order * signal_dimension,
                                              signal_dimension):
             raise ValueError('Initial dictionary estimate must be list of num_components x model_order*signal_dimension'
@@ -108,6 +110,8 @@ class Almm:
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
 
+        self.component, self.mixing_coef, self.solver_time, self.nll, self.params, self.residual, self.stop_condition \
+            = [], [], [], [], [], [], []
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
         YtY, XtX, XtY = [], [], []
@@ -120,51 +124,51 @@ class Almm:
             print('Complete.')
         if self.verbose:
             print('-Fitting model...')
-        component, mixing_coef, solver_time, nll = [], [], [], []
         for start_k in range(num_starts):
             if self.verbose and num_starts > 1:
                 print('--Start: ' + str(start_k))
-            component_k, mixing_coef_k, _, _, _, solver_time_k = self._fit(XtX, XtY, model_order, num_components,
-                                                                           penalty_parameter,
-                                                                           initial_component[start_k],
-                                                                           return_path=return_path)
-            component.append(component_k)
-            mixing_coef.append(mixing_coef_k)
-            solver_time.append(solver_time_k)
+            component_k, mixing_coef_k, component_residual_k, coef_residual_k, stop_condition_k, solver_time_k \
+                = self._fit(XtX, XtY, model_order, num_components, penalty_parameter, initial_component[start_k],
+                            return_path=return_path)
+            self.component.append(component_k)
+            self.mixing_coef.append(mixing_coef_k)
+            self.residual.append((component_residual_k, coef_residual_k))
+            self.stop_condition.append(stop_condition_k)
+            self.solver_time.append(solver_time_k)
         if self.verbose:
             print('-Complete.')
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
-        for component_k, mixing_coef_k in zip(component, mixing_coef):
+        for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
                 nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter, self.coef_penalty_type)
                          for Dis, Cis in zip(component_k, mixing_coef_k)]
             else:
-                nll_k = negative_log_likelihood(YtY, XtX, XtY, component[-1], mixing_coef[-1], penalty_parameter,
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_parameter,
                                                 self.coef_penalty_type)
-            nll.append(nll_k)
+            self.nll.append(nll_k)
         if self.verbose:
             print('Complete.')
 
         if num_starts == 1:
-            return component[0], mixing_coef[0], nll[0], solver_time[0]
+            return self.component.pop(), self.mixing_coef.pop(), self.nll.pop(), self.solver_time.pop()
         elif return_all:
-            return component, mixing_coef, nll, solver_time
+            return self.component, self.mixing_coef, self.nll, self.solver_time
         else:
             opt = 0
             if return_path:
-                nll_min = nll[0][-1]
-                for i, nll_k in enumerate(nll):
+                nll_min = self.nll[0][-1]
+                for i, nll_k in enumerate(self.nll):
                     if nll_k[-1] < nll_min:
                         opt = i
                         nll_min = nll_k[-1]
             else:
-                nll_min = nll[0]
-                for i, nll_k in enumerate(nll):
+                nll_min = self.nll[0]
+                for i, nll_k in enumerate(self.nll):
                     if nll_k < nll_min:
                         opt = i
                         nll_min = nll_k
-            return component[opt], mixing_coef[opt], nll[opt], solver_time[opt]
+            return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.solver_time[opt]
 
     def fit_cv(self, observation, model_order=None, num_components=None, penalty_parameter=None, num_starts=5,
                val_pct=0.25, return_path=False, return_all=False):
@@ -241,9 +245,9 @@ class Almm:
 
             return zipped_coef
 
-        def fit_coef(autocorrelation, correlation, components, penalty_param):
+        def fit_coef(autocorrelation, correlation, components, penalty_param, coef_penalty_type):
             coef, _ = coef_update(autocorrelation, correlation, components,
-                                  np.zeros([num_observations, num_components]), penalty_param, self.coef_penalty_type)
+                                  np.zeros([num_observations, num_components]), penalty_param, coef_penalty_type)
             return coef
 
         if self.verbose:
@@ -254,7 +258,7 @@ class Almm:
         observation_val = [observation[i] for i in val_idx]
         if self.verbose:
             print('Complete.')
-        component, mixing_coef, nll, params = [], [], [], []
+        self.component, self.mixing_coef, self.nll, self.params = [], [], [], []
         for (model_order_i, num_components_i, penalty_parameter_i) in product(model_order, num_components,
                                                                               penalty_parameter):
             if self.verbose:
@@ -280,14 +284,15 @@ class Almm:
                 if self.verbose:
                     print('---Fitting coefficients and computing likelihood... ', end=" ", flush=True)
                 if return_path:
-                    mixing_coef_i_k_v = [fit_coef(XtX_val, XtY_val, D_iii, penalty_parameter_i)
+                    mixing_coef_i_k_v = [fit_coef(XtX_val, XtY_val, D_iii, penalty_parameter_i, self.coef_penalty_type)
                                          for D_iii in component_i_k]
                     mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
                     nll_i.append([negative_log_likelihood(YtY_val, XtX_val, XtY_val, D_iii, C_iiiv, penalty_parameter_i,
                                                           self.coef_penalty_type)
                                   for D_iii, C_iiiv in zip(component_i_k, mixing_coef_i_k_v)])
                 else:
-                    mixing_coef_i_k_v = fit_coef(XtX_val, XtY_val, component_i_k[-1], penalty_parameter_i)
+                    mixing_coef_i_k_v = fit_coef(XtX_val, XtY_val, component_i_k[-1], penalty_parameter_i,
+                                                 self.coef_penalty_type)
                     mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
                     nll_i.append(negative_log_likelihood(YtY_val, XtX_val, XtY_val, component_i_k[-1],
                                                          mixing_coef_i_k_v, penalty_parameter_i,
@@ -296,30 +301,30 @@ class Almm:
                     print('Complete.')
             if self.verbose:
                 print('-Complete.')
-            component.append(component_i)
-            mixing_coef.append(mixing_coef_i)
-            nll.append(nll_i)
-            params.append((model_order_i, num_components_i, penalty_parameter_i))
+            self.component.append(component_i)
+            self.mixing_coef.append(mixing_coef_i)
+            self.nll.append(nll_i)
+            self.params.append((model_order_i, num_components_i, penalty_parameter_i))
 
-        if num_starts == 1:
-            return component[0], mixing_coef[0], nll[0], params[0]
+        if len(self.params) == 1:
+            return self.component.pop(), self.mixing_coef.pop(), self.nll.pop(), self.params.pop()
         elif return_all:
-            return component, mixing_coef, nll, params
+            return self.component, self.mixing_coef, self.nll, self.params
         else:
             opt = 0
             if return_path:
-                nll_min = nll[0][-1]
-                for i, nll_i in enumerate(nll):
+                nll_min = self.nll[0][-1]
+                for i, nll_i in enumerate(self.nll):
                     if nll_i[-1] < nll_min:
                         opt = i
                         nll_min = nll_i[-1]
             else:
-                nll_min = nll[0]
-                for i, nll_i in enumerate(nll):
+                nll_min = self.nll[0]
+                for i, nll_i in enumerate(self.nll):
                     if nll_i < nll_min:
                         opt = i
                         nll_min = nll_i
-            return component[opt], mixing_coef[opt], nll[opt], params[opt]
+            return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.params[opt]
 
     def _fit(self, XtX, XtY, model_order, num_components, penalty_parameter, initial_component, return_path=False):
         """
@@ -360,8 +365,8 @@ class Almm:
         _, signal_dimension = XtY[0].shape
         component = np.copy(initial_component)
         mixing_coef = np.zeros([num_observations, num_components])
-        mixing_coef, _ = coef_update(XtX, XtY, initial_component, mixing_coef, penalty_parameter, self.coef_penalty_type, 
-                                     self.step_size)
+        mixing_coef, _ = coef_update(XtX, XtY, initial_component, mixing_coef, penalty_parameter,
+                                     self.coef_penalty_type, self.step_size)
         elapsed_time = [timer() - start_time]
         stop_condition = 'maximum iteration'
         if return_path:
