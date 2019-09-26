@@ -26,7 +26,7 @@ mu = 1e-2
 # Generate almm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
-x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e2, dict_cond=1e2)
+x, C, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
@@ -38,7 +38,7 @@ D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
 # Fit model with alternating minimization solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(tol=1e-3, solver='altmin', verbose=True)
+almm_model = Almm(max_iter=100, solver='altmin', verbose=True)
 D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                                     return_path=True, return_all=True)
 t2 = timer()
@@ -48,7 +48,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Fit model with block coordinate descent solver
 print('Fitting ALMM model...')
 t3 = timer()
-almm_model = Almm(tol=1e-3, solver='bcd', verbose=True)
+almm_model = Almm(max_iter=10, solver='bcd', verbose=True)
 D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                         return_path=True, return_all=True)
 t4 = timer()
@@ -58,7 +58,7 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 # Fit model with proximal alternating linearized minimization solver
 print('Fitting ALMM model...')
 t5 = timer()
-almm_model = Almm(tol=1e-3, solver='palm', verbose=True)
+almm_model = Almm(max_iter=10, solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                             return_path=True, return_all=True)
 t6 = timer()
@@ -114,7 +114,7 @@ axs[1, 0].legend((plt_palm10, plt_altmin10, plt_bcd10), ('PALM', 'AltMin', 'BCD'
 axs[1, 1].legend((plt_palm11, plt_altmin11, plt_bcd11), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 
-path = "/home/addison/Python/almm/results"
-plt.savefig(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
-with open(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
-    pickle.dump([D_palm, D_altmin, D_bcd, palm_likelihood, altmin_likelihood, bcd_likelihood, palm_time, altmin_time, bcd_time], f)
+#path = "/home/addison/Python/almm/results"
+#plt.savefig(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
+#with open(join(path, "comparison_single-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
+#    pickle.dump([D_palm, D_altmin, D_bcd, palm_likelihood, altmin_likelihood, bcd_likelihood, palm_time, altmin_time, bcd_time], f)

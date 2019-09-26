@@ -23,14 +23,14 @@ N = 10
 k = 10
 mu = 1e-2
 
-palm_dict_loss, palm_likelihood = [], []
-altmin_dict_loss, altmin_likelihood = [], []
-bcd_dict_loss, bcd_likelihood = [], []
+palm_component_loss, palm_likelihood = [], []
+altmin_component_loss, altmin_likelihood = [], []
+bcd_component_loss, bcd_likelihood = [], []
 for i in range(N):
     # Generate almm samples
     print('Generating ALMM samples...', end=" ", flush=True)
     t1 = timer()
-    x, _, D = almm_sample(n, m, d, r, p, s, coef_cond=1e2, dict_cond=1e2)
+    x, _, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
     t2 = timer()
     print('Complete.', end=" ", flush=True)
     print('Elapsed time: ' + str(t2-t1) + 's')
@@ -96,11 +96,11 @@ for i in range(N):
         print('Complete.', end=" ", flush=True)
         print('Elapsed time: ' + str(t6-t5) + 's')
 
-    palm_dict_loss.append(D_palm)
+    palm_component_loss.append(D_palm)
     palm_likelihood.append(L_palm)
-    altmin_dict_loss.append(D_altmin)
+    altmin_component_loss.append(D_altmin)
     altmin_likelihood.append(L_altmin)
-    bcd_dict_loss.append(D_bcd)
+    bcd_component_loss.append(D_bcd)
     bcd_likelihood.append(L_bcd)
         
 path = "/home/addison/Python/almm/results"

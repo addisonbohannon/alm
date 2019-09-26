@@ -3,18 +3,12 @@ from setuptools import setup
 setup(
     name='almm',
     version='0.0.0',
-    packages=['almm'],
+    packages=['almm', 'experiments'],
     url='https://gitlab.sitcore.net/addison.bohannon/almm',
     license='',
     author='Addison Bohannon',
     author_email='addison.bohannon@gmail.com',
     description='Autoregressive Linear Mixture Model',
     install_requires=['numpy', 'scipy', 'cvxpy', 'matplotlib'],
-    scripts=[
-        'experiments/comparison_single.py',
-        'experiments/comparison_multiple.py',
-        'experiments/n_vs_m.py',
-        'experiments/utility.py'
-        'experiments/sampler.py'
-    ]
+    scripts=[]
 )

@@ -27,10 +27,10 @@ def check_almm_condition(observation, component, mixing_coef):
     for x_i in observation:
         x_i = Timeseries(x_i)
         XtX.append(x_i.XtX(model_order))
-    coef_gram_list =  coef_gram_matrix(XtX, mixing_coef)
+    coef_gram_list = coef_gram_matrix(XtX, mixing_coef)
     component_matrix = np.zeros([model_order*signal_dimension*number_components,
                                  model_order*signal_dimension*number_components])
-    for (i, j), coef_gram in coef_gram_list:
+    for (i, j), coef_gram in coef_gram_list.items():
         component_matrix[(i*model_order*signal_dimension):((i+1)*model_order*signal_dimension),
                          (j*model_order*signal_dimension):(j+1)*model_order*signal_dimension] = coef_gram
         if i != j:
@@ -119,8 +119,11 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
             observation[i, :, :] = autoregressive_sample(observation_length, signal_dimension,
                                                          signal_dimension ** (-1 / 2),
                                                          np.tensordot(mixing_coef[i, :], components, axes=1))
-        k1, k2 = check_almm_condition(observation, components, mixing_coef)
-        if k1 < coef_condition and np.all(k2 < component_condition):
+        if coef_condition is not None and component_condition is not None:
+            k1, k2 = check_almm_condition(observation, components, mixing_coef)
+            if k1 < coef_condition and np.all(k2 < component_condition):
+                break
+        else:
             break
 
     return observation, mixing_coef, components

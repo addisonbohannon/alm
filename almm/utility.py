@@ -139,10 +139,10 @@ def component_corr_matrix(correlation, component):
     Computes component correlation matrix
     :param correlation: model_order*signal_dimension x signal_dimension numpy array
     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return component_corr_matrix: num_components numpy array (list)
+    :return component_corr_matrix: num_components numpy array
     """
 
-    return [inner_product(correlation, component_j) for component_j in component]
+    return np.array([inner_product(correlation, component_j) for component_j in component])
 
 
 def coef_gram_matrix(autocorrelation, coef):

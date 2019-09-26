@@ -24,7 +24,7 @@ mu = 1e-2
 # Generate almm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
-x, C, D = almm_sample(n, m, d, r, p, s, coef_cond=1e2, dict_cond=1e2)
+x, C, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
 t2 = timer()
 print('Complete.', end=" ", flush=True)
 print('Elapsed time: ' + str(t2-t1) + 's')
