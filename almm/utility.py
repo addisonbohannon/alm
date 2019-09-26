@@ -154,11 +154,11 @@ def coef_gram_matrix(autocorrelation, coef):
     by upper triangular indices
     """
 
-    _, num_components = coef.shape
+    num_observations, num_components = coef.shape
     coef_gram = {}
     triu_index = np.triu_indices(num_components)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-        coef_gram[(i, j)] = np.tensordot(coef[:, i] * coef[:, j], autocorrelation, axes=1) / num_components
+        coef_gram[(i, j)] = np.tensordot(coef[:, i] * coef[:, j], autocorrelation, axes=1) / num_observations
 
     return coef_gram
 
