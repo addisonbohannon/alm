@@ -46,13 +46,16 @@ class Almm:
             raise TypeError('Max iteration must be a positive integer.')
         if solver == 'bcd':
             from almm.solver import component_update_bcd
+            self.solver = solver
             self.update_coef = coef_update
             self.update_component = component_update_bcd
         elif solver == 'altmin':
+            self.solver = solver
             from almm.solver import component_update_altmin
             self.update_coef = coef_update
             self.update_component = component_update_altmin
         elif solver == 'palm':
+            self.solver = solver
             from almm.solver import component_update_palm, coef_update_palm
             self.update_coef = coef_update_palm
             self.update_component = component_update_palm
