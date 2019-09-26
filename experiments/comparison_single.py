@@ -14,8 +14,8 @@ from almm.utility import unstack_coef
 from experiments.sampler import almm_sample
 from experiments.utility import component_distance
 
-n = 1000
-m = 10000
+n = 200
+m = 1000
 d = 5
 r = 10
 p = 2
@@ -33,12 +33,12 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 
 # Initialize dictionary estimate
 D_0 = nr.randn(r, p*d, d)
-D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
+D_0 = [np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])]
 
 # Fit model with alternating minimization solver
 print('Fitting ALMM model...')
 t1 = timer()
-almm_model = Almm(max_iter=100, solver='altmin', verbose=True)
+almm_model = Almm(solver='altmin', verbose=True)
 D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                                     return_path=True, return_all=True)
 t2 = timer()
@@ -48,7 +48,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Fit model with block coordinate descent solver
 print('Fitting ALMM model...')
 t3 = timer()
-almm_model = Almm(max_iter=10, solver='bcd', verbose=True)
+almm_model = Almm(solver='bcd', verbose=True)
 D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                         return_path=True, return_all=True)
 t4 = timer()
@@ -58,7 +58,7 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 # Fit model with proximal alternating linearized minimization solver
 print('Fitting ALMM model...')
 t5 = timer()
-almm_model = Almm(max_iter=10, solver='palm', verbose=True)
+almm_model = Almm(solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, palm_time = almm_model.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                             return_path=True, return_all=True)
 t6 = timer()
