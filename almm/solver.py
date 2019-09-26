@@ -187,11 +187,11 @@ def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_paramete
 
     num_observations = len(XtX)
     component_gram = component_gram_matrix(XtX, current_component)
+    component_corr = [component_corr_matrix(XtY_i, current_component) for XtY_i in XtY]
 
-    # TODO: precompute component_corr_matrix
     def gradient(observation_index):
-        return (- component_corr_matrix(XtY[observation_index], current_component)
-                + np.dot(component_gram[observation_index], current_coef[observation_index, :].T)) / num_observations
+        return (- component_corr[observation_index] + np.dot(component_gram[observation_index],
+                                                             current_coef[observation_index, :].T)) / num_observations
 
     new_coef = np.copy(current_coef)
     beta = map(lambda x: num_observations * step_size / x, [sl.norm(comp_gram, ord=2) for comp_gram in component_gram])
