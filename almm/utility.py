@@ -172,4 +172,5 @@ def coef_corr_matrix(correlation, coef):
     """
 
     num_observations, num_components = coef.shape
+
     return [np.tensordot(coef[:, j], correlation, axes=1) / num_observations for j in range(num_components)]
