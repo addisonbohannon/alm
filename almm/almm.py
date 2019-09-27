@@ -1,49 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Author: Addison Bohannon
-Project: Autoregressive Linear Mixture Model (ALMM)
-Date: 1 May 19
-"""
 
-# Import required libraries
 from itertools import product
+from timeit import default_timer as timer
 import numpy as np
 import scipy.linalg as sl
-from almm.utility import train_val_split
-from almm.solver import fit_coefs, likelihood
+from almm.utility import train_val_split, initialize_components
+from almm.solver import negative_log_likelihood, coef_update
 from almm.timeseries import Timeseries
 
-# Solver class
+
 class Almm:
-    
-    # Class constructor
-    def __init__(self, coef_penalty_type='l1', step_size=1e-1, tol=1e-4, 
-                 max_iter=int(2.5e3), solver='palm', verbose=False):
+
+    def __init__(self, coef_penalty_type='l1', step_size=1e-1, tol=1e-4, max_iter=int(2.5e3), solver='bcd',
+                 verbose=False):
         """
-        Class constructor for ALMM solver.
-        
-        inputs:
-        coef penalty type (string) - Penalty applied to coefficients to enforce
-        sparsity; options include {None, 'l0', 'l1' (default)}
-        
-        step size (scalar) - Factor by which to extend the Lipschitz-based 
-        step size; must be less than 1
-        
-        tolerance (float) - Tolerance to terminate iterative algorithm; must
-        be positive
-        
-        maximum iterations (integer) - Maximum number of iterations for 
-        algorithm
-        
-        solver (string) - Algorithm used to fit dictionary and coefficients,
-        i.e. palm or alt_min
-        
-        verbose (boolean) - Whether to print progress during execution; used 
-        for debugging
+        Instantiate ALMM model
+        :param coef_penalty_type: None, l0, or l1
+        :param step_size: float; (0, 1)
+        :param tol: positive float
+        :param max_iter: positive integer
+        :param solver: bcd, altmin, or palm
+        :param verbose: boolean
         """
-        
-        # Check arguments
+
         if coef_penalty_type is None:
             self.coef_penalty_type = coef_penalty_type
         elif coef_penalty_type == 'l0':
@@ -51,11 +31,11 @@ class Almm:
         elif coef_penalty_type == 'l1':
             self.coef_penalty_type = coef_penalty_type
         else:
-            raise ValueError(coef_penalty_type+' is not a valid penalty type, i.e. None, l0, or l1.')
+            raise ValueError(coef_penalty_type + ' is not a valid penalty type: None, l0, or l1.')
         if isinstance(float(step_size), float) and step_size < 1:
             self.step_size = float(step_size)
         else:
-            raise ValueError('Step size must be a float greater than 1.')
+            raise ValueError('Step size must be a float less than 1.')
         if isinstance(tol, float) and tol > 0:
             self.tol = tol
         else:
@@ -64,333 +44,354 @@ class Almm:
             self.max_iter = max_iter
         else:
             raise TypeError('Max iteration must be a positive integer.')
-        if solver == 'palm':
-            from almm.solver import solver_palm
-            self._fit = solver_palm
-        elif solver == 'alt_min':
-            from almm.solver import solver_alt_min
-            self._fit = solver_alt_min
-        elif solver == 'two_stage':
-            from almm.solver import solver_two_stage
-            self._fit = solver_two_stage
+        if solver == 'bcd':
+            from almm.solver import component_update_bcd
+            self.solver = solver
+            self.update_coef = coef_update
+            self.update_component = component_update_bcd
+        elif solver == 'altmin':
+            self.solver = solver
+            from almm.solver import component_update_altmin
+            self.update_coef = coef_update
+            self.update_component = component_update_altmin
+        elif solver == 'palm':
+            self.solver = solver
+            from almm.solver import component_update_palm, coef_update_palm
+            self.update_coef = coef_update_palm
+            self.update_component = component_update_palm
         else:
-            raise ValueError('Solver is not a valid option: palm, alt_min, two_stage.')
+            raise TypeError('Solver must be bcd, altmin, or palm.')
         if isinstance(verbose, bool):
             self.verbose = verbose
         else:
             raise TypeError('Verbose must be a boolean.')
-        
-    def fit(self, ts, p, r, mu, k=5, D_0=None, return_path=False, return_all=False):
+        self.component, self.mixing_coef, self.solver_time, self.nll, self.params, self.residual, self.stop_condition \
+            = [], [], [], [], [], [], []
+
+    def fit(self, observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None,
+            return_path=False, return_all=False):
         """
-        Fit the autoregressive linear mixture model to observations.
-        
-        inputs:
-        ts (list) - list of observations; should be m x d arrays
-        
-        p (integer) - model order; must be a positive integer less than the 
-        observation length
-        
-        r (integer) - dictionary atoms; must be a positive integer
-        
-        mu (float) - penalty parameter; must be a positive float
-
-        k (integer) - unique initializations of the solver; must be a
-        positive integer
-        
-        D_0 (r x p*d * d array) - initial dictionary estimate (optional)
-        
-        starts (integer) - unique initializations of the solver; must be a
-        positive integer
-        
-        return_path (boolean) - whether or not to return the path of
-        dictionary and coefficient estimates
-
-        return_all (boolean) - whether to return all dictionary and
-        coefficient estimates or that of maximum likelihood
-        
-        outputs:
-        D ([k x] r x p*d x d array) - dictionary estimate [if return_path=True]
-        
-        C ([k x] n x r array) - coefficient estimate [if return_path=True]
-        
-        L (list) - negative log likelihood of estimates
-
-        T (list) - wall time of execution
+        Fit the ALMM model to observations
+        :param observation: list of observation_length x signal_dimension numpy array
+        :param model_order: positive integer
+        :param num_components: positive integer
+        :param penalty_parameter: positive float
+        :param num_starts: positive integer
+        :param initial_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+        :param return_path: boolean
+        :param return_all: boolean
+        :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
+        :return mixing_coef: [list of] num_observations x num_components numpy array
+        :return nll: [list of] float
+        :return solver_time: list of float
         """
-        
-        if not isinstance(r, int) or r < 1:
-            raise TypeError('Atoms (r) must be a positive integer.')
-        if not isinstance(p, int) or p < 1:
-            raise TypeError('Model order (p) must be a positive integer.')
-        if not isinstance(mu, float) and mu < 0:
-            raise ValueError('Penalty parameter (mu) must be a positive float.')
-        if not isinstance(k, int) or k < 1:
-            raise ValueError('k must be a positive integer.')
-        if D_0 is not None and k == 1:
-            _, d = ts[0].shape
-            if np.shape(D_0) != (r, p*d, d):
-                raise ValueError('Initial dictionary estimate must be of shape [r, p*d, d].')
-            elif np.any(sl.norm(D_0, axis=(1, 2), ord='fro') != 1):
-                D_0 = np.array([D_i / sl.norm(D_i, ord='fro') for D_i in D_0])
-                print('Initial dictionary estimate scaled to unit norm.')
+
+        if not isinstance(num_components, int) or num_components < 1:
+            raise TypeError('Number of components must be a positive integer.')
+        if not isinstance(model_order, int) or model_order < 1:
+            raise TypeError('Model order must be a positive integer.')
+        if not isinstance(penalty_parameter, float) and penalty_parameter < 0:
+            raise ValueError('Penalty parameter must be a positive float.')
+        if not isinstance(num_starts, int) or num_starts < 1:
+            raise ValueError('Number of starts must be a positive integer.')
+        _, signal_dimension = observation[0].shape
+        if initial_component is None:
+            initial_component = [initialize_components(num_components, model_order, signal_dimension)
+                                 for _ in range(num_starts)]
+        elif np.shape(initial_component) != (num_starts, num_components, model_order * signal_dimension,
+                                             signal_dimension):
+            raise ValueError('Initial dictionary estimate must be list of num_components x model_order*signal_dimension'
+                             + ' x signal_dimension numpy arrays.')
+        else:
+            initial_component = [np.array([component_kj / sl.norm(component_kj[:]) for component_kj in component_k])
+                                 for component_k in initial_component]
         if not isinstance(return_path, bool):
             raise TypeError('Return path must be a boolean.')
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
-        
+
+        self.component, self.mixing_coef, self.solver_time, self.nll, self.params, self.residual, self.stop_condition \
+            = [], [], [], [], [], [], []
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
-        YtY = []
-        XtX = []
-        XtY = []
-        for ts_i in ts:
-            ts_i = Timeseries(ts_i)
-            YtY.append(ts_i.YtY(p))
-            XtX.append(ts_i.XtX(p))
-            XtY.append(ts_i.XtY(p))
+        YtY, XtX, XtY = [], [], []
+        for observation_i in observation:
+            observation_i = Timeseries(observation_i)
+            YtY.append(observation_i.YtY(model_order))
+            XtX.append(observation_i.XtX(model_order))
+            XtY.append(observation_i.XtY(model_order))
         if self.verbose:
             print('Complete.')
-            
         if self.verbose:
             print('-Fitting model...')
-        D = []
-        C = []
-        T = []
-        for ki in range(k):
-            if self.verbose:
-                print('--Start: ' + str(ki))
-            D_i, C_i, res_D, res_C, stop_con, T_i = self._fit(XtX, XtY, p, r, 
-                                                              mu, 
-                                                              self.coef_penalty_type,  
-                                                              D_0=D_0,
-                                                              max_iter=self.max_iter, 
-                                                              step_size=self.step_size,
-                                                              tol=self.tol, 
-                                                              return_path=return_path,
-                                                              verbose=self.verbose)
-            D.append(D_i)
-            C.append(C_i)
-            T.append(T_i)
+        for start_k in range(num_starts):
+            if self.verbose and num_starts > 1:
+                print('--Start: ' + str(start_k))
+            component_k, mixing_coef_k, component_residual_k, coef_residual_k, stop_condition_k, solver_time_k \
+                = self._fit(XtX, XtY, model_order, num_components, penalty_parameter, initial_component[start_k],
+                            return_path=return_path)
+            self.component.append(component_k)
+            self.mixing_coef.append(mixing_coef_k)
+            self.residual.append((component_residual_k, coef_residual_k))
+            self.stop_condition.append(stop_condition_k)
+            self.solver_time.append(solver_time_k)
         if self.verbose:
-            print('--Complete.')
-        
+            print('-Complete.')
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
-        L = []
-        for D_i, C_i in zip(D, C):
+        for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
-                L_i = [likelihood(YtY, XtX, XtY, Dis, Cis, mu, 
-                                  self.coef_penalty_type) 
-                                  for Dis, Cis in zip(D_i, C_i)]
+                nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter, self.coef_penalty_type)
+                         for Dis, Cis in zip(component_k, mixing_coef_k)]
             else:
-                L_i = likelihood(YtY, XtX, XtY, D[-1], C[-1], mu, 
-                                 self.coef_penalty_type)
-            L.append(L_i)
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_parameter,
+                                                self.coef_penalty_type)
+            self.nll.append(nll_k)
         if self.verbose:
             print('Complete.')
 
-        if k == 1:
-            return D[0], C[0], L[0], T[0]
+        if num_starts == 1:
+            return self.component.pop(), self.mixing_coef.pop(), self.nll.pop(), self.solver_time.pop()
         elif return_all:
-            return D, C, L, T
+            return self.component, self.mixing_coef, self.nll, self.solver_time
         else:
             opt = 0
             if return_path:
-                L_min = L[0][-1]
-                for i, L_i in enumerate(L):
-                    if L_i[-1] < L_min:
+                nll_min = self.nll[0][-1]
+                for i, nll_k in enumerate(self.nll):
+                    if nll_k[-1] < nll_min:
                         opt = i
-                        L_min = L_i[-1]
+                        nll_min = nll_k[-1]
             else:
-                L_min = L[0]
-                for i, L_i in enumerate(L):
-                    if L_i < L_min:
+                nll_min = self.nll[0]
+                for i, nll_k in enumerate(self.nll):
+                    if nll_k < nll_min:
                         opt = i
-                        L_min = L_i
-            return D[opt], C[opt], L[opt], T[opt]
-        
-    def fit_cv(self, ts, p=None, r=None, mu=None, k=5, val_pct=0.25, 
-               return_path=False, return_all=False):
+                        nll_min = nll_k
+            return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.solver_time[opt]
+
+    def fit_cv(self, observation, model_order=None, num_components=None, penalty_parameter=None, num_starts=5,
+               val_pct=0.25, return_path=False, return_all=False):
         """
-        Fit ALMM model to observations for various values of model order,
-        number of dictionary atoms, and penalty parameter. For each unique
-        tuple of parameters, multiple (k-) models are fit.
-        
-        inputs:
-        ts (list) - list of observations; should be m x d arrays
-        
-        p (list or integer) - model order; must be a positive integer or list
-        of positive integers
-        
-        r (list or integer) - dictionary atoms; must be a positive integer or
-        list of positive integers
-        
-        mu (list or float) - penalty parameter; must be a positive float or
-        list of positive floats
-        
-        k (integer) - unique initializations of the solver; must be a
-        positive integer
-        
-        val_pct (float) = percentage of observations to use for validation;
-        must be between 0 and 1
-        
-        return_path (boolean) - whether or not to return the path of
-        dictionary estimates; will not return path of coefficient estimates
-        
-        return_all (boolean) - whether to return all dictionary and
-        coefficient estimates or that of maximum likelihood
-        
-        outputs:
-        D (r x p*d x d array) - dictionary estimate
-        
-        C (n x r array) - coefficient estimate
-        
-        Lv (scalar) - negative log likelihood of estimates during validation
+        Fit the ALMM model to observations using cross-validation
+        :param observation: list of observation_length x signal_dimension numpy array
+        :param model_order: list of positive integer
+        :param num_components: list of positive integer
+        :param penalty_parameter: list of positive float
+        :param num_starts: positive integer
+        :param val_pct: float; (0, 1)
+        :param return_path: boolean
+        :param return_all: boolean
+        :return component: nested list of numpy array
+        :return mixing_coef: nested list of numpy array
+        :return nll: nested list of float
+        :return params: list of tuples
         """
-        
-        if isinstance(p, int):
-            if p > 0:
-                p = [p]
+
+        num_observations = len(observation)
+        _, signal_dimension = observation[0].shape
+        if isinstance(model_order, int):
+            if model_order > 0:
+                model_order = [model_order]
             else:
                 raise ValueError('Model order must be a positive integer or list of positive integers.')
-        elif isinstance(p, list):
-            if not all([isinstance(i, int) and i > 0 for i in p]):
+        elif isinstance(model_order, list):
+            if not all([isinstance(i, int) and i > 0 for i in model_order]):
                 raise ValueError('Model order must be a positive integer or list of positive integers.')
-        elif p is None:
-            p = [1]
+        elif model_order is None:
+            model_order = [1]
         else:
             raise TypeError('Model order must be a positive integer or list of positive integers.')
-        if isinstance(r, int):
-            if r > 0:
-                r = [r]
+        if isinstance(num_components, int):
+            if num_components > 0:
+                num_components = [num_components]
             else:
-                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
-        elif isinstance(r, list):
-            if not all([isinstance(i, int) and i > 0 for i in r]):
-                raise ValueError('Dictionary atoms must be a positive integer or list of positive integers.')
-        elif r is None:
-            r = [1]
+                raise ValueError('Number of components must be a positive integer or list of positive integers.')
+        elif isinstance(num_components, list):
+            if not all([isinstance(i, int) and i > 0 for i in num_components]):
+                raise ValueError('Number of components must be a positive integer or list of positive integers.')
+        elif num_components is None:
+            num_components = [1]
         else:
-            raise TypeError('Dictionary atoms must be a positive integer or list of positive integers.')
-        if isinstance(mu, float):
-            if mu >= 0:
-                mu = [mu]
+            raise TypeError('Number of components must be a positive integer or list of positive integers.')
+        if isinstance(penalty_parameter, float):
+            if penalty_parameter >= 0:
+                penalty_parameter = [penalty_parameter]
             else:
                 raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
-        elif isinstance(mu, list):
-            if not all([isinstance(i, float) and i >= 0 for i in mu]):
+        elif isinstance(penalty_parameter, list):
+            if not all([isinstance(i, float) and i >= 0 for i in penalty_parameter]):
                 raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
-        elif mu is None:
-            mu = [0]
+        elif penalty_parameter is None:
+            penalty_parameter = [0]
         else:
             raise TypeError('Penalty parameter must be a non-negative float or list of non-negative floats.')
-        if not isinstance(k, int) or k < 1:
-            raise TypeError('Starts (k) must be a positive integer.')
-            
+        if not isinstance(num_starts, int) or num_starts < 1:
+            raise TypeError('Number of starts must be a positive integer.')
+
+        def zip_coef(coef_train, coef_val):
+            if return_path:
+                zipped_coef = []
+                for coef_to_zip_train, coef_to_zip_val in zip(coef_train, coef_val):
+                    coef_to_zip = [i for i in zip(train_idx, list(coef_to_zip_train))]
+                    coef_to_zip.extend([i for i in zip(val_idx, list(coef_to_zip_val))])
+                    coef_to_zip.sort()
+                    zipped_coef.append(np.array([c for _, c in coef_to_zip]))
+            else:
+                zipped_coef = [i for i in zip(train_idx, list(coef_train))]
+                zipped_coef.extend([i for i in zip(val_idx, list(coef_val))])
+                zipped_coef.sort()
+                zipped_coef = np.array([c for _, c in zipped_coef])
+
+            return zipped_coef
+
+        def fit_coef(autocorrelation, correlation, components, penalty_param, coef_penalty_type):
+            coef, _ = coef_update(autocorrelation, correlation, components,
+                                  np.zeros([num_observations, num_components]), penalty_param, coef_penalty_type)
+            return coef
+
         if self.verbose:
             print('-Formatting and splitting data...', end=" ", flush=True)
-        train_idx, val_idx = train_val_split(len(ts), val_pct)
-        ts = [Timeseries(ts_i) for ts_i in ts]
-        ts_train = [ts[i] for i in train_idx]
-        ts_val = [ts[i] for i in val_idx]
+        train_idx, val_idx = train_val_split(len(observation), val_pct)
+        observation = [Timeseries(ts_i) for ts_i in observation]
+        observation_train = [observation[i] for i in train_idx]
+        observation_val = [observation[i] for i in val_idx]
         if self.verbose:
             print('Complete.')
-        
-        D = []
-        C = []
-        L = []
-        params = []
-        for (p_i, r_i, mu_i) in product(p, r, mu):
+        self.component, self.mixing_coef, self.nll, self.params = [], [], [], []
+        for (model_order_i, num_components_i, penalty_parameter_i) in product(model_order, num_components,
+                                                                              penalty_parameter):
             if self.verbose:
-                print('-Parameters: p=' + str(p_i) + ', r=' + str(r_i) + ', mu=' + str(mu_i))
-            
-            # Prepare training observations
-            XtX_train = [ob.XtX(p_i) for ob in ts_train]
-            XtY_train = [ob.XtY(p_i) for ob in ts_train]
-            
-            # Prepare validation observations
-            YtY_val = [ob.YtY(p_i) for ob in ts_val]
-            XtX_val = [ob.XtX(p_i) for ob in ts_val]
-            XtY_val = [ob.XtY(p_i) for ob in ts_val]
-            
-            D_i = []
-            C_i = []
-            L_i = []
-            for ki in range(k):
+                print('-Parameters: p=' + str(model_order_i) + ', r=' + str(num_components_i) + ', mu='
+                      + str(penalty_parameter_i))
+            XtX_train, XtY_train = [ob.XtX(model_order_i) for ob in observation_train], [ob.XtY(model_order_i)
+                                                                                         for ob in observation_train]
+            YtY_val, XtX_val, XtY_val = [ob.YtY(model_order_i) for ob in observation_val], \
+                                        [ob.XtX(model_order_i) for ob in observation_val], \
+                                        [ob.XtY(model_order_i) for ob in observation_val]
+            component_i, mixing_coef_i, nll_i = [], [], []
+            for start_k in range(num_starts):
+                if self.verbose and num_starts > 1:
+                    print('--Start: ' + str(start_k))
+                initial_component = initialize_components(num_components, model_order, signal_dimension)
+                component_i_k, mixing_coef_i_k_t, _, _, _, _ = self._fit(XtX_train, XtY_train, model_order_i,
+                                                                         num_components_i, penalty_parameter_i,
+                                                                         self.coef_penalty_type, initial_component,
+                                                                         solver=self.solver, max_iter=self.max_iter,
+                                                                         step_size=self.step_size, tol=self.tol,
+                                                                         return_path=return_path, verbose=self.verbose)
+                component_i.append(component_i_k)
                 if self.verbose:
-                    print('--Start: ' + str(ki))
-                    
-                # Fit dictionary to training observations for each set of 
-                # parameters
-                if self.verbose:
-                    print('---Fitting model to training data...')
-                D_ii, C_iit, _, _, _, _ = self._fit(XtX_train, XtY_train, p_i, 
-                                                    r_i, mu_i, 
-                                                    self.coef_penalty_type, 
-                                                    max_iter=self.max_iter, 
-                                                    step_size=self.step_size, 
-                                                    tol=self.tol, 
-                                                    return_path=return_path, 
-                                                    verbose=self.verbose)
-                if self.verbose:
-                    print('---Complete.')
-                D_i.append(D_ii)
-                
-                # Fit coefficients to validation observations, compute 
-                # negative log likelihood, and merge and order the training 
-                # and validation coefficient lists
-                if self.verbose:
-                    print('---Fitting coefficients and computing likelihood... ', 
-                          end=" ", flush=True)
+                    print('---Fitting coefficients and computing likelihood... ', end=" ", flush=True)
                 if return_path:
-                    C_iiv = [fit_coefs(XtX_val, XtY_val, D_iii, mu_i,
-                                       self.coef_penalty_type)
-                                       for D_iii in D_ii]
-                    L_i.append([likelihood(YtY_val, XtX_val, XtY_val, D_iii, 
-                                           C_iiiv, mu_i, self.coef_penalty_type)
-                                           for D_iii, C_iiiv in zip(D_ii, C_iiv)])
-                    C_ii = []
-                    for C_iits, C_iivs in zip(C_iit, C_iiv):
-                        C_iis = [i for i in zip(train_idx, list(C_iits))]
-                        C_iis.extend([i for i in zip(val_idx, list(C_iivs))])
-                        C_iis.sort()
-                        C_ii.append(np.array([c for _, c in C_iis]))
-                    C_i.append(C_ii)
+                    mixing_coef_i_k_v = [fit_coef(XtX_val, XtY_val, D_iii, penalty_parameter_i, self.coef_penalty_type)
+                                         for D_iii in component_i_k]
+                    mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
+                    nll_i.append([negative_log_likelihood(YtY_val, XtX_val, XtY_val, D_iii, C_iiiv, penalty_parameter_i,
+                                                          self.coef_penalty_type)
+                                  for D_iii, C_iiiv in zip(component_i_k, mixing_coef_i_k_v)])
                 else:
-                    C_iiv = fit_coefs(XtX_val, XtY_val, D_ii[-1], mu_i, 
-                                      self.coef_penalty_type)
-                    L_i.append(likelihood(YtY_val, XtX_val, XtY_val, D_ii[-1], 
-                                          C_iiv, mu_i, self.coef_penalty_type))
-                    C_ii = [i for i in zip(train_idx, list(C_iit))]
-                    C_ii.extend([i for i in zip(val_idx, list(C_iiv))])
-                    C_ii.sort()
-                    C_i.append(np.array([c for _, c in C_ii]))
+                    mixing_coef_i_k_v = fit_coef(XtX_val, XtY_val, component_i_k[-1], penalty_parameter_i,
+                                                 self.coef_penalty_type)
+                    mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
+                    nll_i.append(negative_log_likelihood(YtY_val, XtX_val, XtY_val, component_i_k[-1],
+                                                         mixing_coef_i_k_v, penalty_parameter_i,
+                                                         self.coef_penalty_type))
                 if self.verbose:
                     print('Complete.')
-                    
             if self.verbose:
                 print('-Complete.')
-            D.append(D_i)
-            C.append(C_i)
-            L.append(L_i)
-            params.append((p_i, r_i, mu_i))      
-            
-        if k == 1:
-            return D[0], C[0], L[0], params[0]
+            self.component.append(component_i)
+            self.mixing_coef.append(mixing_coef_i)
+            self.nll.append(nll_i)
+            self.params.append((model_order_i, num_components_i, penalty_parameter_i))
+
+        if len(self.params) == 1:
+            return self.component.pop(), self.mixing_coef.pop(), self.nll.pop(), self.params.pop()
         elif return_all:
-            return D, C, L, params
+            return self.component, self.mixing_coef, self.nll, self.params
         else:
             opt = 0
             if return_path:
-                L_min = L[0][-1]
-                for i, L_i in enumerate(L):
-                    if L_i[-1] < L_min:
+                nll_min = self.nll[0][-1]
+                for i, nll_i in enumerate(self.nll):
+                    if nll_i[-1] < nll_min:
                         opt = i
-                        L_min = L_i[-1]
+                        nll_min = nll_i[-1]
             else:
-                L_min = L[0]
-                for i, L_i in enumerate(L):
-                    if L_i < L_min:
+                nll_min = self.nll[0]
+                for i, nll_i in enumerate(self.nll):
+                    if nll_i < nll_min:
                         opt = i
-                        L_min = L_i
-            return D[opt], C[opt], L[opt], params[opt]
+                        nll_min = nll_i
+            return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.params[opt]
+
+    def _fit(self, XtX, XtY, model_order, num_components, penalty_parameter, initial_component, return_path=False):
+        """
+        Fit ALMM according to algorithm specified by solver
+        :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
+        :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
+        :param model_order: positive integer
+        :param num_components: positive integer
+        :param penalty_parameter: float
+        :param initial_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+        :param return_path: boolean
+        :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
+        :return mixing_coef: [list of] num_observations x num_components numpy array
+        :return coef_residual: list of float
+        :return component_residual: list of float
+        :return stop_condition: string
+        :return elapsed_time: list of float
+        """
+
+        def compute_component_residual(component_diff):
+            return sl.norm(component_diff[:]) / (num_components ** (1 / 2) * model_order ** (1 / 2) * signal_dimension)
+
+        def compute_coef_residual(coef_diff):
+            return sl.norm(coef_diff[:]) / (num_observations ** (1 / 2) * num_components ** (1 / 2))
+
+        def stopping_condition(current_step, residual_1, residual_2):
+            if current_step == 0:
+                return False
+            elif residual_1[-1] >= self.tol * residual_1[0]:
+                return False
+            elif residual_2[-1] >= self.tol * residual_2[0]:
+                return False
+            else:
+                return True
+
+        start_time = timer()
+        num_observations = len(XtY)
+        _, signal_dimension = XtY[0].shape
+        component = np.copy(initial_component)
+        mixing_coef = np.zeros([num_observations, num_components])
+        mixing_coef, _ = coef_update(XtX, XtY, initial_component, mixing_coef, penalty_parameter,
+                                     self.coef_penalty_type, self.step_size)
+        elapsed_time = [timer() - start_time]
+        stop_condition = 'maximum iteration'
+        if return_path:
+            component_path, coef_path = [np.copy(component)], [np.copy(mixing_coef)]
+        component_residual, coef_residual = [], []
+        for step in range(self.max_iter):
+            component, component_change = self.update_component(XtX, XtY, component, mixing_coef, self.step_size)
+            mixing_coef, coef_change = self.update_coef(XtX, XtY, component, mixing_coef, penalty_parameter,
+                                                        self.coef_penalty_type, self.step_size)
+            if return_path:
+                component_path.append(np.copy(component))
+                coef_path.append(np.copy(mixing_coef))
+            component_residual.append(compute_component_residual(component_change))
+            coef_residual.append(compute_coef_residual(coef_change))
+            elapsed_time.append(timer() - start_time)
+            if stopping_condition(step, component_residual, coef_residual):
+                stop_condition = 'relative tolerance'
+                break
+        if self.verbose:
+            print('*Solver: ' + self.solver)
+            print('*Stopping condition: ' + stop_condition)
+            print('*Iterations: ' + str(step))
+            print('*Duration: ' + str(elapsed_time[-1]) + 's')
+
+        if return_path:
+            return component_path, coef_path, component_residual, coef_residual, stop_condition, elapsed_time
+        else:
+            return component, mixing_coef, coef_residual, component_residual, stop_condition, elapsed_time
