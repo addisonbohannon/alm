@@ -27,12 +27,12 @@ The class for fitting the $`ALMM(p, r)`$ model. The solvers minimize the followi
 | max_iter | integer | Maximum number of iterations for which the algorithm will run; must be positive |
 | solver | 'altmin', 'bcd', 'palm' | Algorithm which will be used to minimize the objective |
 | verbose | boolean | Whether or not to print reports from solver during run-time |
-| component | | |
-| mixing_coef | | |
-| solver_time | | |
-| nll | | |
-| residual | | |
-| stop_condition | | |
+| component | list |  Nested list of autoregressive component estimates, `(num_components, model_order*obs_dim, obs_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_components)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| solver_time | list | Nested list of wall time for algorithm, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| residual | list | Nested list of residuals from algorithm, `tuple(float, float)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration |
+| stop_condition | list | List of stopping conditions from algorithm, 'str', indexed by initialization |
 
 | Methods | Description |
 | :--- | :--- |
