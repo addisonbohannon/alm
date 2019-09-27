@@ -4,11 +4,13 @@
 class almm.almm.Almm(coef_penalty_type='l1', step_size=1e-1, tol=1e-4, max_iter=int(2.5e3), solver='bcd', verbose=False)
 ```
 
-The class for fitting the $`ALMM(p, r)`$ model. The solvers minimize the following objective:
+The class for fitting the $`ALMM(p, r)`$ model. The maximum *a posteriori* estimator for the model is given by the following objective:
 
 ```math
-\frac{1}{n}\sum_{i=1}^n \frac{1}{2m} \left\lVert \mathbf{Y}_i - \sum_{j=1}^r c_{i, j} \mathbf{X}_i \mathbf{D}_j \right\rVert_F^2 + \frac{1}{n}\sum_{i=1}^n \mu \left\lVert \mathbf{c}_i \right\rVert_1
+\operatorname{arg\,min} \frac{1}{n}\sum_{i=1}^n \frac{1}{2m} \left\lVert \mathbf{Y}_i - \sum_{j=1}^r c_{i, j} \mathbf{X}_i \mathbf{D}_j \right\rVert_F^2 + \frac{1}{n}\sum_{i=1}^n \mu \left\lVert \mathbf{c}_i \right\rVert_1 ~\text{s.t.}~ \left\lVert\mathbf{D}_j\right\rVert_F=1, j=1,\ldots,r
 ```
+
+where we are intersted in the mixing coefficients $`\left(\mathbf{c}_i\right)_{i=1,\ldots,n}`$ and the autoregressive components $`\left(\mathbf{D}_j\right)_{j=1,\ldots,r}`$. 
 
 | Paramater | Values | Description |
 | :--- | :---: | :--- |
