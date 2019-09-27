@@ -12,9 +12,9 @@ from almm.utility import unstack_coef, initialize_components
 from validation.sampler import almm_sample
 from validation.utility import component_distance
 
-n = 600
+n = 1000
 dn = 200
-m = 6000
+m = 10000
 dm = 2000
 d = 5
 r = 10
@@ -23,7 +23,7 @@ s = 3
 N = 10
 k = 10
 mu = 1e-2
-NUM_PROCESSES = 2
+NUM_PROCESSES = 5
 
 
 def n_vs_m(experiment_id):

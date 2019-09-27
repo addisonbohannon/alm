@@ -12,13 +12,13 @@ from almm.utility import unstack_coef, initialize_components
 from validation.sampler import almm_sample
 from validation.utility import component_distance
 
-n = 200
-m = 1000
+n = 1000
+m = 10000
 d = 5
 r = 10
 p = 2
 s = 3
-k = 2
+k = 10
 mu = 1e-2
 
 # Generate almm sample
