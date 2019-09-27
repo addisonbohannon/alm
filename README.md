@@ -23,12 +23,13 @@ the maximum *a posteriori* (MAP) estimator using block coordinate descent, alter
 
 ## Installation
 
-In order to use the software, you clone the repository and install the package in an appropriate environment.
+In order to use the software, you clone the repository and install the package in an appropriate environment. Here, we are installing
+the package with [Anaconda](https://www.anaconda.com/) on Linux in a directory `my_workspace`.
 
 ```
 cd my_workspace
 git clone https://gitlab.sitcore.net/addison.bohannon/almm.git
-conda new -n almm python=3.7 scipy numpy matplotlib
+conda create -n almm python=3.7 scipy numpy matplotlib
 source activate almm
 pip install --upgrade setuptools
 pip install cvxpy
