@@ -1,7 +1,5 @@
 # Autoregressive Linear Mixture Model (ALMM)
 
-## Introduction
-
 This project offers multiple solvers for estimating the parameters of an Autoregressive Linear Mixture Model (ALMM):
 
 ```math
