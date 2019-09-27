@@ -110,8 +110,8 @@ class Almm:
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
 
-        self.component, self.mixing_coef, self.solver_time, self.nll, self.params, self.residual, self.stop_condition \
-            = [], [], [], [], [], [], []
+        self.component, self.mixing_coef, self.solver_time, self.nll, self.residual, self.stop_condition \
+            = [], [], [], [], [], []
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
         YtY, XtX, XtY = [], [], []
