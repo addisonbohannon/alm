@@ -9,8 +9,8 @@ from multiprocessing import Pool
 import pickle
 from almm.almm import Almm
 from almm.utility import unstack_coef, initialize_components
-from experiments.sampler import almm_sample
-from experiments.utility import component_distance
+from validation.sampler import almm_sample
+from validation.utility import component_distance
 
 n = 600
 dn = 200

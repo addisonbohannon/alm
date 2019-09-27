@@ -9,8 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from almm.almm import Almm
 from almm.utility import unstack_coef, initialize_components
-from experiments.sampler import almm_sample
-from experiments.utility import component_distance
+from validation.sampler import almm_sample
+from validation.utility import component_distance
 
 n = 200
 m = 1000
@@ -37,7 +37,7 @@ print('Fitting ALMM with alternating minimization...')
 t1 = timer()
 almm_altmin = Almm(solver='altmin', verbose=True)
 D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_altmin.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
-                                                                    return_path=True, return_all=True)
+                                                                     return_path=True, return_all=True)
 t2 = timer()
 print('Elapsed time: ' + str(t2-t1) + 's')
         
