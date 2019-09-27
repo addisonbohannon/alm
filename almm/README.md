@@ -32,7 +32,7 @@ The class for fitting the $`ALMM(p, r)`$ model. The solvers minimize the followi
 | solver_time | list | Nested list of wall time for algorithm, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | residual | list | Nested list of residuals from algorithm, `tuple(float, float)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration |
-| stop_condition | list | List of stopping conditions from algorithm, 'str', indexed by initialization |
+| stop_condition | list | List of stopping conditions from algorithm, `str`, indexed by initialization |
 
 | Methods | Description |
 | :--- | :--- |
