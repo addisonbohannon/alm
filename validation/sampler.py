@@ -105,6 +105,7 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
     :return components: number_components x model_order x signal_dimension x signal_dimension numpy array
     """
     
+    nr.seed()
     for step in range(MAX_ITER):
         components = initialize_components(number_components, model_order, signal_dimension, stacked=False)
         mixing_coef = np.zeros([number_observations, number_components])

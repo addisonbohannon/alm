@@ -7,6 +7,7 @@ from datetime import datetime as dt
 from itertools import product
 from multiprocessing import Pool
 import pickle
+import numpy.random as nr
 from almm.almm import Almm
 from almm.utility import unstack_coef, initialize_components
 from validation.sampler import almm_sample
@@ -27,6 +28,8 @@ NUM_PROCESSES = 5
 
 
 def n_vs_m(experiment_id):
+    # Set seed
+    nr.seed()
     # Generate almm samples
     x, _, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
     # Initialize variables
