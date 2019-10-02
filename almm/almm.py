@@ -388,7 +388,7 @@ class Almm:
         if self.verbose:
             print('*Solver: ' + self.solver)
             print('*Stopping condition: ' + stop_condition)
-            print('*Iterations: ' + str(step))
+            print('*Iterations: ' + str(step + 1))
             print('*Duration: ' + str(elapsed_time[-1]) + 's')
 
         if return_path:
