@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from random import shuffle
 import numpy as np
 import scipy.linalg as sl
 from almm.utility import component_corr_matrix, component_gram_matrix, coef_gram_matrix, coef_corr_matrix
@@ -76,7 +77,7 @@ def component_update_altmin(XtX, XtY, current_component, current_coef, step_size
 
 def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
     """
-    Update all autoregressive components for fixed mixing coefficients
+    Update all autoregressive components sequentially (random) for fixed mixing coefficients
     :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
     :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
     :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
@@ -85,12 +86,17 @@ def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
     :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
+    
+    def randomly(seq):
+        shuffled = list(seq)
+        shuffle(shuffled)
+        return iter(shuffled)
 
     num_components, _, _ = current_component.shape
     new_component = np.copy(current_component)
     coef_gram = coef_gram_matrix(XtX, current_coef)
     coef_corr = coef_corr_matrix(XtY, current_coef)
-    for j in range(num_components):
+    for j in randomly(range(num_components)):
         a = coef_gram[(j, j)]
         b = coef_corr[j]
         for l in np.setdiff1d(np.arange(num_components), [j]):
