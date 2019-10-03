@@ -42,7 +42,7 @@ where we are intersted in the mixing coefficients $`\left(\mathbf{c}_i\right)_{i
 
 ```python
 fit(observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None, 
-    return_path=False, return_all=False)
+    return_path=False, return_all=False, compute_likelihood_path=True)
 ```
 
 This method will implement the desired algorithm to fit the $`ALMM(p, r)`$ model to observations.
@@ -57,11 +57,12 @@ This method will implement the desired algorithm to fit the $`ALMM(p, r)`$ model
 | initial_components | list | Initial estimate of autoregressive components, `(num_components, model_order*obs_dim, obs_dim)`; `len(initial_components)=num_starts` |
 | return_path | boolean | Whether to return estimates from each iteration |
 | return_all | boolean | Whether to return the result of all `num_starts` unique initializations or that of maximum likelihood |
+| compute_likelihood_path | boolean | Whether to compute negative log likelihood for each iteration of algorithm; only matters if `return_path=True`
 
 
 | Returns | Values | Description |
 | :--- | :---: | :--- |
 | component | list |  Nested list of autoregressive component estimates, `(num_components, model_order*obs_dim, obs_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_components)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
-| nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True`, unless over-ruled by `compute_likelihood_path=False` |
 | solver_time | list | Nested list of wall time for algorithm, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |

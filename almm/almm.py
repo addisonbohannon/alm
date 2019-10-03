@@ -69,7 +69,7 @@ class Almm:
             = [], [], [], [], [], []
 
     def fit(self, observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None,
-            return_path=False, return_all=False):
+            return_path=False, return_all=False, compute_likelihood_path=True):
         """
         Fit the ALMM model to observations
         :param observation: list of observation_length x signal_dimension numpy array
@@ -80,6 +80,7 @@ class Almm:
         :param initial_component: num_components x model_order*signal_dimension x signal_dimension numpy array
         :param return_path: boolean
         :param return_all: boolean
+        :param compute_likelihood_path: boolean
         :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
         :return mixing_coef: [list of] num_observations x num_components numpy array
         :return nll: [list of] float
@@ -109,6 +110,8 @@ class Almm:
             raise TypeError('Return path must be a boolean.')
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
+        if not isinstance(compute_likelihood_path, bool):
+            raise TypeError('Compute likelihood must be a boolean.')
 
         self.component, self.mixing_coef, self.solver_time, self.nll, self.residual, self.stop_condition \
             = [], [], [], [], [], []
@@ -141,8 +144,12 @@ class Almm:
             print('-Computing likelihood...', end=" ", flush=True)
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
-                nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter, self.coef_penalty_type)
-                         for Dis, Cis in zip(component_k, mixing_coef_k)]
+                if compute_likelihood_path:
+                    nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter, self.coef_penalty_type)
+                             for Dis, Cis in zip(component_k, mixing_coef_k)]
+                else:
+                    nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
+                                                    penalty_parameter, self.coef_penalty_type)
             else:
                 nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_parameter,
                                                 self.coef_penalty_type)
