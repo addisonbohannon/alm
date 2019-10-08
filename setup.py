@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='almm',
     version='0.0.0',
-    packages=['almm', 'validation'],
+    packages=['almm', 'application', 'validation'],
     url='https://gitlab.sitcore.net/addison.bohannon/almm',
     license='',
     author='Addison Bohannon',
