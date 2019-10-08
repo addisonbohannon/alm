@@ -95,8 +95,8 @@ def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
         shuffle(shuffled)
         return iter(shuffled)
 
-    num_components, _, _ = current_component.shape
-    _, signal_dimension = XtY[0].shape
+    num_components, model_order_by_signal_dimension, signal_dimension = current_component.shape
+    model_order = int(model_order_by_signal_dimension / signal_dimension)
     new_component = np.copy(current_component)
     coef_gram = coef_gram_matrix(XtX, current_coef)
     coef_corr = coef_corr_matrix(XtY, current_coef)
@@ -105,7 +105,7 @@ def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
         b = coef_corr[j]
         for l in np.setdiff1d(np.arange(num_components), [j]):
             b -= np.dot(coef_gram[tuple(sorted((j, l)))], new_component[l])
-        new_component[j] = project(sl.solve(a + EPS * np.eye(num_components * signal_dimension), b, assume_a='pos'))
+        new_component[j] = project(sl.solve(a + EPS * np.eye(model_order * signal_dimension), b, assume_a='pos'))
 
     return new_component, new_component - current_component
 
