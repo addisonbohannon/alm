@@ -96,7 +96,7 @@ class Almm:
             raise ValueError('Penalty parameter must be a positive float.')
         if not isinstance(num_starts, int) or num_starts < 1:
             raise ValueError('Number of starts must be a positive integer.')
-        if not isinstance(val_pct, float) or 0 <= val_pct < 1:
+        if not isinstance(val_pct, float) or val_pct < 0 or val_pct >= 1:
             raise ValueError('Validation percentage must be a float between 0 and 1.')
         elif num_starts == 1:
             val_pct = 0
@@ -125,14 +125,10 @@ class Almm:
         observation = [Timeseries(observation_i) for observation_i in observation]
         num_observations = len(observation)
         train_idx, val_idx = train_val_split(num_observations, val_pct)
-        train_observation, val_observation = [observation[index] for index in train_idx], \
-                                             [observation[index] for index in val_idx]
-        train_YtY, train_XtX, train_XtY = [observation_i.YtY(model_order) for observation_i in train_observation], \
-                                          [observation_i.XtX(model_order) for observation_i in train_observation], \
-                                          [observation_i.XtY(model_order) for observation_i in train_observation]
-        val_YtY, val_XtX, val_XtY = [observation_i.YtY(model_order) for observation_i in val_observation], \
-                                    [observation_i.XtX(model_order) for observation_i in val_observation], \
-                                    [observation_i.XtY(model_order) for observation_i in val_observation]
+        train_XtX, train_XtY = [observation[idx].XtX(model_order) for idx in train_idx], \
+                               [observation[idx].XtY(model_order) for idx in train_idx]
+        val_XtX, val_XtY = [observation[idx].XtX(model_order) for idx in val_idx], \
+                           [observation[idx].XtY(model_order) for idx in val_idx]
 
         def zip_coef(coef_train, coef_val):
             if return_path:
@@ -155,10 +151,10 @@ class Almm:
         if self.verbose:
             print('-Fitting model to data...')
 
-        def fit_coef(autocorrelation, correlation, components, penalty_type):
+        def fit_coef(autocorrelation, correlation, components):
 
-            return coef_update(autocorrelation, correlation, components, np.zeros([num_observations, num_components]),
-                               penalty_parameter, penalty_type)[0]
+            return coef_update(autocorrelation, correlation, components, np.zeros([len(autocorrelation), num_components]),
+                               penalty_parameter, self.coef_penalty_type, self.step_size)[0]
 
         for start_k in range(num_starts):
             if self.verbose and num_starts > 1:
@@ -168,10 +164,9 @@ class Almm:
                             initial_component[start_k], return_path=return_path)
             if val_pct > 0:
                 if return_path:
-                    val_mixing_coef_k = [fit_coef(val_XtX, val_XtY, component_k_i, self.coef_penalty_type)
-                                         for component_k_i in component_k]
+                    val_mixing_coef_k = [fit_coef(val_XtX, val_XtY, component_k_i) for component_k_i in component_k]
                 else:
-                    val_mixing_coef_k = fit_coef(val_XtX, val_XtY, component_k, self.coef_penalty_type)
+                    val_mixing_coef_k = fit_coef(val_XtX, val_XtY, component_k)
                 mixing_coef_k = zip_coef(train_mixing_coef_k, val_mixing_coef_k)
             else:
                 mixing_coef_k = train_mixing_coef_k
@@ -184,17 +179,20 @@ class Almm:
             print('-Complete.')
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
+        YtY, XtX, XtY = [observation_i.YtY(model_order) for observation_i in observation], \
+                        [observation_i.XtX(model_order) for observation_i in observation], \
+                        [observation_i.XtY(model_order) for observation_i in observation]
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
                 if compute_likelihood_path:
-                    nll_k = [negative_log_likelihood(train_YtY, train_XtX, train_XtY, Dis, Cis, penalty_parameter,
+                    nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter,
                                                      self.coef_penalty_type)
                              for Dis, Cis in zip(component_k, mixing_coef_k)]
                 else:
-                    nll_k = negative_log_likelihood(train_YtY, train_XtX, train_XtY, component_k[-1], mixing_coef_k[-1],
+                    nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
                                                     penalty_parameter, self.coef_penalty_type)
             else:
-                nll_k = negative_log_likelihood(train_YtY, train_XtX, train_XtY, component_k, mixing_coef_k,
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k,
                                                 penalty_parameter, self.coef_penalty_type)
             self.nll.append(nll_k)
         if self.verbose:
