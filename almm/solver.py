@@ -164,7 +164,7 @@ def coef_update(XtX, XtY, current_component, current_coef, penalty_parameter, co
     else:
         raise TypeError('Coefficient penalty type must be None, l0, or l1.')
 
-    gram = [component_gram_matrix([XtX_i], current_component).pop() for XtX_i in XtX]
+    gram = component_gram_matrix(XtX, current_component)
     corr = [component_corr_matrix(XtY_i, current_component) for XtY_i in XtY]
     new_coef = np.array([solve(gram_i, corr_i) for gram_i, corr_i in zip(gram, corr)])
 
