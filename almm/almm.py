@@ -185,23 +185,15 @@ class Almm:
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
                 if compute_likelihood_path:
-                     nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter,
-                                                      self.coef_penalty_type)
-                              for Dis, Cis in zip(component_k, mixing_coef_k)]
-#                    nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter, None)
-#                             for Dis, Cis in zip(component_k, mixing_coef_k)]
-                     nll_k = [negative_log_likelihood(YtY_val, XtX_val, XtY_val, Dis, Cis, penalty_parameter,
-                                                      self.coef_penalty_type)
-                              for Dis, Cis in zip(component_k, mixing_coef_k)]
+                    nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter,
+                                                     self.coef_penalty_type)
+                             for Dis, Cis in zip(component_k, mixing_coef_k)]
                 else:
-                     nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
-                                                     penalty_parameter, self.coef_penalty_type)
-#                    nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
-#                                                    penalty_parameter, None)
+                    nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
+                                                    penalty_parameter, self.coef_penalty_type)
             else:
-                 nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_parameter,
-                                                 self.coef_penalty_type)
-#                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_parameter, None)
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k,
+                                                penalty_parameter, self.coef_penalty_type)
             self.nll.append(nll_k)
         if self.verbose:
             print('Complete.')
@@ -225,6 +217,162 @@ class Almm:
                         opt = i
                         nll_min = nll_k
             return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.solver_time[opt]
+
+    # def fit_cv(self, observation, model_order=None, num_components=None, penalty_parameter=None, num_starts=5,
+    #            val_pct=0.25, return_path=False, return_all=False):
+    #     """
+    #     Fit the ALMM model to observations using cross-validation
+    #     :param observation: list of observation_length x signal_dimension numpy array
+    #     :param model_order: list of positive integer
+    #     :param num_components: list of positive integer
+    #     :param penalty_parameter: list of positive float
+    #     :param num_starts: positive integer
+    #     :param val_pct: float; (0, 1)
+    #     :param return_path: boolean
+    #     :param return_all: boolean
+    #     :return component: nested list of numpy array
+    #     :return mixing_coef: nested list of numpy array
+    #     :return nll: nested list of float
+    #     :return params: list of tuples
+    #     """
+    #
+    #     num_observations = len(observation)
+    #     _, signal_dimension = observation[0].shape
+    #     if isinstance(model_order, int):
+    #         if model_order > 0:
+    #             model_order = [model_order]
+    #         else:
+    #             raise ValueError('Model order must be a positive integer or list of positive integers.')
+    #     elif isinstance(model_order, list):
+    #         if not all([isinstance(i, int) and i > 0 for i in model_order]):
+    #             raise ValueError('Model order must be a positive integer or list of positive integers.')
+    #     elif model_order is None:
+    #         model_order = [1]
+    #     else:
+    #         raise TypeError('Model order must be a positive integer or list of positive integers.')
+    #     if isinstance(num_components, int):
+    #         if num_components > 0:
+    #             num_components = [num_components]
+    #         else:
+    #             raise ValueError('Number of components must be a positive integer or list of positive integers.')
+    #     elif isinstance(num_components, list):
+    #         if not all([isinstance(i, int) and i > 0 for i in num_components]):
+    #             raise ValueError('Number of components must be a positive integer or list of positive integers.')
+    #     elif num_components is None:
+    #         num_components = [1]
+    #     else:
+    #         raise TypeError('Number of components must be a positive integer or list of positive integers.')
+    #     if isinstance(penalty_parameter, float):
+    #         if penalty_parameter >= 0:
+    #             penalty_parameter = [penalty_parameter]
+    #         else:
+    #             raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+    #     elif isinstance(penalty_parameter, list):
+    #         if not all([isinstance(i, float) and i >= 0 for i in penalty_parameter]):
+    #             raise ValueError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+    #     elif penalty_parameter is None:
+    #         penalty_parameter = [0]
+    #     else:
+    #         raise TypeError('Penalty parameter must be a non-negative float or list of non-negative floats.')
+    #     if not isinstance(num_starts, int) or num_starts < 1:
+    #         raise TypeError('Number of starts must be a positive integer.')
+    #
+    #     def zip_coef(coef_train, coef_val):
+    #         if return_path:
+    #             zipped_coef = []
+    #             for coef_to_zip_train, coef_to_zip_val in zip(coef_train, coef_val):
+    #                 coef_to_zip = [i for i in zip(train_idx, list(coef_to_zip_train))]
+    #                 coef_to_zip.extend([i for i in zip(val_idx, list(coef_to_zip_val))])
+    #                 coef_to_zip.sort()
+    #                 zipped_coef.append(np.array([c for _, c in coef_to_zip]))
+    #         else:
+    #             zipped_coef = [i for i in zip(train_idx, list(coef_train))]
+    #             zipped_coef.extend([i for i in zip(val_idx, list(coef_val))])
+    #             zipped_coef.sort()
+    #             zipped_coef = np.array([c for _, c in zipped_coef])
+    #
+    #         return zipped_coef
+    #
+    #     def fit_coef(autocorrelation, correlation, components, penalty_param, coef_penalty_type):
+    #         coef, _ = coef_update(autocorrelation, correlation, components,
+    #                               np.zeros([num_observations, num_components]), penalty_param, coef_penalty_type)
+    #         return coef
+    #
+    #     if self.verbose:
+    #         print('-Formatting and splitting data...', end=" ", flush=True)
+    #     train_idx, val_idx = train_val_split(len(observation), val_pct)
+    #     observation = [Timeseries(ts_i) for ts_i in observation]
+    #     observation_train = [observation[i] for i in train_idx]
+    #     observation_val = [observation[i] for i in val_idx]
+    #     if self.verbose:
+    #         print('Complete.')
+    #     self.component, self.mixing_coef, self.nll, self.params = [], [], [], []
+    #     for (model_order_i, num_components_i, penalty_parameter_i) in product(model_order, num_components,
+    #                                                                           penalty_parameter):
+    #         if self.verbose:
+    #             print('-Parameters: p=' + str(model_order_i) + ', r=' + str(num_components_i) + ', mu='
+    #                   + str(penalty_parameter_i))
+    #         XtX_train, XtY_train = [ob.XtX(model_order_i) for ob in observation_train], [ob.XtY(model_order_i)
+    #                                                                                      for ob in observation_train]
+    #         YtY_val, XtX_val, XtY_val = [ob.YtY(model_order_i) for ob in observation_val], \
+    #                                     [ob.XtX(model_order_i) for ob in observation_val], \
+    #                                     [ob.XtY(model_order_i) for ob in observation_val]
+    #         component_i, mixing_coef_i, nll_i = [], [], []
+    #         for start_k in range(num_starts):
+    #             if self.verbose and num_starts > 1:
+    #                 print('--Start: ' + str(start_k))
+    #             initial_component = initialize_components(num_components, model_order, signal_dimension)
+    #             component_i_k, mixing_coef_i_k_t, _, _, _, _ = self._fit(XtX_train, XtY_train, model_order_i,
+    #                                                                      num_components_i, penalty_parameter_i,
+    #                                                                      self.coef_penalty_type, initial_component,
+    #                                                                      solver=self.solver, max_iter=self.max_iter,
+    #                                                                      step_size=self.step_size, tol=self.tol,
+    #                                                                      return_path=return_path, verbose=self.verbose)
+    #             component_i.append(component_i_k)
+    #             if self.verbose:
+    #                 print('---Fitting coefficients and computing likelihood... ', end=" ", flush=True)
+    #             if return_path:
+    #                 mixing_coef_i_k_v = [fit_coef(XtX_val, XtY_val, D_iii, penalty_parameter_i, self.coef_penalty_type)
+    #                                      for D_iii in component_i_k]
+    #                 mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
+    #                 nll_i.append([negative_log_likelihood(YtY_val, XtX_val, XtY_val, D_iii, C_iiiv, penalty_parameter_i,
+    #                                                       self.coef_penalty_type)
+    #                               for D_iii, C_iiiv in zip(component_i_k, mixing_coef_i_k_v)])
+    #             else:
+    #                 mixing_coef_i_k_v = fit_coef(XtX_val, XtY_val, component_i_k[-1], penalty_parameter_i,
+    #                                              self.coef_penalty_type)
+    #                 mixing_coef_i.append(zip_coef(mixing_coef_i_k_t, mixing_coef_i_k_v))
+    #                 nll_i.append(negative_log_likelihood(YtY_val, XtX_val, XtY_val, component_i_k[-1],
+    #                                                      mixing_coef_i_k_v, penalty_parameter_i,
+    #                                                      self.coef_penalty_type))
+    #             if self.verbose:
+    #                 print('Complete.')
+    #         if self.verbose:
+    #             print('-Complete.')
+    #         self.component.append(component_i)
+    #         self.mixing_coef.append(mixing_coef_i)
+    #         self.nll.append(nll_i)
+    #         self.params.append((model_order_i, num_components_i, penalty_parameter_i))
+    #
+    #     if len(self.params) == 1:
+    #         return self.component.pop(), self.mixing_coef.pop(), self.nll.pop(), self.params.pop()
+    #     elif return_all:
+    #         return self.component, self.mixing_coef, self.nll, self.params
+    #     else:
+    #         opt = 0
+    #         if return_path:
+    #             nll_min = self.nll[0][-1]
+    #             for i, nll_i in enumerate(self.nll):
+    #                 if nll_i[-1] < nll_min:
+    #                     opt = i
+    #                     nll_min = nll_i[-1]
+    #         else:
+    #             nll_min = self.nll[0]
+    #             for i, nll_i in enumerate(self.nll):
+    #                 if nll_i < nll_min:
+    #                     opt = i
+    #                     nll_min = nll_i
+    #         return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.params[opt]
 
     def _fit(self, XtX, XtY, model_order, num_components, penalty_parameter, initial_component, return_path=False):
         """
