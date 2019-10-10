@@ -98,7 +98,7 @@ class Subject:
         self.power = [np.array(power).T for power in zip(self.delta, self.theta, self.alpha, self.beta)]
             
 
-DATA_PATH = '/home/addison/Python/almm/results/application-mu-1/'
+DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
 INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
 subj = []
 for subject in np.setdiff1d(range(1, 11), [9]):
