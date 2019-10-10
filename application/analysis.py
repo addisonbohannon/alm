@@ -9,13 +9,14 @@ import scipy.fftpack as sf
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 import matplotlib.pyplot as plt
-from almm.utility import unstack_coef
+from almm.utility import unstack_coef, gram_matrix
+from validation.utility import component_distance
 
 NUM_COMPONENTS = 10
 MODEL_ORDER = 12
 SIGNAL_DIM = 6
 SAMPLING_RATE = 200
-OBS_LENGTH = 50
+OBS_LENGTH = 100
 DELTA_MIN = 0
 DELTA_MAX = 4
 THETA_MIN = 4
@@ -40,6 +41,7 @@ class Subject:
         self.id = subj_id
         data = sio.loadmat(join(data_path, 'subj' + str(subj_id) + '_results_palm.mat'))
         self.components = [D[-1] for D in data['D_palm']]
+        self.pairwise_component_error = gram_matrix(self.components, lambda d1, d2: component_distance(d1, d2)[0])
         self.mixing_coef = [C[-1] for C in data['C_palm']]
         del data
         subj_data = sio.loadmat(join(info_path, 'subj' + str(subj_id) + '.mat'))
@@ -71,28 +73,40 @@ class Subject:
         self.mixing_coef = self.mixing_coef[self.k]
 
     def analyze(self):
-        if self.k is None:
-            raise TypeError('Must run best_k before analyze.')
+#        if self.k is None:
+#            raise TypeError('Must run best_k before analyze.')
         N = int(OBS_LENGTH/2)
-        for component_j in self.components:
-            component_j = unstack_coef(component_j)
-            component_j = np.concatenate((np.expand_dims(np.eye(SIGNAL_DIM), 0), -component_j), axis=0)
-            fD = sf.fft(component_j, n=OBS_LENGTH, axis=0)
-            psd = [max(np.abs(sl.eigvals(fD[k]))**(-2)) for k in range(N)]
-            self.alpha.append(sum([psd[k] for k in ALPHA]))
-            self.beta.append(sum([psd[k] for k in BETA]))
-            self.delta.append(sum([psd[k] for k in DELTA]))
-            self.theta.append(sum([psd[k] for k in THETA]))
+        for component_k in self.components:
+            alpha, beta, delta, theta = [], [], [], []
+            for component_j in component_k:
+                component_j = unstack_coef(component_j)
+                component_j = np.concatenate((np.expand_dims(np.eye(SIGNAL_DIM), 0), -component_j), axis=0)
+                fD = sf.fft(component_j, n=OBS_LENGTH, axis=0)
+                psd = [max(np.abs(sl.eigvals(fD[k]))**(-2)) for k in range(N)]
+                alpha.append(sum([psd[k] for k in ALPHA]))
+                beta.append(sum([psd[k] for k in BETA]))
+                delta.append(sum([psd[k] for k in DELTA]))
+                theta.append(sum([psd[k] for k in THETA]))
+            self.alpha.append(alpha)
+            self.beta.append(beta)
+            self.delta.append(delta)
+            self.theta.append(theta)
+            
+    def spectral_analysis(self):
+        if self.alpha is [] or self.beta is [] or self.delta is [] or self.theta is []:
+            self.analyze()
+        self.power = [np.array(power).T for power in zip(self.delta, self.theta, self.alpha, self.beta)]
             
 
-DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
+DATA_PATH = '/home/addison/Python/almm/results/application-mu-1/'
 INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
 subj = []
 for subject in np.setdiff1d(range(1, 11), [9]):
     subj.append(Subject(subject, DATA_PATH, INFO_PATH))
-    subj[-1].classify()
-    subj[-1].best_k()
+#    subj[-1].classify()
+#    subj[-1].best_k()
     subj[-1].analyze()
+    subj[-1].spectral_analysis()
     
 #fig, axs = plt.subplots(4, NUM_COMPONENTS)
 #images = []
