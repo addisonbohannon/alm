@@ -112,9 +112,9 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
         for i in range(number_observations):
             support = list(nr.choice(number_components, size=coef_support,
                                      replace=False))
-            mixing_coef[i, support] = signal_dimension ** (-1 / 2) * nr.randn(coef_support)
+            mixing_coef[i, support] = number_components ** (-1 / 2) * nr.randn(coef_support)
             while not isstable(np.tensordot(mixing_coef[i, :], components, axes=1)):
-                mixing_coef[i, support] = signal_dimension ** (-1 / 2) * nr.randn(coef_support)
+                mixing_coef[i, support] = number_components ** (-1 / 2) * nr.randn(coef_support)
         observation = np.zeros([number_observations, observation_length, signal_dimension])
         for i in range(number_observations):
             observation[i, :, :] = autoregressive_sample(observation_length, signal_dimension,
