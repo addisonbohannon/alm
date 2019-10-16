@@ -18,7 +18,7 @@ d = 5
 r = 10
 p = 2
 s = 3
-k = 10
+k = 5
 mu = 1e-2
 
 # Generate almm sample
@@ -36,8 +36,8 @@ D_0 = [initialize_components(r, p, d) for _ in range(k)]
 print('Fitting ALMM with alternating minimization...')
 t1 = timer()
 almm_altmin = Almm(solver='altmin', verbose=True)
-D_altmin, C_altmin, altmin_likelihood, altmin_time = almm_altmin.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
-                                                                     return_path=True, return_all=True)
+D_altmin, C_altmin, altmin_likelihood, _ = almm_altmin.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                                           return_path=True, return_all=True)
 t2 = timer()
 print('Elapsed time: ' + str(t2-t1) + 's')
         
@@ -45,8 +45,8 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 print('Fitting ALMM with block coordinate descent...')
 t3 = timer()
 almm_bcd = Almm(solver='bcd', verbose=True)
-D_bcd, C_bcd, bcd_likelihood, bcd_time = almm_bcd.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
-                                                      return_path=True, return_all=True)
+D_bcd, C_bcd, bcd_likelihood, _ = almm_bcd.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                               return_path=True, return_all=True)
 t4 = timer()
 print('Elapsed time: ' + str(t4-t3) + 's')
         
@@ -54,20 +54,23 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 print('Fitting ALMM with proximal alternating linearized minimization...')
 t5 = timer()
 almm_palm = Almm(solver='palm', verbose=True)
-D_palm, C_palm, palm_likelihood, palm_time = almm_palm.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
-                                                           return_path=True, return_all=True)
+D_palm, C_palm, palm_likelihood, _ = almm_palm.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
+                                                   return_path=True, return_all=True)
 t6 = timer()
 print('Elapsed time: ' + str(t6-t5) + 's')
 
 # Display results
 print('Displaying results...', end=" ", flush=True)
-fig, axs = plt.subplots(2, 2)
-axs[1, 0].set_xlabel('Iteration')
-axs[1, 1].set_xlabel('Wall Time')
-axs[0, 0].set_ylabel('Dictionary Error')
-axs[1, 0].set_ylabel('Likelihood')
-# Proximal alternating linearized minimization error
-for i, (Di, time) in enumerate(zip(D_palm, palm_time)):
+fig, axs = plt.subplots(1, 2)
+axs[0].set_xlabel('Iteration')
+axs[1].set_xlabel('Iteration')
+axs[0].set_ylabel('Negative Log Likelihood')
+axs[1].set_ylabel('Component Error')
+# Plot PALM results
+for likelihood in palm_likelihood:
+    plt_palm0 ,= axs[0].plot(likelihood, 'b-')
+palm_error = []
+for i, Di in enumerate(D_palm):
     loss = []
     for s, Dis in enumerate(Di):
         Dis_pred = np.zeros([r, p, d, d])
@@ -75,10 +78,13 @@ for i, (Di, time) in enumerate(zip(D_palm, palm_time)):
             Dis_pred[j] = unstack_coef(Dis[j])
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
-    plt_palm00, = axs[0, 0].plot(loss, 'b-')
-    plt_palm01, = axs[0, 1].plot(time, loss, 'b-')
-# Alternating minimization error
-for i, (Di, time) in enumerate(zip(D_altmin, altmin_time)):
+    palm_error.append(loss)
+    plt_palm1, = axs[1].plot(loss, 'b-')
+# Plot AltMin results
+for likelihood in altmin_likelihood:
+    plt_altmin0, = axs[0].plot(likelihood, 'r-')
+altmin_error = []
+for i, Di in enumerate(D_altmin):
     loss = []
     for s, Dis in enumerate(Di):
         Dis_pred = np.zeros([r, p, d, d])
@@ -86,10 +92,13 @@ for i, (Di, time) in enumerate(zip(D_altmin, altmin_time)):
             Dis_pred[j] = unstack_coef(Dis[j])
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
-    plt_altmin00, = axs[0, 0].plot(loss, 'r-')
-    plt_altmin01, = axs[0, 1].plot(time, loss, 'r-')
-# Block coordinate descent error
-for i, (Di, time) in enumerate(zip(D_bcd, bcd_time)):
+    altmin_error.append(loss)
+    plt_altmin1, = axs[1].plot(loss, 'r-')
+# Plot BCD results
+for likelihood in bcd_likelihood:
+    plt_bcd0, = axs[0].plot(likelihood, 'g-')
+bcd_error = []
+for i, Di in enumerate(D_bcd):
     loss = []
     for s, Dis in enumerate(Di):
         Dis_pred = np.zeros([r, p, d, d])
@@ -97,26 +106,14 @@ for i, (Di, time) in enumerate(zip(D_bcd, bcd_time)):
             Dis_pred[j] = unstack_coef(Dis[j])
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
-    plt_bcd00, = axs[0, 0].plot(loss, 'g-')
-    plt_bcd01, = axs[0, 1].plot(time, loss, 'g-')
-axs[0, 0].legend((plt_palm00, plt_altmin00, plt_bcd00), ('PALM', 'AltMin', 'BCD'))
-axs[0, 1].legend((plt_palm01, plt_altmin01, plt_bcd01), ('PALM', 'AltMin', 'BCD'))
-for likelihood, time in zip(palm_likelihood, palm_time):
-    plt_palm10, = axs[1, 0].plot(likelihood, 'b-')
-    plt_palm11, = axs[1, 1].plot(time, likelihood, 'b-')
-for likelihood, time in zip(altmin_likelihood, altmin_time):
-    plt_altmin10, = axs[1, 0].plot(likelihood, 'r-')
-    plt_altmin11, = axs[1, 1].plot(time, likelihood, 'r-')
-for likelihood, time in zip(bcd_likelihood, bcd_time):
-    plt_bcd10, = axs[1, 0].plot(likelihood, 'g-')
-    plt_bcd11, = axs[1, 1].plot(time, likelihood, 'g-')
-axs[1, 0].legend((plt_palm10, plt_altmin10, plt_bcd10), ('PALM', 'AltMin', 'BCD'))
-axs[1, 1].legend((plt_palm11, plt_altmin11, plt_bcd11), ('PALM', 'AltMin', 'BCD'))
+    bcd_error.append(loss)
+    plt_bcd1, = axs[1].plot(loss, 'g-')
+axs[0].legend((plt_palm0, plt_altmin0, plt_bcd0), ('PALM', 'AltMin', 'BCD'))
+axs[1].legend((plt_palm1, plt_altmin1, plt_bcd1), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 print('Saving results...', end=' ', flush=True)
 path = "/home/addison/Python/almm/results"
 plt.savefig(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
 with open(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
-    pickle.dump([D_palm, D_altmin, D_bcd, palm_likelihood, altmin_likelihood, bcd_likelihood, palm_time, altmin_time,
-                 bcd_time], f)
+    pickle.dump([palm_likelihood, altmin_likelihood, bcd_likelihood, palm_error, altmin_error, bcd_error], f)
 print('Complete.')
