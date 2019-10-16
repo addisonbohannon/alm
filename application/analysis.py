@@ -48,6 +48,7 @@ class Subject:
         self.labels = np.squeeze(subj_data['Y'])
         del subj_data
         self.score, self.lr_coef = [], []
+        self.dtf = []
         self.alpha, self.beta, self.delta, self.theta = [], [], [], []
         self.k = None
 
@@ -73,20 +74,20 @@ class Subject:
         self.mixing_coef = self.mixing_coef[self.k]
 
     def analyze(self):
-#        if self.k is None:
-#            raise TypeError('Must run best_k before analyze.')
         N = int(OBS_LENGTH/2)
         for component_k in self.components:
             alpha, beta, delta, theta = [], [], [], []
             for component_j in component_k:
                 component_j = unstack_coef(component_j)
                 component_j = np.concatenate((np.expand_dims(np.eye(SIGNAL_DIM), 0), -component_j), axis=0)
-                fD = sf.fft(component_j, n=OBS_LENGTH, axis=0)
-                psd = [max(np.abs(sl.eigvals(fD[k]))**(-2)) for k in range(N)]
-                alpha.append(sum([psd[k] for k in ALPHA]))
-                beta.append(sum([psd[k] for k in BETA]))
-                delta.append(sum([psd[k] for k in DELTA]))
-                theta.append(sum([psd[k] for k in THETA]))
+                H = sf.fft(component_j, n=OBS_LENGTH, axis=0)
+                dtf = (np.abs(H) / sl.norm(H, axis=-1, keepdims=True))**2
+                psd = [max(np.abs(sl.eigvals(H[k]))**(-2)) for k in range(N)]
+                alpha.append(np.mean([psd[k] for k in ALPHA]))
+                beta.append(np.mean([psd[k] for k in BETA]))
+                delta.append(np.mean([psd[k] for k in DELTA]))
+                theta.append(np.mean([psd[k] for k in THETA]))
+            self.dtf.append(dtf)
             self.alpha.append(alpha)
             self.beta.append(beta)
             self.delta.append(delta)
@@ -103,7 +104,7 @@ INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
 subj = []
 for subject in np.setdiff1d(range(1, 11), [9]):
     subj.append(Subject(subject, DATA_PATH, INFO_PATH))
-#    subj[-1].classify()
+    subj[-1].classify()
 #    subj[-1].best_k()
     subj[-1].analyze()
     subj[-1].spectral_analysis()
