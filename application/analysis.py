@@ -9,8 +9,10 @@ import scipy.fftpack as sf
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 from almm.utility import unstack_coef, gram_matrix
 from validation.utility import component_distance
+from validation.sampler import autoregressive_sample
 
 NUM_COMPONENTS = 10
 MODEL_ORDER = 12
@@ -34,6 +36,7 @@ DELTA = [k for k in range(OBS_LENGTH) if DELTA_MIN <= frequency(k) < DELTA_MAX]
 THETA = [k for k in range(OBS_LENGTH) if THETA_MIN <= frequency(k) < THETA_MAX]
 ALPHA = [k for k in range(OBS_LENGTH) if ALPHA_MIN <= frequency(k) < ALPHA_MAX]
 BETA = [k for k in range(OBS_LENGTH) if BETA_MIN <= frequency(k) < BETA_MAX]
+ANY = [k for k in range(OBS_LENGTH) if DELTA_MIN <= frequency(k) < BETA_MAX]
 
 class Subject:
 
@@ -48,7 +51,7 @@ class Subject:
         self.labels = np.squeeze(subj_data['Y'])
         del subj_data
         self.score, self.lr_coef = [], []
-        self.dtf = []
+        self.dtf, self.connectivity = [], []
         self.alpha, self.beta, self.delta, self.theta = [], [], [], []
         self.k = None
 
@@ -76,13 +79,13 @@ class Subject:
     def analyze(self):
         N = int(OBS_LENGTH/2)
         for component_k in self.components:
-            alpha, beta, delta, theta = [], [], [], []
+            dtf, alpha, beta, delta, theta = [], [], [], [], []
             for component_j in component_k:
                 component_j = unstack_coef(component_j)
                 component_j = np.concatenate((np.expand_dims(np.eye(SIGNAL_DIM), 0), -component_j), axis=0)
-                H = sf.fft(component_j, n=OBS_LENGTH, axis=0)
-                dtf = (np.abs(H) / sl.norm(H, axis=-1, keepdims=True))**2
-                psd = [max(np.abs(sl.eigvals(H[k]))**(-2)) for k in range(N)]
+                H = [sl.inv(A) for A in sf.fft(component_j, n=OBS_LENGTH, axis=0)]
+                dtf.append((np.abs(H) / sl.norm(H, axis=-1, keepdims=True))**2)
+                psd = [max(np.abs(sl.eigvals(H[k]))) for k in range(N)]
                 alpha.append(np.mean([psd[k] for k in ALPHA]))
                 beta.append(np.mean([psd[k] for k in BETA]))
                 delta.append(np.mean([psd[k] for k in DELTA]))
@@ -97,6 +100,7 @@ class Subject:
         if self.alpha is [] or self.beta is [] or self.delta is [] or self.theta is []:
             self.analyze()
         self.power = [np.array(power).T for power in zip(self.delta, self.theta, self.alpha, self.beta)]
+        self.connectivity = [[sl.norm([dtf_j[k] for k in ANY], axis=0) for dtf_j in dtf_k] for dtf_k in self.dtf]
             
 
 DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
@@ -108,6 +112,32 @@ for subject in np.setdiff1d(range(1, 11), [9]):
 #    subj[-1].best_k()
     subj[-1].analyze()
     subj[-1].spectral_analysis()
+    
+fig, axs = plt.subplots(5, NUM_COMPONENTS)
+images = []
+for i, connectivity_matrix in enumerate(subj[7].connectivity):
+    axs[i, 0].set_ylabel('Start: ' + str(i))
+    for j, connectivity in enumerate(connectivity_matrix):
+        if i == 1:
+            axs[-1, j].set_xlabel('Component: ' + str(j))
+        axs[i, j].set_xticks([], [])
+        axs[i, j].set_yticks([], [])
+        images.append(axs[i, j].imshow(connectivity,
+                   norm=colors.LogNorm(vmin=1e-3, vmax=4)))
+fig.colorbar(images[0], ax=axs)
+
+fig, axs = plt.subplots(2, 5)
+images = []
+for i, components in enumerate(subj[7].components[:2]):
+    axs[i, 0].set_ylabel('Start: ' + str(i))
+    for j, component in enumerate(components[:5]):
+        signal = autoregressive_sample(5*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
+        if i == 1:
+            axs[-1, j].set_xlabel('Component: ' + str(j))
+        axs[i, j].set_xticks([], [])
+        images.append(axs[i, j].plot(signal + np.arange(0, 12, 2)))
+        
+        
     
 #fig, axs = plt.subplots(4, NUM_COMPONENTS)
 #images = []
