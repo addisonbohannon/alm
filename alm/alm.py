@@ -141,9 +141,6 @@ class Almm:
             print('-Complete.')
         if self.verbose:
             print('-Computing likelihood...', end=" ", flush=True)
-        YtY, XtX, XtY = [observation_i.YtY(model_order) for observation_i in observation], \
-                        [observation_i.XtX(model_order) for observation_i in observation], \
-                        [observation_i.XtY(model_order) for observation_i in observation]
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
                 if compute_likelihood_path:

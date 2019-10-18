@@ -8,7 +8,7 @@ from itertools import product
 from multiprocessing import Pool
 import pickle
 import numpy.random as nr
-from alm.almm import Almm
+from alm.alm import Almm
 from alm.utility import unstack_coef, initialize_components
 from experiments.sampler import almm_sample
 from experiments.utility import component_distance

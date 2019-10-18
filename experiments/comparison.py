@@ -7,7 +7,7 @@ from timeit import default_timer as timer
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from alm.almm import Almm
+from alm.alm import Almm
 from alm.utility import unstack_coef, initialize_components
 from experiments.sampler import almm_sample
 from experiments.utility import component_distance
