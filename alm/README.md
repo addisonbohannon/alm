@@ -1,10 +1,10 @@
-## Autogregressive Linear Mixture Model (ALMM)
+## Autogregressive Linear Mixture (ALM) Model
 
 ```python
-class almm.almm.Almm(coef_penalty_type='l1', step_size=1e-1, tol=1e-4, max_iter=int(2.5e3), solver='bcd', verbose=False)
+class alm.alm.Almm(coef_penalty_type='l1', step_size=1e-1, tol=1e-4, max_iter=int(2.5e3), solver='bcd', verbose=False)
 ```
 
-The class for fitting the $`ALMM(p, r)`$ model. The maximum *a posteriori* estimator for the model is given by the following objective:
+The class for fitting the $`ALM(p, r)`$ model. The maximum *a posteriori* estimator for the model is given by the following objective:
 
 ```math
 \operatorname{arg\,min} \frac{1}{n}\sum_{i=1}^n \frac{1}{2m} \left\lVert \mathbf{Y}_i - \sum_{j=1}^r c_{i, j} \mathbf{X}_i \mathbf{D}_j \right\rVert_F^2 + \frac{1}{n}\sum_{i=1}^n \mu \left\lVert \mathbf{c}_i \right\rVert_1 ~\text{s.t.}~ \left\lVert\mathbf{D}_j\right\rVert_F=1, j=1,\ldots,r
@@ -45,13 +45,13 @@ fit(observation, model_order, num_components, penalty_parameter, num_starts=5, i
     return_path=False, return_all=False, compute_likelihood_path=True)
 ```
 
-This method will implement the desired algorithm to fit the $`ALMM(p, r)`$ model to observations.
+This method will implement the desired algorithm to fit the $`ALM(p, r)`$ model to observations.
 
 | Paramater | Values | Description |
 | :--- | :---: | :--- |
 | observation | numpy array | Observations with which to fit model; `(n_obs, obs_len, obs_dim)` |
-| model_order | integer | Model order of ALMM model |
-| num_components | integer | Number of autoregressive components of ALMM model |
+| model_order | integer | Model order of ALM model |
+| num_components | integer | Number of autoregressive components of ALM model |
 | penalty_parameter | float | Value with which to weight the mixing coefficient penalty |
 | num_starts | integer | Number of unique initializations for algorithm |
 | initial_components | list | Initial estimate of autoregressive components, `(num_components, model_order*obs_dim, obs_dim)`; `len(initial_components)=num_starts` |

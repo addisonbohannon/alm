@@ -1,13 +1,13 @@
-# Autoregressive Linear Mixture Model (ALMM)
+# Autoregressive Linear Mixture (ALM) Model
 
-This project offers multiple solvers for estimating the parameters of an Autoregressive Linear Mixture Model (ALMM):
+This project offers multiple solvers for estimating the parameters of an Autoregressive Linear Mixture (ALM) Model:
 
 ```math
 \mathbf{x}[t] = \sum_{s=1}^p \sum_{j=1}^r c_j \mathbf{D}_j[s] \mathbf{x}[t-s] + \mathbf{n}[t],
 ```
 
 where $`p`$ is the model order, $`r`$ is the number of autoregressive components, and $`\mathbf{n}[t]`$ is a Gaussian random variable. 
-The model defined by this recurrence relation is denoted $`ALMM(p, r)`$. $`\left(c_j\right)_{j=1,\ldots,r}`$ are called the mixing
+The model defined by this recurrence relation is denoted $`ALM(p, r)`$. $`\left(c_j\right)_{j=1,\ldots,r}`$ are called the mixing
 coefficients, and $`\left(\mathbf{D}_j[s]\right)_{s=1,\ldots,p}`$ is called the $`j`$ autoregressive component. The maximum likelihood 
 estimator (MLE) for this model is nonconvex and thus nontrivial to solve. This package has implementations for approximately solving
 the maximum *a posteriori* (MAP) estimator using block coordinate descent, alternating minimization, and proximal gradient algorithms.
@@ -18,6 +18,7 @@ the maximum *a posteriori* (MAP) estimator using block coordinate descent, alter
 - [Numpy](https://numpy.org/)
 - [MATPLOTLIB](https://matplotlib.org/)
 - [CVXPY](https://www.cvxpy.org/)
+- [Scikit Learn](https://scikit-learn.org/)
 
 ## Installation
 
@@ -27,8 +28,8 @@ the package with [Anaconda](https://www.anaconda.com/) on Linux in a directory `
 ```
 cd my_workspace
 git clone https://gitlab.sitcore.net/addison.bohannon/almm.git
-conda create -n almm python=3.7 scipy numpy matplotlib
-source activate almm
+conda create -n alm python=3.7 scipy numpy matplotlib scikit-learn
+source activate alm
 pip install --upgrade setuptools
 pip install cvxpy
 python setup.py install
