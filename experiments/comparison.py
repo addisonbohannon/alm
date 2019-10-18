@@ -82,7 +82,7 @@ for i, Di in enumerate(D_palm):
     plt_palm1, = axs[1].plot(loss, 'b-')
 # Plot AltMin results
 for likelihood in altmin_likelihood:
-    plt_altmin0, = axs[0].plot(likelihood, 'r-')
+    plt_altmin0, = axs[0].plot(likelihood, 'r--')
 altmin_error = []
 for i, Di in enumerate(D_altmin):
     loss = []
@@ -93,10 +93,10 @@ for i, Di in enumerate(D_altmin):
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
     altmin_error.append(loss)
-    plt_altmin1, = axs[1].plot(loss, 'r-')
+    plt_altmin1, = axs[1].plot(loss, 'r--')
 # Plot BCD results
 for likelihood in bcd_likelihood:
-    plt_bcd0, = axs[0].plot(likelihood, 'g-')
+    plt_bcd0, = axs[0].plot(likelihood, 'g:')
 bcd_error = []
 for i, Di in enumerate(D_bcd):
     loss = []
@@ -107,7 +107,7 @@ for i, Di in enumerate(D_bcd):
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
     bcd_error.append(loss)
-    plt_bcd1, = axs[1].plot(loss, 'g-')
+    plt_bcd1, = axs[1].plot(loss, 'g:')
 axs[0].legend((plt_palm0, plt_altmin0, plt_bcd0), ('PALM', 'AltMin', 'BCD'))
 axs[1].legend((plt_palm1, plt_altmin1, plt_bcd1), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
