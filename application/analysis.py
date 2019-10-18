@@ -106,7 +106,7 @@ class Subject:
 DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
 INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
 subj = []
-for subject in np.setdiff1d(range(1, 11), [9]):
+for subject in range(1, 11):
     subj.append(Subject(subject, DATA_PATH, INFO_PATH))
     subj[-1].classify()
 #    subj[-1].best_k()
@@ -126,18 +126,39 @@ for i, connectivity_matrix in enumerate(subj[7].connectivity):
                    norm=colors.LogNorm(vmin=1e-3, vmax=4)))
 fig.colorbar(images[0], ax=axs)
 
-fig, axs = plt.subplots(2, 5)
+#fig, axs = plt.subplots(2, 5)
+#images = []
+#for i, components in enumerate(subj[7].components[:2]):
+#    axs[i, 0].set_ylabel('Start: ' + str(i))
+#    for j, component in enumerate(components[:5]):
+#        signal = autoregressive_sample(5*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
+#        if i == 1:
+#            axs[-1, j].set_xlabel('Component: ' + str(j))
+#        axs[i, j].set_xticks([], [])
+#        images.append(axs[i, j].plot(signal + np.arange(0, 12, 2)))
+        
+fig, axs = plt.subplots(2, 1)
 images = []
-for i, components in enumerate(subj[7].components[:2]):
-    axs[i, 0].set_ylabel('Start: ' + str(i))
-    for j, component in enumerate(components[:5]):
-        signal = autoregressive_sample(5*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
-        if i == 1:
-            axs[-1, j].set_xlabel('Component: ' + str(j))
-        axs[i, j].set_xticks([], [])
-        images.append(axs[i, j].plot(signal + np.arange(0, 12, 2)))
+for j, component in enumerate(subj[7].components[0][:2]):
+    signal = autoregressive_sample(10*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
+    axs[j].set_xticks(np.arange(0, 10*SAMPLING_RATE, SAMPLING_RATE))
+    axs[j].set_xticklabels(np.arange(10))
+    axs[j].set_ylabel('Component: ' + str(j))
+    axs[j].set_yticks(np.arange(0, 18, 3))
+    axs[j].set_yticklabels(['FL', 'PL', 'OL', 'FR', 'PR', 'OR'])
+    images.append(axs[j].plot(signal + np.arange(0, 18, 3)))
         
-        
+fig, axs = plt.subplots(5, 1)
+images = []
+class_label = ['Awake', 'N1', 'N2', 'N3', 'REM']
+for i, label in enumerate(np.unique(subj[7].labels)):
+    axs[i].set_ylabel(class_label[i])
+    axs[i].set_xticks(np.arange(0, 10*SAMPLING_RATE, SAMPLING_RATE))
+    axs[i].set_xticklabels(np.arange(10))
+    mixing_coef = np.mean(subj[7].mixing_coef[0][subj[7].labels==label], axis=0)
+    ar_coef = unstack_coef(np.tensordot(mixing_coef, subj[7].components[0], axes=1))
+    signal = autoregressive_sample(10*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
+    images.append(axs[i].plot(signal + np.arange(0, 18, 3)))
     
 #fig, axs = plt.subplots(4, NUM_COMPONENTS)
 #images = []
