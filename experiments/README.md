@@ -1,17 +1,18 @@
 ## Introduction
 
-These scripts re-create the validation tests used in the paper. The package includes two scripts:
+These scripts re-create the experiments used in the paper. The package includes several scripts:
 
 - `comparison.py`
 - `n_vs_m.py`
+- `n_vs_m-analysis.py`
 
-It also includes a module `sampler.py` for generating data according to the $`ALMM(p, r)`$ model.
+It also includes modules `sampler.py` for generating data according to the $`ALM(p, r)`$ model.
 
 ## Comparison
 
 This experiment compares the performance of alternating minimization (AltMin), block coordinate descent (BCD), and 
 proximal alternating linearized minimization (PALM) on a common problem. It used multiple starts on account of the 
-nonconvexity. All algorithms use common initializations for each start. The script can be run as follows:
+non-convexity. All algorithms use common initializations for each start. The script can be run as follows:
 
 ```
 cd my_workspace/almm

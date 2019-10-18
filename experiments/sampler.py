@@ -11,7 +11,7 @@ MIXING_FACTOR = 4
 MAX_ITER = int(1e2)
 
 
-def check_almm_condition(observation, component, mixing_coef):
+def check_alm_condition(observation, component, mixing_coef):
     """
     Computes the condition numbers that show-up in the various iterative procedures
     :param observation: number_observations x observation_length x signal_dimension numpy array
@@ -88,10 +88,10 @@ def autoregressive_sample(observation_length, signal_dimension, noise_variance, 
     return np.squeeze(observation[-observation_length:, :])
 
 
-def almm_sample(number_observations, observation_length, signal_dimension, number_components, model_order, coef_support,
-                coef_condition=None, component_condition=None):
+def alm_sample(number_observations, observation_length, signal_dimension, number_components, model_order, coef_support,
+               coef_condition=None, component_condition=None):
     """
-    Generates random samples according to the ALMM
+    Generates random samples according to the ALM
     :param number_observations: positive integer
     :param observation_length: positive integer
     :param signal_dimension: positive integer
@@ -121,7 +121,7 @@ def almm_sample(number_observations, observation_length, signal_dimension, numbe
                                                          signal_dimension ** (-1 / 2),
                                                          np.tensordot(mixing_coef[i, :], components, axes=1))
         if coef_condition is not None and component_condition is not None:
-            k1, k2 = check_almm_condition(observation, components, mixing_coef)
+            k1, k2 = check_alm_condition(observation, components, mixing_coef)
             if k1 < coef_condition and np.all(k2 < component_condition):
                 break
         else:
