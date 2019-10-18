@@ -5,7 +5,7 @@ from itertools import product
 from timeit import default_timer as timer
 import numpy as np
 import scipy.linalg as sl
-from almm.utility import train_val_split, initialize_components
+from almm.utility import initialize_components
 from almm.solver import negative_log_likelihood, coef_update
 from almm.timeseries import Timeseries
 
