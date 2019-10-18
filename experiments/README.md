@@ -15,7 +15,7 @@ proximal alternating linearized minimization (PALM) on a common problem. It used
 non-convexity. All algorithms use common initializations for each start. The script can be run as follows:
 
 ```
-cd my_workspace/almm
+cd my_workspace/alm
 python validation/comparison.py
 ```
 
@@ -26,7 +26,7 @@ observation length. It is currently set-up to use multiprocessing to take advant
 as follows:
 
 ```
-cd my_workspace/almm
+cd my_workspace/alm
 python validation/n_vs_m.py
 ```
 
@@ -37,10 +37,10 @@ wanted to generate $`100`$ observations in $`\mathbb{R}^5`$ of length $`1000`$ a
 each observation comprised a mixture of $`4`$ components, I could execute the following:
 
 ```python
-from alm.sampler import almm_sample
+from alm.sampler import alm_sample
 n, m, d, r, p, s = 100, 1000, 5, 2, 20, 4
-data, mixing_coef, almm_component = almm_sample(n, m, d, r, p, s)
+data, mixing_coef, alm_component = alm_sample(n, m, d, r, p, s)
 ```
 
 Additionally, there are parameters for `coef_condition` and `component_condition` which default to `None`. If values
-are passed to these parameters, then `almm_sample` will generate samples until the samples satisfy the given condition.
+are passed to these parameters, then `alm_sample` will generate samples until the samples satisfy the given condition.

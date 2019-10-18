@@ -10,7 +10,7 @@ import pickle
 import numpy.random as nr
 from alm.alm import Almm
 from alm.utility import unstack_coef, initialize_components
-from experiments.sampler import almm_sample
+from experiments.sampler import alm_sample
 from experiments.utility import component_distance
 
 n = 1000
@@ -31,7 +31,7 @@ def n_vs_m(experiment_id):
     # Set seed
     nr.seed()
     # Generate alm samples
-    x, _, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
+    x, _, D = alm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
     # Initialize variables
     palm_component_error, palm_likelihood = [], []
     altmin_component_error, altmin_likelihood = [], []
@@ -41,8 +41,8 @@ def n_vs_m(experiment_id):
         # Generate initial autoregressive component estimate
         D_0 = [initialize_components(r, p, d) for _ in range(k)]
         # PALM
-        almm_model = Almm(solver='palm')
-        Di_palm, _, Li_palm, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
+        alm_model = Almm(solver='palm')
+        Di_palm, _, Li_palm, _ = alm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
                                                 initial_component=D_0, return_all=True)
         palm_likelihood.append(Li_palm)
         loss_palm = []
@@ -52,8 +52,8 @@ def n_vs_m(experiment_id):
             loss_palm.append(d_loss)
         palm_component_error.append(loss_palm)
         # AltMin
-        almm_model = Almm(solver='altmin')
-        Di_altmin, _, Li_altmin, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
+        alm_model = Almm(solver='altmin')
+        Di_altmin, _, Li_altmin, _ = alm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
                                                     initial_component=D_0, return_all=True)
         altmin_likelihood.append(Li_altmin)
         loss_altmin = []
@@ -63,8 +63,8 @@ def n_vs_m(experiment_id):
             loss_altmin.append(d_loss)
         altmin_component_error.append(loss_altmin)
         # BCD
-        almm_model = Almm(solver='bcd')
-        Di_bcd, _, Li_bcd, _ = almm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
+        alm_model = Almm(solver='bcd')
+        Di_bcd, _, Li_bcd, _ = alm_model.fit(x[:(n_i+dn-1), :(m_i+dm-1), :], p, r, mu, num_starts=k,
                                               initial_component=D_0, return_all=True)
         bcd_likelihood.append(Li_bcd)
         loss_bcd = []
