@@ -8,10 +8,10 @@ from itertools import product
 from multiprocessing import Pool
 import pickle
 import numpy.random as nr
-from almm.almm import Almm
-from almm.utility import unstack_coef, initialize_components
-from validation.sampler import almm_sample
-from validation.utility import component_distance
+from alm.almm import Almm
+from alm.utility import unstack_coef, initialize_components
+from experiments.sampler import almm_sample
+from experiments.utility import component_distance
 
 n = 1000
 dn = 200
@@ -30,7 +30,7 @@ NUM_PROCESSES = 5
 def n_vs_m(experiment_id):
     # Set seed
     nr.seed()
-    # Generate almm samples
+    # Generate alm samples
     x, _, D = almm_sample(n, m, d, r, p, s, coef_condition=1e2, component_condition=1e2)
     # Initialize variables
     palm_component_error, palm_likelihood = [], []
@@ -74,7 +74,7 @@ def n_vs_m(experiment_id):
             loss_bcd.append(d_loss)
         bcd_component_error.append(loss_bcd)
     # Save results
-    path = "/home/addison/Python/almm/results"
+    path = "/home/addison/Python/alm/results"
     with open(join(path, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".pickle"), 'wb') as f:
         pickle.dump([palm_component_error, altmin_component_error, bcd_component_error, palm_likelihood,
                      altmin_likelihood, bcd_likelihood], f)

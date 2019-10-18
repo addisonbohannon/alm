@@ -10,9 +10,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from almm.utility import unstack_coef, gram_matrix
-from validation.utility import component_distance
-from validation.sampler import autoregressive_sample
+from alm.utility import unstack_coef, gram_matrix
+from experiments.utility import component_distance
+from experiments.sampler import autoregressive_sample
 
 NUM_COMPONENTS = 10
 MODEL_ORDER = 12
@@ -103,8 +103,8 @@ class Subject:
         self.connectivity = [[sl.norm([dtf_j[k] for k in ANY], axis=0) for dtf_j in dtf_k] for dtf_k in self.dtf]
             
 
-DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
-INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
+DATA_PATH = '/home/addison/Python/alm/results/application-mu-e-1/'
+INFO_PATH = '/home/addison/Python/alm/ISRUC-SLEEP/'
 subj = []
 for subject in range(1, 11):
     subj.append(Subject(subject, DATA_PATH, INFO_PATH))

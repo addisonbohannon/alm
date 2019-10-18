@@ -4,8 +4,8 @@
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from almm.timeseries import Timeseries
-from almm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix
+from alm.timeseries import Timeseries
+from alm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix
 
 MIXING_FACTOR = 4
 MAX_ITER = int(1e2)

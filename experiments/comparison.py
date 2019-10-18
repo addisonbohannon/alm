@@ -7,10 +7,10 @@ from timeit import default_timer as timer
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from almm.almm import Almm
-from almm.utility import unstack_coef, initialize_components
-from validation.sampler import almm_sample
-from validation.utility import component_distance
+from alm.almm import Almm
+from alm.utility import unstack_coef, initialize_components
+from experiments.sampler import almm_sample
+from experiments.utility import component_distance
 
 n = 1000
 m = 10000
@@ -21,7 +21,7 @@ s = 3
 k = 5
 mu = 1e-2
 
-# Generate almm sample
+# Generate alm sample
 print('Generating ALMM sample...', end=" ", flush=True)
 t1 = timer()
 x, C, D = almm_sample(n, m, d, r, p, s, coef_condition=1e1, component_condition=1e1)
@@ -112,7 +112,7 @@ axs[0].legend((plt_palm0, plt_altmin0, plt_bcd0), ('PALM', 'AltMin', 'BCD'))
 axs[1].legend((plt_palm1, plt_altmin1, plt_bcd1), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 print('Saving results...', end=' ', flush=True)
-path = "/home/addison/Python/almm/results"
+path = "/home/addison/Python/alm/results"
 plt.savefig(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
 with open(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
     pickle.dump([palm_likelihood, altmin_likelihood, bcd_likelihood, palm_error, altmin_error, bcd_error], f)

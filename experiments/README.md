@@ -36,7 +36,7 @@ wanted to generate $`100`$ observations in $`\mathbb{R}^5`$ of length $`1000`$ a
 each observation comprised a mixture of $`4`$ components, I could execute the following:
 
 ```python
-from almm.sampler import almm_sample
+from alm.sampler import almm_sample
 n, m, d, r, p, s = 100, 1000, 5, 2, 20, 4
 data, mixing_coef, almm_component = almm_sample(n, m, d, r, p, s)
 ```
