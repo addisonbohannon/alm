@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='almm',
+    name='alm',
     version='0.0.0',
-    packages=['almm', 'application', 'validation'],
+    packages=['alm', 'experiments'],
     url='https://gitlab.sitcore.net/addison.bohannon/almm',
     license='',
     author='Addison Bohannon',
