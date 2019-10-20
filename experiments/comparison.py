@@ -7,7 +7,7 @@ from timeit import default_timer as timer
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from alm.alm import Almm
+from alm.alm import Alm
 from alm.utility import unstack_coef, initialize_components
 from experiments.sampler import alm_sample
 from experiments.utility import component_distance
@@ -35,7 +35,7 @@ D_0 = [initialize_components(r, p, d) for _ in range(k)]
 # Fit model with alternating minimization solver
 print('Fitting ALMM with alternating minimization...')
 t1 = timer()
-alm_altmin = Almm(solver='altmin', verbose=True)
+alm_altmin = Alm(solver='altmin', verbose=True)
 D_altmin, C_altmin, altmin_likelihood, _ = alm_altmin.fit(x, p, r, mu, num_starts=k, initial_component=D_0,
                                                           return_path=True, return_all=True)
 t2 = timer()
@@ -44,7 +44,7 @@ print('Elapsed time: ' + str(t2-t1) + 's')
 # Fit model with block coordinate descent solver
 print('Fitting ALMM with block coordinate descent...')
 t3 = timer()
-alm_bcd = Almm(solver='bcd', verbose=True)
+alm_bcd = Alm(solver='bcd', verbose=True)
 D_bcd, C_bcd, bcd_likelihood, _ = alm_bcd.fit(x, p, r, mu, num_starts=k, initial_component=D_0, return_path=True,
                                               return_all=True)
 t4 = timer()
@@ -53,7 +53,7 @@ print('Elapsed time: ' + str(t4-t3) + 's')
 # Fit model with proximal alternating linearized minimization solver
 print('Fitting ALMM with proximal alternating linearized minimization...')
 t5 = timer()
-alm_palm = Almm(solver='palm', verbose=True)
+alm_palm = Alm(solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, _ = alm_palm.fit(x, p, r, mu, num_starts=k, initial_component=D_0, return_path=True,
                                                   return_all=True)
 t6 = timer()

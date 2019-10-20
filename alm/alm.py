@@ -9,12 +9,12 @@ from alm.solver import negative_log_likelihood, coef_update
 from alm.timeseries import Timeseries
 
 
-class Almm:
+class Alm:
 
     def __init__(self, coef_penalty_type='l1', step_size=1e-1, tol=1e-4, max_iter=int(2.5e3), solver='bcd',
                  verbose=False):
         """
-        Instantiate ALMM model
+        Instantiate ALM model
         :param coef_penalty_type: None, l0, or l1
         :param step_size: float; (0, 1)
         :param tol: positive float
