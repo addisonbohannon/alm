@@ -49,5 +49,5 @@ for i, connectivity_matrix in enumerate(connectivity):
             axs[-1, j].set_xlabel('Component: ' + str(j))
         axs[i, j].set_xticks([], [])
         axs[i, j].set_yticks([], [])
-        images.append(axs[i, j].imshow(connectivity_j, norm=colors.LogNorm(vmin=1e-3, vmax=4), cmap=plt.cm.viridis))
+        images.append(axs[i, j].imshow(connectivity_j, norm=colors.LogNorm(vmin=1e-2, vmax=4), cmap=plt.cm.Blues))
 fig.colorbar(images[0], ax=axs, fraction=0.046, pad=0.04)

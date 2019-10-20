@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 VMIN = 0
 VMAX = 12
 
-PATH = '/home/addison/Python/alm/results/n_vs_m'
+PATH = '/home/addison/Python/almm/results/n_vs_m'
 os.chdir(PATH)
 
 files = [file for _, _, file in os.walk(PATH)].pop()
@@ -41,10 +41,10 @@ for ax in axs:
     ax.set_ylabel('Number of observations')
     ax.set_yticks([0, 1, 2])
     ax.set_yticklabels([10, 100, 1000])
-images.append(axs[0].imshow(error_altmin, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Purples))
+images.append(axs[0].imshow(error_altmin, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Blues))
 axs[0].set_title('AltMin')
 images.append(axs[1].imshow(error_bcd, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Blues))
 axs[1].set_title('BCD')
-images.append(axs[2].imshow(error_palm, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Greens))
+images.append(axs[2].imshow(error_palm, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Blues))
 axs[2].set_title('PALM')
-fig.colorbar(images[0], ax=axs, fraction=0.046, pad=0.04)
+fig.colorbar(images[0], ax=axs, fraction=0.012, pad=0.04)

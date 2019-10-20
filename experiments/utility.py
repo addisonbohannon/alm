@@ -7,8 +7,8 @@ import scipy.io as sio
 import cvxpy as cp
 
 
-DATA_PATH = '/home/addison/Python/alm/results/application-mu-e-1/'
-INFO_PATH = '/home/addison/Python/alm/ISRUC-SLEEP/'
+DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
+INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
 
 
 def component_distance(component_1, component_2, p=2):
@@ -55,17 +55,17 @@ def load_results(subj_id, start=None):
     :return labels: list of integers
     """
 
-    if not isinstance(subj_id, int) or (0 <= subj_id < 10):
+    if not isinstance(subj_id, int) or not (0 < subj_id <= 10):
         raise ValueError('Subject ID must be between 0 and 9.')
-    if start is not None and (not isinstance(start, int) or (0 <= start < 5)):
+    if start is not None and (not isinstance(start, int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    data = sio.loadmat(join(DATA_PATH, 'subj_id' + str(subj_id) + '_results_palm.mat'))
+    data = sio.loadmat(join(DATA_PATH, 'subj' + str(subj_id) + '_results_palm.mat'))
     components = [D[-1] for D in data['D_palm']]
     mixing_coef = [C[-1] for C in data['C_palm']]
     del data
     if start is not None:
         components = components[start]
         mixing_coef = mixing_coef[start]
-    labels = np.squeeze(sio.loadmat(join(INFO_PATH, 'subj_id' + str(subj_id) + '.mat'))['Y'])
+    labels = np.squeeze(sio.loadmat(join(INFO_PATH, 'subj' + str(subj_id) + '.mat'))['Y'])
     return components, mixing_coef, labels
