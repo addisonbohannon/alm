@@ -18,7 +18,7 @@ d = 5
 r = 10
 p = 2
 s = 3
-k = 5
+k = 3
 mu = 1e-2
 
 # Generate alm sample
@@ -82,7 +82,7 @@ for i, Di in enumerate(D_palm):
     plt_palm1, = axs[1].plot(loss, 'g-')
 # Plot AltMin results
 for likelihood in altmin_likelihood:
-    plt_altmin0, = axs[0].plot(likelihood, color=(128, 0, 128), linestyle='dashed')
+    plt_altmin0, = axs[0].plot(likelihood, color=(0.5, 0, 0.5), linestyle='dashed')
 altmin_error = []
 for i, Di in enumerate(D_altmin):
     loss = []
@@ -93,7 +93,7 @@ for i, Di in enumerate(D_altmin):
         d_loss, _, _ = component_distance(D, Dis_pred)
         loss.append(d_loss)
     altmin_error.append(loss)
-    plt_altmin1, = axs[1].plot(loss, color=(128, 0, 128), linestyle='dashed')
+    plt_altmin1, = axs[1].plot(loss, color=(0.5, 0, 0.5), linestyle='dashed')
 # Plot BCD results
 for likelihood in bcd_likelihood:
     plt_bcd0, = axs[0].plot(likelihood, 'b:')
@@ -112,7 +112,7 @@ axs[0].legend((plt_palm0, plt_altmin0, plt_bcd0), ('PALM', 'AltMin', 'BCD'))
 axs[1].legend((plt_palm1, plt_altmin1, plt_bcd1), ('PALM', 'AltMin', 'BCD'))
 print('Complete.')
 print('Saving results...', end=' ', flush=True)
-path = "/home/addison/Python/alm/results"
+path = "/home/addison/Python/almm/results"
 plt.savefig(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".svg"))
 with open(join(path, "comparison-"+dt.now().strftime("%y%b%d_%H%M")+".pickle"), 'wb') as f:
     pickle.dump([palm_likelihood, altmin_likelihood, bcd_likelihood, palm_error, altmin_error, bcd_error], f)
