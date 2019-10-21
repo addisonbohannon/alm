@@ -6,9 +6,8 @@ import matplotlib.colors as colors
 from alm.utility import unstack_coef
 from experiments.utility import load_group_results
 
-p = 12
-r = 10
-mu = 0.1
+MODEL_ORDER = 12
+PENALTY_PARAMETER = 0.1
 SIGNAL_DIM = 6
 NUM_COMPONENTS = 10
 SAMPLING_RATE = 200
@@ -32,7 +31,8 @@ ALPHA = [k for k in range(OBS_LENGTH) if ALPHA_MIN <= frequency(k) < ALPHA_MAX]
 BETA = [k for k in range(OBS_LENGTH) if BETA_MIN <= frequency(k) < BETA_MAX]
 ANY = [k for k in range(OBS_LENGTH) if DELTA_MIN <= frequency(k) < BETA_MAX]
 
-components, mixing_coef, _ = load_group_results(p=p, r=r, mu=mu)
+components, mixing_coef, _ = load_group_results(model_order=MODEL_ORDER, num_components=NUM_COMPONENTS,
+                                                penalty_parameter=PENALTY_PARAMETER)
 connectivity = []
 for component_j in components:
     component_j = unstack_coef(component_j)

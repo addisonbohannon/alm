@@ -6,14 +6,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from experiments.utility import load_group_results
 
-p = [12, 12, 16]
-r = [10, 15, 10]
-mu = 0.1
+MODEL_ORDER = [12, 12, 16]
+NUM_COMPONENTS = [10, 15, 10]
+PENALTY_PARAMETER = 0.1
 
 skf = StratifiedKFold(n_splits=5)
 score, lr_coef = [], []
-for p_i, r_i in zip(p, r):
-    _, coef, labels = load_group_results(p=p_i, r=r_i, mu=mu)
+for p_i, r_i in zip(MODEL_ORDER, NUM_COMPONENTS):
+    _, coef, labels = load_group_results(model_order=p_i, num_components=r_i, penalty_parameter=PENALTY_PARAMETER)
     labels = np.array(labels)
     score_i, lr_coef_i = [], []
     for train_index, test_index in skf.split(coef, labels):

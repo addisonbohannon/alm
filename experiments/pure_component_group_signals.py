@@ -7,15 +7,16 @@ from alm.utility import unstack_coef
 from experiments.sampler import autoregressive_sample
 from experiments.utility import load_group_results
 
-p = 12
-r = 10
-mu = 0.1
+MODEL_ORDER = 12
+NUM_COMPONENTS = 10
+PENALTY_PARAMETER = 0.1
 SIGNAL_DIM = 6
 SAMPLING_RATE = 200
 SAMPLE_LEN = 2
 
 fig, axs = plt.subplots(1, 3)
-components, _, _ = load_group_results(p=p, r=r, mu=mu)
+components, _, _ = load_group_results(model_order=MODEL_ORDER, num_components=NUM_COMPONENTS,
+                                      penalty_parameter=PENALTY_PARAMETER)
 images = []
 for j, component in enumerate(components[:3]):
     signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))

@@ -74,25 +74,26 @@ def load_results(subj_id, start=None):
 
     return components, mixing_coef, labels
 
-def load_group_results(p=12, r=10, mu=0.1):
+
+def load_group_results(model_order=12, num_components=10, penalty_parameter=0.1):
     """
     Load results from fitted group ALM model
-    :param p: integer, {12, 16, 20}
-    :param r: integer, {10, 15, 20}
-    :param mu: float, {0.1, 1}
+    :param model_order: integer, {12, 16, 20}
+    :param num_components: integer, {10, 15, 20}
+    :param penalty_parameter: float, {0.1, 1}
     :return components: list of num_components x model_order*signal_dim x signal_dim numpy arrays
     :return mixing_coef: list of num_obs x num_components numpy arrays
     :return labels: list of integers
     """
 
-    if p not in [12, 16, 20]:
+    if model_order not in [12, 16, 20]:
         raise ValueError('Model order must be 12, 16, or 20.')
-    if r not in [10, 15, 20]:
+    if num_components not in [10, 15, 20]:
         raise ValueError('Number of components must be 10, 15, or 20.')
-    if mu == 1 and not (p == 20 or r == 20):
+    if penalty_parameter == 1 and not (model_order == 20 or num_components == 20):
         raise ValueError('Penalty parameter must be 0.1, or 0.1 or 1 for p=20 and r=20.')
 
-    hf = h5py.File(join(GROUP_PATH, 'results_p=' + str(p) + '_r=' + str(r) + '_mu=' + str(mu) + '.h5'), 'r')
+    hf = h5py.File(join(GROUP_PATH, 'results_p=' + str(model_order) + '_r=' + str(num_components) + '_mu=' + str(penalty_parameter) + '.h5'), 'r')
     mixing_coef = hf.get('C_palm')[-1]
     components = hf.get('D_palm')[-1]
     labels = pickle.load(open(join(GROUP_PATH, 'labels.pickle'), 'rb'))
