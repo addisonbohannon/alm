@@ -4,7 +4,7 @@ import scipy.fftpack as sf
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from alm.utility import unstack_coef
-from experiments.utility import load_results
+from experiments.utility import load_individual_results
 
 SIGNAL_DIM = 6
 NUM_COMPONENTS = 10
@@ -29,7 +29,7 @@ ALPHA = [k for k in range(OBS_LENGTH) if ALPHA_MIN <= frequency(k) < ALPHA_MAX]
 BETA = [k for k in range(OBS_LENGTH) if BETA_MIN <= frequency(k) < BETA_MAX]
 ANY = [k for k in range(OBS_LENGTH) if DELTA_MIN <= frequency(k) < BETA_MAX]
 
-subj_components, subj_mixing_coef, subj_labels = load_results(7)
+subj_components, subj_mixing_coef, subj_labels = load_individual_results(7)
 connectivity = []
 for start_component in subj_components:
     connectivity_start = []

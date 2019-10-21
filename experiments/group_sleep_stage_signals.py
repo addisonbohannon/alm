@@ -28,5 +28,6 @@ for i, label in enumerate(np.unique(labels)):
     axs[i].set_yticklabels(['F3-A2', 'C3-A2', 'O1-A2', 'F4-A1', 'C4-A1', 'O2-A1'])
     subj_mixing_coef_i = np.mean(mixing_coef[labels == label], axis=0)
     ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, components, axes=1))
-    signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
+    signal = autoregressive_sample(2000, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
+    signal = signal[:SAMPLE_LEN*SAMPLING_RATE]
     images.append(axs[i].plot(signal + np.arange(0, 18, 3)))

@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from alm.utility import unstack_coef
 from experiments.sampler import autoregressive_sample
-from experiments.utility import load_results
+from experiments.utility import load_individual_results
 
 SIGNAL_DIM = 6
 SAMPLING_RATE = 200
@@ -13,7 +13,7 @@ SAMPLE_LEN = 2
 CLASS_LABEL = ['Awake', 'N1', 'N2', 'N3', 'REM']
 
 fig, axs = plt.subplots(5, 1)
-subj_components, subj_mixing_coef, subj_labels = load_results(7, start=0)
+subj_components, subj_mixing_coef, subj_labels = load_individual_results(7, start=0)
 images = []
 for i, label in enumerate(np.unique(subj_labels)):
     axs[i].set_ylabel(CLASS_LABEL[i])
@@ -24,5 +24,6 @@ for i, label in enumerate(np.unique(subj_labels)):
     axs[i].set_yticklabels(['F3-A2', 'C3-A2', 'O1-A2', 'F4-A1', 'C4-A1', 'O2-A1'])
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)
     ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
-    signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
+    signal = autoregressive_sample(2000, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
+    signal = signal[:SAMPLE_LEN*SAMPLING_RATE]
     images.append(axs[i].plot(signal + np.arange(0, 18, 3)))

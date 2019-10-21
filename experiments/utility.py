@@ -3,15 +3,11 @@
 
 from os.path import join
 import pickle
-import h5py
 import numpy as np
-import scipy.io as sio
 import cvxpy as cp
 
 
-DATA_PATH = '/home/addison/Python/almm/results/application-mu-e-1/'
-INFO_PATH = '/home/addison/Python/almm/ISRUC-SLEEP/'
-GROUP_PATH = '/home/addison/Python/almm/results/group/'
+DATA_PATH = '/home/addison/Python/almm/results/'
 
 
 def component_distance(component_1, component_2, p=2):
@@ -48,7 +44,7 @@ def component_distance(component_1, component_2, p=2):
     return prob.value, d[w.value > 1e-3], w.value
 
 
-def load_results(subj_id, start=None):
+def load_individual_results(subj_id, start=None):
     """
     Load results from fitted ALM model
     :param subj_id: integer, [0, 9]
@@ -63,14 +59,11 @@ def load_results(subj_id, start=None):
     if start is not None and (not isinstance(start, int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    data = sio.loadmat(join(DATA_PATH, 'subj' + str(subj_id) + '_results_palm.mat'))
-    components = [D[-1] for D in data['D_palm']]
-    mixing_coef = [C[-1] for C in data['C_palm']]
-    del data
+    with open(join(DATA_PATH, 'individual/subj_' + str(subj_id) + '_results.pickle'), 'rb') as f:
+        components, mixing_coef, labels = pickle.load(f)
     if start is not None:
         components = components[start]
         mixing_coef = mixing_coef[start]
-    labels = np.squeeze(sio.loadmat(join(INFO_PATH, 'subj' + str(subj_id) + '.mat'))['Y'])
 
     return components, mixing_coef, labels
 
@@ -93,9 +86,7 @@ def load_group_results(model_order=12, num_components=10, penalty_parameter=0.1)
     if penalty_parameter == 1 and not (model_order == 20 or num_components == 20):
         raise ValueError('Penalty parameter must be 0.1, or 0.1 or 1 for p=20 and r=20.')
 
-    hf = h5py.File(join(GROUP_PATH, 'results_p=' + str(model_order) + '_r=' + str(num_components) + '_mu=' + str(penalty_parameter) + '.h5'), 'r')
-    mixing_coef = hf.get('C_palm')[-1]
-    components = hf.get('D_palm')[-1]
-    labels = pickle.load(open(join(GROUP_PATH, 'labels.pickle'), 'rb'))
+    with open(join(DATA_PATH, 'group/p' + str(model_order) + '_r' + str(num_components) + '_mu' + str(penalty_parameter) + '.pickle'), 'rb') as f:
+        components, mixing_coef, labels = pickle.load(f)
 
     return components, mixing_coef, labels
