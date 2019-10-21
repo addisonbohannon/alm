@@ -12,6 +12,6 @@ setup(
     author='Addison Bohannon',
     author_email='addison.bohannon@gmail.com',
     description='Autoregressive Linear Mixture Model',
-    install_requires=['numpy', 'scipy', 'cvxpy', 'matplotlib', 'scikit-learn'],
+    install_requires=['numpy', 'scipy', 'h5py', 'cvxpy', 'matplotlib', 'scikit-learn'],
     scripts=[]
 )
