@@ -8,10 +8,10 @@ from itertools import product
 from multiprocessing import Pool
 import pickle
 import numpy.random as nr
-from almm.almm import Almm
-from almm.utility import unstack_coef, initialize_components
-from validation.sampler import almm_sample
-from validation.utility import component_distance
+from alm.alm import Alm
+from alm.utility import unstack_coef, initialize_components
+from experiments.sampler import alm_sample
+from experiments.utility import component_distance
 
 n = [10, 100, 1000]
 m = [10, 100, 1000, 10000]
@@ -28,8 +28,8 @@ NUM_PROCESSES = 3
 def n_vs_m(experiment_id):
     # Set seed
     nr.seed()
-    # Generate almm samples
-    x, _, D = almm_sample(max(n), max(m), d, r, p, s, coef_condition=1e2, component_condition=1e2)
+    # Generate alm samples
+    x, _, D = alm_sample(max(n), max(m), d, r, p, s, coef_condition=1e2, component_condition=1e2)
     # Initialize variables
     palm_component_error, palm_likelihood = [], []
     altmin_component_error, altmin_likelihood = [], []
@@ -39,8 +39,8 @@ def n_vs_m(experiment_id):
     # Implement solver for varying number of observations and length of observations
     for (n_i, m_i) in product(n, m):
         # PALM
-        almm_model = Almm(solver='palm')
-        Di_palm, _, Li_palm, _ = almm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
+        alm_model = Alm(solver='palm')
+        Di_palm, _, Li_palm, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
                                                 initial_component=D_0, return_all=True)
         palm_likelihood.append(Li_palm)
         loss_palm = []
@@ -50,8 +50,8 @@ def n_vs_m(experiment_id):
             loss_palm.append(d_loss)
         palm_component_error.append(loss_palm)
         # AltMin
-        almm_model = Almm(solver='altmin')
-        Di_altmin, _, Li_altmin, _ = almm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
+        alm_model = Alm(solver='altmin')
+        Di_altmin, _, Li_altmin, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
                                                     initial_component=D_0, return_all=True)
         altmin_likelihood.append(Li_altmin)
         loss_altmin = []
@@ -61,8 +61,8 @@ def n_vs_m(experiment_id):
             loss_altmin.append(d_loss)
         altmin_component_error.append(loss_altmin)
         # BCD
-        almm_model = Almm(solver='bcd')
-        Di_bcd, _, Li_bcd, _ = almm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
+        alm_model = Alm(solver='bcd')
+        Di_bcd, _, Li_bcd, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], p, r, mu, num_starts=k,
                                               initial_component=D_0, return_all=True)
         bcd_likelihood.append(Li_bcd)
         loss_bcd = []
