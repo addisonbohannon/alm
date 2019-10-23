@@ -47,14 +47,14 @@ def component_distance(component_1, component_2, p=2):
 def load_individual_results(subj_id, start=None):
     """
     Load results from fitted ALM model
-    :param subj_id: integer, [0, 9]
+    :param subj_id: integer, [1, 11]
     :param start: integer, [0, 4]
     :return components: list of num_components x model_order*signal_dim x signal_dim numpy arrays
     :return mixing_coef: list of num_obs x num_components numpy arrays
     :return labels: list of integers
     """
 
-    if not isinstance(subj_id, int) or not (0 < subj_id <= 10):
+    if not isinstance(subj_id, int) or not (0 < subj_id <= 11):
         raise ValueError('Subject ID must be between 0 and 9.')
     if start is not None and (not isinstance(start, int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
