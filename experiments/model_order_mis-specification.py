@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from os.path import join
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm
 from experiments.sampler import alm_sample
 
-NUM_OBS = 100
-OBS_LEN = 1000
+NUM_OBS = 1000
+OBS_LEN = 10000
 SIGNAL_DIM = 5
 NUM_COMPONENTS = 10
 MODEL_ORDER = [1, 2, 4, 8]
 COEF_SUPP = 3
 NUM_STARTS = 1
 PENALTY_PARAM = 1e-2
+SAVE_PATH = '/home/addison/Python/almm/results'
 
 nll = np.zeros([len(MODEL_ORDER), len(MODEL_ORDER)])
 error = np.zeros_like(nll)
@@ -34,3 +37,6 @@ ax.set_yticks([0, 1, 2, 3])
 ax.set_yticklabels(MODEL_ORDER)
 image = ax.imshow(nll, origin='lower', cmap=plt.cm.Blues)
 fig.colorbar(image, fraction=0.046, pad=0.04)
+plt.savefig(join(SAVE_PATH, 'model_order_misspecification.eps'))
+with open(join(SAVE_PATH, 'model_order_misspecification.pickle'), 'wb') as f:
+    pickle.dump(nll, f)
