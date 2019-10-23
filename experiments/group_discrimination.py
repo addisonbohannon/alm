@@ -6,8 +6,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from experiments.utility import load_group_results
 
-MODEL_ORDER = [12, 12, 16, 20, 16]
-NUM_COMPONENTS = [10, 15, 10, 10, 15]
+MODEL_ORDER = [12, 12, 16, 20, 16, 12]
+NUM_COMPONENTS = [10, 15, 10, 10, 15, 20]
 PENALTY_PARAMETER = 0.1
 
 skf = StratifiedKFold(n_splits=5)
