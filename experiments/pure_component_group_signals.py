@@ -19,8 +19,7 @@ components, _, _ = load_group_results(model_order=MODEL_ORDER, num_components=NU
                                       penalty_parameter=PENALTY_PARAMETER)
 images = []
 for j, component in enumerate(components[:3]):
-    signal = autoregressive_sample(2000, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
-    signal = signal[:SAMPLE_LEN*SAMPLING_RATE]
+    signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
     axs[j].set_xticks(np.arange(0, SAMPLE_LEN*SAMPLING_RATE+1, SAMPLING_RATE))
     axs[j].set_xticklabels(np.arange(SAMPLE_LEN+1))
     axs[j].set_ylabel('Component: ' + str(j))

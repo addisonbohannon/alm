@@ -7,7 +7,7 @@ import scipy.linalg as sl
 from alm.timeseries import Timeseries
 from alm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix
 
-MIXING_FACTOR = 4
+MIXING_TIME = 1000
 MAX_ITER = int(1e2)
 
 
@@ -39,9 +39,7 @@ def check_alm_condition(observation, component, mixing_coef):
     component_singvals = sl.svdvals(component_matrix)
     component = [stack_coef(component_j) for component_j in component]
     component_gram = component_gram_matrix(XtX, component)
-    coef_singvals = np.zeros([number_observations, number_components])
-    for i in range(number_observations):
-        coef_singvals[i] = sl.svdvals(component_gram[i])
+    coef_singvals = [sl.svdvals(component_gram_i) for component_gram_i in component_gram]
 
     return np.max(component_singvals) / np.min(component_singvals), \
            np.max(coef_singvals, axis=1) / np.min(coef_singvals, axis=1)
@@ -76,7 +74,7 @@ def autoregressive_sample(observation_length, signal_dimension, noise_variance, 
 
     model_order, _, _ = autoregressive_coef.shape
     # Generate more samples than necessary to allow for mixing of the process
-    observation_length_with_mixing = MIXING_FACTOR * observation_length + model_order
+    observation_length_with_mixing = MIXING_TIME + observation_length + model_order
     observation = np.zeros([observation_length_with_mixing, signal_dimension, 1])
     observation[:model_order, :, :] = nr.randn(model_order, signal_dimension, 1)
     observation[model_order, :, :] = (np.sum(np.matmul(autoregressive_coef, observation[model_order - 1::-1, :, :]),
