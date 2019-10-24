@@ -15,5 +15,7 @@ periodogram = [periodogram_from_filter(unstack_coef(component_j), SAMPLING_RATE,
 fig, axs = plt.subplots(len(components), 1, sharey=True)
 for ax, Pxx in zip(axs, periodogram):
     ax.plot(Pxx[0])
-    ax.set_xticks(np.arange(0, len(Pxx[1]), 10, dtype=np.int))
-    ax.set_xticklabels(Pxx[1][0::10])
+    ax.set_xticks([])
+axs[-1].set_xticks(np.arange(0, len(Pxx[0]), 10, dtype=np.int))
+axs[-1].set_xticklabels(Pxx[1][::10])
+axs[-1].set_xlabel('Frequency (Hz)')
