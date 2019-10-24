@@ -61,6 +61,8 @@ def load_individual_results(subj_id, start=None):
 
     with open(join(DATA_PATH, 'individual/subj_' + str(subj_id) + '_results.pickle'), 'rb') as f:
         components, mixing_coef, labels = pickle.load(f)
+    if subj_id == 11:
+        components, mixing_coef = [components], [mixing_coef]
     if start is not None:
         components = components[start]
         mixing_coef = mixing_coef[start]
