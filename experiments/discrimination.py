@@ -8,7 +8,7 @@ from experiments.utility import load_individual_results
 
 score, lr_coef = [], []
 skf = StratifiedKFold(n_splits=5)
-for subj in range(1, 11):
+for subj in range(1, 12):
     _, subj_coef, subj_labels = load_individual_results(subj)
     subj_score, subj_lr_coef = [], []
     for subj_coef_k in subj_coef:

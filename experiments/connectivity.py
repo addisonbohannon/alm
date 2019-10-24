@@ -29,7 +29,7 @@ ALPHA = [k for k in range(OBS_LENGTH) if ALPHA_MIN <= frequency(k) < ALPHA_MAX]
 BETA = [k for k in range(OBS_LENGTH) if BETA_MIN <= frequency(k) < BETA_MAX]
 ANY = [k for k in range(OBS_LENGTH) if DELTA_MIN <= frequency(k) < BETA_MAX]
 
-subj_components, subj_mixing_coef, subj_labels = load_individual_results(7)
+subj_components, _, _ = load_individual_results(8)
 connectivity = []
 for start_component in subj_components:
     connectivity_start = []

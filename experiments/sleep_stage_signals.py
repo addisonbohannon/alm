@@ -13,7 +13,7 @@ SAMPLE_LEN = 2
 CLASS_LABEL = ['Awake', 'N1', 'N2', 'N3', 'REM']
 
 fig, axs = plt.subplots(5, 1)
-subj_components, subj_mixing_coef, subj_labels = load_individual_results(7, start=0)
+subj_components, subj_mixing_coef, subj_labels = load_individual_results(8, start=0)
 images = []
 for i, label in enumerate(np.unique(subj_labels)):
     axs[i].set_ylabel(CLASS_LABEL[i])

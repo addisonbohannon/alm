@@ -12,7 +12,7 @@ SAMPLING_RATE = 200
 SAMPLE_LEN = 2
 
 fig, axs = plt.subplots(2, 1)
-subj_components, _, _ = load_individual_results(7, start=0)
+subj_components, _, _ = load_individual_results(8, start=0)
 images = []
 for j, component in enumerate(subj_components[:2]):
     signal = autoregressive_sample(2000, SIGNAL_DIM, SIGNAL_DIM**(-1/2), unstack_coef(component))
