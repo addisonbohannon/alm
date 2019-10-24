@@ -101,8 +101,8 @@ def periodogram_from_filter(filter_coef, sampling_rate, fft_len=None):
     :param filter_coef: model_order x signal_dim x signal_dim numpy array
     :param sampling_rate: positive integer
     :param fft_len: positive integer
-    :return periodogram: sampling_rate/2 numpy array
-    :return frequencies:  sampling_rate/2 numpy array
+    :return periodogram: fft_len/2 numpy array
+    :return frequencies:  fft_len/2 numpy array
     """
 
     if not (len(filter_coef.shape) == 3):
@@ -119,12 +119,38 @@ def periodogram_from_filter(filter_coef, sampling_rate, fft_len=None):
         fft_len = len(filter_coef) + 1
     elif not isinstance(fft_len, int):
         raise TypeError('Periodogram length must be an integer.')
-        
-    return_len = int(fft_len / 2)
+
+    transfer_function, frequencies = transfer_function_from_filter(filter_coef, sampling_rate, fft_len=fft_len)
+    periodogram = np.square(sl.norm(transfer_function, axis=(1, 2), ord=2))
+
+    return periodogram, frequencies
+
+
+def transfer_function_from_filter(filter_coef, sampling_rate, fft_len=None):
+    """
+    Compute transfer function from filter coefficients
+    :param filter_coef: model_order x signal_dim x signal_dim numpy array
+    :param fft_len: positive integer
+    :return transfer_function: fft_len/2 x signal_dim x signal_dim numpy array
+    """
+
+    if not (len(filter_coef.shape) == 3):
+        raise ValueError('Filter coefficients must be model order x signal dimension x signal dimension numpy array.')
+    model_order, signal_dim1, signal_dim2 = filter_coef.shape
+    if signal_dim1 != signal_dim2:
+        raise ValueError('Filter coefficients must be signal dimension by signal dimension.')
+    else:
+        signal_dim = signal_dim1
+        del signal_dim2
+    if fft_len is None:
+        fft_len = len(filter_coef) + 1
+    elif not isinstance(fft_len, int):
+        raise TypeError('Periodogram length must be an integer.')
 
     def frequency(k): return k * sampling_rate / fft_len
 
+    return_len = int(fft_len / 2)
     filter_coef = np.concatenate((np.expand_dims(np.eye(signal_dim), 0), -filter_coef), axis=0)
-    transfer_function = np.array([sl.inv(H) for H in sf.fft(filter_coef, n=fft_len, axis=0)[:return_len]])
-    periodogram = np.square(sl.norm(transfer_function, axis=(1, 2), ord=2))
-    return periodogram, frequency(np.arange(return_len))
+
+    return np.array([sl.inv(H) for H in sf.fft(filter_coef, n=fft_len, axis=0)[:return_len]]), \
+        frequency(np.arange(return_len))
