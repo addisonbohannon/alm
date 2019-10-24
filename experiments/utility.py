@@ -4,8 +4,9 @@
 from os.path import join
 import pickle
 import numpy as np
+import scipy.linalg as sl
+import scipy.fftpack as sf
 import cvxpy as cp
-
 
 DATA_PATH = '/home/addison/Python/almm/results/'
 
@@ -92,3 +93,38 @@ def load_group_results(model_order=12, num_components=10, penalty_parameter=0.1)
         components, mixing_coef, labels = pickle.load(f)
 
     return components, mixing_coef, labels
+
+
+def periodogram_from_filter(filter_coef, sampling_rate, fft_len=None):
+    """
+    Generate periodogram from filter coefficients
+    :param filter_coef: model_order x signal_dim x signal_dim numpy array
+    :param sampling_rate: positive integer
+    :param fft_len: positive integer
+    :return periodogram: sampling_rate/2 numpy array
+    :return frequencies:  sampling_rate/2 numpy array
+    """
+
+    if not (len(filter_coef.shape) == 3):
+        raise ValueError('Filter coefficients must be model order x signal dimension x signal dimension numpy array.')
+    model_order, signal_dim1, signal_dim2 = filter_coef.shape
+    if signal_dim1 != signal_dim2:
+        raise ValueError('Filter coefficients must be signal dimension by signal dimension.')
+    else:
+        signal_dim = signal_dim1
+        del signal_dim2
+    if not isinstance(sampling_rate, int) or not sampling_rate > 0:
+        raise ValueError('Samping rate must be a positive integer.')
+    if fft_len is None:
+        fft_len = len(filter_coef) + 1
+    elif not isinstance(fft_len, int):
+        raise TypeError('Periodogram length must be an integer.')
+        
+    return_len = int(fft_len / 2)
+
+    def frequency(k): return k * sampling_rate / fft_len
+
+    filter_coef = np.concatenate((np.expand_dims(np.eye(signal_dim), 0), -filter_coef), axis=0)
+    transfer_function = np.array([sl.inv(H) for H in sf.fft(filter_coef, n=fft_len, axis=0)[:return_len]])
+    periodogram = np.square(sl.norm(transfer_function, axis=(1, 2), ord=2))
+    return periodogram, frequency(np.arange(return_len))
