@@ -21,7 +21,7 @@ for i, label in enumerate(np.unique(subj_labels)):
     axs[i].set_xticklabels(np.arange(SAMPLE_LEN+1))
     axs[i].set_yticks(np.arange(0, 18, 3))
     # Need to replace these placeholders with real channels
-    axs[i].set_yticklabels(['F3-A2', 'C3-A2', 'O1-A2', 'F4-A1', 'C4-A1', 'O2-A1'])
+    axs[i].set_yticklabels(['F3', 'C3', 'O1', 'F4', 'C4', 'O2'])
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)
     ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
     signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
