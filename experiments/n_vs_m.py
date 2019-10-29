@@ -4,82 +4,55 @@
 from os import getpid
 from os.path import join
 from datetime import datetime as dt
-from itertools import product
-from multiprocessing import Pool
 import pickle
-import numpy.random as nr
+import numpy as np
+import matplotlib.pyplot as plt
 from alm.alm import Alm
 from alm.utility import unstack_coef, initialize_components
 from experiments.sampler import alm_sample
 from experiments.utility import component_distance
 
-NUM_OBS = [10, 100, 1000]
-OBS_LEN = [10, 100, 1000, 10000]
+NUM_OBS = [2**i for i in range(4, 11)]
+OBS_LEN = [2**i for i in range(4, 11)]
 SIGNAL_DIM = 5
 NUM_COMPONENTS = 10
 MODEL_ORDER = 2
 COEF_SUPPORT = 3
 NUM_STARTS = 10
 PENALTY_PARAM = 1e-2
-NUM_PROCESSES = 3
+NUM_ITERATIONS = 10
+VMIN = 0
+VMAX = 14
+SAVE_PATH = "/home/addison/Python/almm/results"
 
-
-def n_vs_m(experiment_id):
-    # Set seed
-    nr.seed()
-    # Generate alm samples
+nll = np.zeros([NUM_ITERATIONS, len(NUM_OBS), len(OBS_LEN)])
+error = np.zeros_like(nll)
+for iteration in range(NUM_ITERATIONS):
     x, _, D = alm_sample(max(NUM_OBS), max(OBS_LEN), SIGNAL_DIM, NUM_COMPONENTS, MODEL_ORDER, COEF_SUPPORT,
                          coef_condition=1e2, component_condition=1e2)
-    # Initialize variables
-    palm_component_error, palm_likelihood = [], []
-    altmin_component_error, altmin_likelihood = [], []
-    bcd_component_error, bcd_likelihood = [], []
-    # Generate initial autoregressive component estimate
     D_0 = [initialize_components(NUM_COMPONENTS, MODEL_ORDER, SIGNAL_DIM) for _ in range(NUM_STARTS)]
-    # Implement solver for varying number of observations and length of observations
-    for (n_i, m_i) in product(NUM_OBS, OBS_LEN):
-        # PALM
-        alm_model = Alm(solver='palm')
-        Di_palm, _, Li_palm, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], MODEL_ORDER, NUM_COMPONENTS, PENALTY_PARAM,
-                                               num_starts=NUM_STARTS, initial_component=D_0, return_all=True)
-        palm_likelihood.append(Li_palm)
-        loss_palm = []
-        for Dis_palm in Di_palm:
-            D_pred = [unstack_coef(Dj) for Dj in Dis_palm]
-            d_loss, _, _ = component_distance(D, D_pred)
-            loss_palm.append(d_loss)
-        palm_component_error.append(loss_palm)
-        # AltMin
-        alm_model = Alm(solver='altmin')
-        Di_altmin, _, Li_altmin, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], MODEL_ORDER, NUM_COMPONENTS, PENALTY_PARAM,
-                                                   num_starts=NUM_STARTS, initial_component=D_0, return_all=True)
-        altmin_likelihood.append(Li_altmin)
-        loss_altmin = []
-        for Dis_altmin in Di_altmin:
-            D_pred = [unstack_coef(Dj) for Dj in Dis_altmin]
-            d_loss, _, _ = component_distance(D, D_pred)
-            loss_altmin.append(d_loss)
-        altmin_component_error.append(loss_altmin)
-        # BCD
-        alm_model = Alm(solver='bcd')
-        Di_bcd, _, Li_bcd, _ = alm_model.fit(x[:(n_i-1), :(m_i-1), :], MODEL_ORDER, NUM_COMPONENTS, PENALTY_PARAM,
-                                             num_starts=NUM_STARTS, initial_component=D_0, return_all=True)
-        bcd_likelihood.append(Li_bcd)
-        loss_bcd = []
-        for Dis_bcd in Di_bcd:
-            D_pred = [unstack_coef(Dj) for Dj in Dis_bcd]
-            d_loss, _, _ = component_distance(D, D_pred)
-            loss_bcd.append(d_loss)
-        bcd_component_error.append(loss_bcd)
-    # Save results
-    path = "/home/addison/Python/almm/results"
-    with open(join(path, "n_vs_m-log-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".pickle"), 'wb') \
-            as f:
-        pickle.dump([palm_component_error, altmin_component_error, bcd_component_error, palm_likelihood,
-                     altmin_likelihood, bcd_likelihood], f)
-
-    return True
-
-
-with Pool() as pool:
-    pool.map(n_vs_m, range(NUM_PROCESSES))
+    for i, n_i in enumerate(NUM_OBS):
+        for j, m_i in enumerate(OBS_LEN):
+            alm_model = Alm(solver='palm')
+            D_palm, _, L_palm, _ = alm_model.fit(x[:(n_i - 1), :(m_i - 1), :], MODEL_ORDER, NUM_COMPONENTS,
+                                                 PENALTY_PARAM, num_starts=NUM_STARTS, initial_component=D_0,
+                                                 return_all=True)
+            nll[iteration, i, j] = min(L_palm)
+            error_palm = []
+            for D_k in D_palm:
+                D_pred = [unstack_coef(Dj) for Dj in D_k]
+                d_loss, _, _ = component_distance(D, D_pred)
+                error_palm.append(d_loss)
+            error[iteration, i, j] = min(error_palm)
+    fig, ax = plt.subplots(1, 1)
+    ax.set_xlabel('Observation length')
+    ax.set_xticks(np.arange(len(OBS_LEN)+1))
+    ax.set_xticklabels(OBS_LEN)
+    ax.set_ylabel('Number of observations')
+    ax.set_yticks(np.arange(len(NUM_OBS)+1))
+    ax.set_yticklabels(NUM_OBS)
+    image = ax.imshow(error, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Blues)
+    fig.colorbar(image, ax=ax, fraction=0.012, pad=0.04)
+    plt.savefig(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".svg"))
+    with open(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".pickle"), 'wb') as f:
+        pickle.dump([nll, error], f)
