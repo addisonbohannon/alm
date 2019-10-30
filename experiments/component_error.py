@@ -3,8 +3,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from almm.utility import initialize_components
-from validation.utility import component_distance
+from alm.utility import initialize_components
+from experiments.utility import component_distance
 
 samples = 10000
 num_components = 10

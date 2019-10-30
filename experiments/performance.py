@@ -24,7 +24,7 @@ colors = ['#d7191c', '#fdae61', '#ffffbf', '#abdda4', '#2b83ba']
 x, C, D = alm_sample(NUM_OBS, OBS_LEN, SIG_DIM, NUM_COMPS, MODEL_ORD, SPARSITY, coef_condition=1e1,
                      component_condition=1e1)
 D_0 = [initialize_components(NUM_COMPS, MODEL_ORD, SIG_DIM) for _ in range(NUM_STARTS)]
-alm = Alm(solver='altmin', verbose=True)
+alm = Alm(solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, _ = alm.fit(x, MODEL_ORD, NUM_COMPS, PENALTY_PARAM, num_starts=NUM_STARTS,
                                              initial_component=D_0, return_path=True, return_all=True)
 fig, axs = plt.subplots(1, 2)
