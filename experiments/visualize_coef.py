@@ -13,6 +13,13 @@ import time
 # load mixing coefficiencts
 _, mixing_coef, labels = load_individual_results(8, start=0)
 
+# get average mixing components
+avg_mixing_coef=np.zeros((5,10))
+class_label=np.zeros(5)
+for i, label in enumerate(np.unique(labels)):
+    class_label[i] = label
+    avg_mixing_coef[i,:] = np.mean(mixing_coef[labels == label], axis=0)
+    
 
 # visualize coefficients using pca
 pca = PCA(n_components=3)
@@ -38,8 +45,12 @@ perplexities = [100]
 for perplexity in perplexities:
     tsne = TSNE(perplexity=perplexity, n_jobs=40)
     print("Running TSNE Fit...")
+    mixing_coef_combined = np.concatenate((mixing_coef,avg_mixing_coef),axis=0)
+    labels_combined = np.concatenate((labels,class_label),axis=0)
     start_time = time.time()
-    data = tsne.fit_transform(mixing_coef)
+    dataCombined = tsne.fit_transform(mixing_coef_combined)
+    data = dataCombined[:1000,:]
+    mean_data = dataCombined[1000:,:]
     print("Finished TSNE Fit --- {} seconds ---".format(time.time() - start_time))
     
     # plot
@@ -53,14 +64,19 @@ for perplexity in perplexities:
     #fig.set_size_inches(16,16)
     # colors that follow the priciples of data visualization
     #colors = ["#8dd3c7","#b3de69","#fb8072","#80b1d3","#fdb462"]
-    colors = ["#d7191c","#fdae61","#ffffbf","#abdda4","#2b83ba"] #bw friendly colors
+    colors = ["#d7191c","#fdae61","#ffffaf","#abdda4","#2b83ba"] #bw friendly colors
                  
     plot = []
     for color, label, category in zip(colors, np.unique(labels), categories):
-        ax1.scatter(data[labels==label,0],data[labels==label,1],s=6,label=category, c=color,alpha=1.0,zorder=4)
-        
-    ax1.legend(prop={'size':12},loc="upper center",bbox_to_anchor=(0.88,0.9),shadow=True, ncol=1)
-
+        ax1.scatter(data[labels==label,0],data[labels==label,1],s=6, c=color,alpha=1.0,zorder=4)
+        ax1.scatter(mean_data[class_label==label,0],mean_data[class_label==label,1],s=40,label=category, c=color, alpha=1.0, zorder=4)
+        ax1.scatter(mean_data[class_label==label,0],mean_data[class_label==label,1],marker="o",s=235.0, c="#000000", zorder=5)
+        ax1.scatter(mean_data[class_label==label,0],mean_data[class_label==label,1],marker="o",s=175.0, c=color, zorder=6)
+        ax1.scatter(mean_data[class_label==label,0],mean_data[class_label==label,1],marker="2",s=125.0, c="#000000", zorder=7)
+    legend=ax1.legend(prop={'size':12},loc="upper center",bbox_to_anchor=(0.15,0.97),shadow=True, ncol=1)
+    frame = legend.get_frame()
+    frame.set_facecolor("#f5f5f5")
+    frame.set_edgecolor("#000000")
     # save figure    
     plt.savefig("TSNE_image_perp_{}.eps".format(perplexity),bbox_inches="tight")#,transparent=True)
             
