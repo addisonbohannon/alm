@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from os.path import join
-from datetime import datetime as dt
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,28 +42,28 @@ for iteration in range(NUM_ITERATIONS):
                 d_loss, _, _ = component_distance(D, D_pred)
                 error_palm.append(d_loss)
             error[iteration, :, i, j] = np.array(error_palm)
-    fig, axs = plt.subplots(2, 2)
-    images = []
-    for i in range(2):
-        for j in range(2):
-            axs[i, j].set_xlabel('Observation length')
-            axs[i, j].set_xticks(np.arange(len(OBS_LEN)+1))
-            axs[i, j].set_xticklabels(OBS_LEN)
-            axs[i, j].set_ylabel('Number of observations')
-            axs[i, j].set_yticks(np.arange(len(NUM_OBS)+1))
-            axs[i, j].set_yticklabels(NUM_OBS)
-    images.append(axs[0, 0].imshow(np.mean(np.min(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
-    axs[0, 0].set_title('Error-Mean-Min')
-    fig.colorbar(images[-1], ax=axs[0, 0], fraction=0.046, pad=0.04)
-    images.append(axs[0, 1].imshow(np.mean(np.std(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
-    axs[0, 1].set_title('Error-Mean-Min')
-    fig.colorbar(images[-1], ax=axs[0, 1], fraction=0.046, pad=0.04)
-    images.append(axs[1, 0].imshow(np.mean(np.min(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
-    axs[1, 0].set_title('NLL-Mean-Min')
-    fig.colorbar(images[-1], ax=axs[1, 0], fraction=0.046, pad=0.04)
-    images.append(axs[1, 1].imshow(np.mean(np.std(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
-    axs[1, 1].set_title('NLL-Mean-Min')
-    fig.colorbar(images[-1], ax=axs[1, 1], fraction=0.046, pad=0.04)
-    plt.savefig(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + ".svg"))
-    with open(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + ".pickle"), 'wb') as f:
+    # fig, axs = plt.subplots(2, 2)
+    # images = []
+    # for i in range(2):
+    #     for j in range(2):
+    #         axs[i, j].set_xlabel('Observation length')
+    #         axs[i, j].set_xticks(np.arange(len(OBS_LEN)+1))
+    #         axs[i, j].set_xticklabels(OBS_LEN)
+    #         axs[i, j].set_ylabel('Number of observations')
+    #         axs[i, j].set_yticks(np.arange(len(NUM_OBS)+1))
+    #         axs[i, j].set_yticklabels(NUM_OBS)
+    # images.append(axs[0, 0].imshow(np.mean(np.min(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    # axs[0, 0].set_title('Error-Mean-Min')
+    # fig.colorbar(images[-1], ax=axs[0, 0], fraction=0.046, pad=0.04)
+    # images.append(axs[0, 1].imshow(np.mean(np.std(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    # axs[0, 1].set_title('Error-Mean-Min')
+    # fig.colorbar(images[-1], ax=axs[0, 1], fraction=0.046, pad=0.04)
+    # images.append(axs[1, 0].imshow(np.mean(np.min(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    # axs[1, 0].set_title('NLL-Mean-Min')
+    # fig.colorbar(images[-1], ax=axs[1, 0], fraction=0.046, pad=0.04)
+    # images.append(axs[1, 1].imshow(np.mean(np.std(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    # axs[1, 1].set_title('NLL-Mean-Min')
+    # fig.colorbar(images[-1], ax=axs[1, 1], fraction=0.046, pad=0.04)
+    # plt.savefig(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + ".svg"))
+    with open(join(SAVE_PATH, "n_vs_m.pickle"), 'wb') as f:
         pickle.dump([nll, error], f)
