@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os import getpid
 from os.path import join
 from datetime import datetime as dt
 import pickle
@@ -25,7 +24,7 @@ VMIN = 0
 VMAX = 14
 SAVE_PATH = "/home/addison/Python/almm/results"
 
-nll = np.zeros([NUM_ITERATIONS, len(NUM_OBS), len(OBS_LEN)])
+nll = np.zeros([NUM_ITERATIONS, NUM_STARTS, len(NUM_OBS), len(OBS_LEN)])
 error = np.zeros_like(nll)
 for iteration in range(NUM_ITERATIONS):
     x, _, D = alm_sample(max(NUM_OBS), max(OBS_LEN), SIGNAL_DIM, NUM_COMPONENTS, MODEL_ORDER, COEF_SUPPORT,
@@ -37,22 +36,35 @@ for iteration in range(NUM_ITERATIONS):
             D_palm, _, L_palm, _ = alm_model.fit(x[:(n_i - 1), :(m_i - 1), :], MODEL_ORDER, NUM_COMPONENTS,
                                                  PENALTY_PARAM, num_starts=NUM_STARTS, initial_component=D_0,
                                                  return_all=True)
-            nll[iteration, i, j] = min(L_palm)
+            nll[iteration, :, i, j] = np.array(L_palm)
             error_palm = []
             for D_k in D_palm:
                 D_pred = [unstack_coef(Dj) for Dj in D_k]
                 d_loss, _, _ = component_distance(D, D_pred)
                 error_palm.append(d_loss)
-            error[iteration, i, j] = min(error_palm)
-    fig, ax = plt.subplots(1, 1)
-    ax.set_xlabel('Observation length')
-    ax.set_xticks(np.arange(len(OBS_LEN)+1))
-    ax.set_xticklabels(OBS_LEN)
-    ax.set_ylabel('Number of observations')
-    ax.set_yticks(np.arange(len(NUM_OBS)+1))
-    ax.set_yticklabels(NUM_OBS)
-    image = ax.imshow(error, origin='lower', vmin=VMIN, vmax=VMAX, cmap=plt.cm.Blues)
-    fig.colorbar(image, ax=ax, fraction=0.012, pad=0.04)
-    plt.savefig(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".svg"))
-    with open(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + '-' + str(getpid()) + ".pickle"), 'wb') as f:
+            error[iteration, :, i, j] = np.array(error_palm)
+    fig, axs = plt.subplots(2, 2)
+    images = []
+    for i in range(2):
+        for j in range(2):
+            axs[i, j].set_xlabel('Observation length')
+            axs[i, j].set_xticks(np.arange(len(OBS_LEN)+1))
+            axs[i, j].set_xticklabels(OBS_LEN)
+            axs[i, j].set_ylabel('Number of observations')
+            axs[i, j].set_yticks(np.arange(len(NUM_OBS)+1))
+            axs[i, j].set_yticklabels(NUM_OBS)
+    images.append(axs[0, 0].imshow(np.mean(np.min(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    axs[0, 0].set_title('Error-Mean-Min')
+    fig.colorbar(images[-1], ax=axs[0, 0], fraction=0.046, pad=0.04)
+    images.append(axs[0, 1].imshow(np.mean(np.std(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    axs[0, 1].set_title('Error-Mean-Min')
+    fig.colorbar(images[-1], ax=axs[0, 1], fraction=0.046, pad=0.04)
+    images.append(axs[1, 0].imshow(np.mean(np.min(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    axs[1, 0].set_title('NLL-Mean-Min')
+    fig.colorbar(images[-1], ax=axs[1, 0], fraction=0.046, pad=0.04)
+    images.append(axs[1, 1].imshow(np.mean(np.std(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
+    axs[1, 1].set_title('NLL-Mean-Min')
+    fig.colorbar(images[-1], ax=axs[1, 1], fraction=0.046, pad=0.04)
+    plt.savefig(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + ".svg"))
+    with open(join(SAVE_PATH, "n_vs_m-" + dt.now().strftime("%y%b%d_%H%M") + ".pickle"), 'wb') as f:
         pickle.dump([nll, error], f)
