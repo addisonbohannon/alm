@@ -55,9 +55,9 @@ def load_individual_results(subj_id, start=None):
     :return labels: list of integers
     """
 
-    if not np.issubdtype(subj_id, np.integer) or not (0 < subj_id <= 11):
+    if not np.issubdtype(type(subj_id), np.int) or not (0 < subj_id <= 11):
         raise ValueError('Subject ID must be between 0 and 9.')
-    if start is not None and (not np.issubdtype(start, np.integer) or not (0 <= start < 5)):
+    if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
     with open(join(DATA_PATH, 'individual/subj_' + str(subj_id) + '_results.pickle'), 'rb') as f:
@@ -110,14 +110,12 @@ def periodogram_from_filter(filter_coef, sampling_rate, fft_len=None):
     model_order, signal_dim1, signal_dim2 = filter_coef.shape
     if signal_dim1 != signal_dim2:
         raise ValueError('Filter coefficients must be signal dimension by signal dimension.')
-    else:
-        signal_dim = signal_dim1
-        del signal_dim2
-    if not np.issubdtype(sampling_rate, np.integer) or not sampling_rate > 0:
+    del signal_dim1, signal_dim2
+    if not np.issubdtype(type(sampling_rate), np.int) or not sampling_rate > 0:
         raise ValueError('Samping rate must be a positive integer.')
     if fft_len is None:
         fft_len = len(filter_coef) + 1
-    elif not np.issubdtype(fft_len, np.integer):
+    elif not np.issubdtype(type(fft_len), np.int):
         raise TypeError('Periodogram length must be an integer.')
 
     transfer_function, frequencies = transfer_function_from_filter(filter_coef, sampling_rate, fft_len=fft_len)
@@ -144,7 +142,7 @@ def transfer_function_from_filter(filter_coef, sampling_rate, fft_len=None):
         del signal_dim2
     if fft_len is None:
         fft_len = len(filter_coef) + 1
-    elif not np.issubdtype(fft_len, np.integer):
+    elif not np.issubdtype(type(fft_len), np.int):
         raise TypeError('Periodogram length must be an integer.')
 
     def frequency(k): return k * sampling_rate / fft_len

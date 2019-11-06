@@ -14,7 +14,7 @@ def train_val_split(samples, val_pct):
     :return train_idx, val_idx: lists
     """
     
-    if not np.issubdtype(samples, np.integer) or samples < 1:
+    if not np.issubdtype(type(samples), np.int) or samples < 1:
         raise TypeError('Number of samples must be a positive integer.')
     if not isinstance(val_pct, float) or val_pct < 0 or val_pct > 1:
         raise TypeError('Validation percentage must be between 0 and 1.')
@@ -67,7 +67,7 @@ def circulant_matrix(observation, model_order):
     (sample_length-model_order) x signal_dimension
     """
 
-    if not np.issubdtype(model_order, np.integer) or model_order < 1:
+    if not np.issubdtype(type(model_order), np.int) or model_order < 1:
         raise TypeError('Model order must be a positive integer.')
 
     sample_length, signal_dimension = np.shape(observation)
