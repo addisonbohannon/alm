@@ -39,7 +39,7 @@ class Alm:
             self.tol = tol
         else:
             raise ValueError('Tolerance must be a positive float.')
-        if isinstance(max_iter, int) and max_iter > 0:
+        if np.issubdtype(max_iter, np.integer) and max_iter > 0:
             self.max_iter = max_iter
         else:
             raise TypeError('Max iteration must be a positive integer.')
@@ -86,13 +86,13 @@ class Alm:
         :return solver_time: list of float
         """
 
-        if not isinstance(num_components, int) or num_components < 1:
+        if not np.issubdtype(num_components, np.integer) or num_components < 1:
             raise TypeError('Number of components must be a positive integer.')
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
         if not isinstance(penalty_parameter, float) and penalty_parameter < 0:
             raise ValueError('Penalty parameter must be a positive float.')
-        if not isinstance(num_starts, int) or num_starts < 1:
+        if not np.issubdtype(num_starts, np.integer) or num_starts < 1:
             raise ValueError('Number of starts must be a positive integer.')
         _, signal_dimension = observation[0].shape
         if initial_component is None:

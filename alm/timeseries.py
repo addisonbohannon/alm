@@ -28,7 +28,7 @@ class Timeseries:
         :return stacked observation: (observation_length-model_order) x dimension numpy array
         """
 
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
 
         return self.observation[model_order:, :]
@@ -40,7 +40,7 @@ class Timeseries:
         :return circulant observation: (observation_length-model_order) x (model_order*dimension) numpy array
         """
 
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
         
         _X, _ = circulant_matrix(self.observation, model_order)
@@ -54,7 +54,7 @@ class Timeseries:
         :return sample covariance: (observation_length-model_order) x dimension x dimension numpy array
         """
 
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
         
         _Y = self.Y(model_order)
@@ -68,7 +68,7 @@ class Timeseries:
         :return sample autocovariance: (observation_length-model_order) x (model_order*dimension) x (model_order*dimension)
         """
 
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
         
         _X = self.X(model_order)
@@ -82,7 +82,7 @@ class Timeseries:
         :return sample autocovariance: (observation_length-model_order) x (model_order*dimension) x dimension
         """
 
-        if not isinstance(model_order, int) or model_order < 1:
+        if not np.issubdtype(model_order, np.integer) or model_order < 1:
             raise TypeError('Model order must be a positive integer.')
         
         _X = self.X(model_order)
