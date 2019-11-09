@@ -6,7 +6,7 @@ import numpy as np
 import scipy.linalg as sl
 from alm.utility import initialize_components
 from alm.solver import negative_log_likelihood, coef_update
-from alm.timeseries import Timeseries
+from alm.utility import package_observations
 
 
 class Alm:
@@ -116,13 +116,7 @@ class Alm:
             = [], [], [], [], [], []
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
-        YtY, XtX, XtY = [], [], []
-        for observation_i in observation:
-            observation_i = Timeseries(observation_i)
-            YtY.append(observation_i.YtY(model_order))
-            XtX.append(observation_i.XtX(model_order))
-            XtY.append(observation_i.XtY(model_order))
-        YtY, XtX, XtY = np.array(YtY), np.array(XtX), np.array(XtY)
+        YtY, XtY, XtX = package_observations(observation, model_order)
         if self.verbose:
             print('Complete.')
         if self.verbose:

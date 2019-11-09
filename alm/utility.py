@@ -4,6 +4,27 @@
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
+from alm.utility import broadcast_inner_product, circulant_matrix
+
+
+def package_observations(observations, model_order):
+    """
+    Compute the sample sufficient statistics (autocovariance)
+    :param observations: num_observations x observation_length x signal_dimension numpy array
+    :param model_order: positive integer
+    :return YtY: num_observations numpy array
+    :return XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
+    :return XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
+    """
+
+    observation_length = len(observations)
+    Y = observations[:, model_order:, :]
+    X = np.array([circulant_matrix(observation, model_order) for observation in observations])
+    YtY = broadcast_inner_product(Y, Y) / (observation_length - model_order)
+    XtY = np.matmul(X.T, Y) / (observation_length - model_order)
+    XtX = np.matmul(X.T, X) / (observation_length - model_order)
+
+    return YtY, XtY, XtX
 
 
 def train_val_split(samples, val_pct):
@@ -44,18 +65,15 @@ def gram_matrix(data, local_inner_product):
     return g
 
 
-def inner_product(matrix_1, matrix_2):
+def broadcast_inner_product(matrix_1, matrix_2):
     """
-    Returns the Frobenius inner product
+    Returns the Frobenius inner product with broadcasting
     :param matrix_1: numpy array
     :param matrix_2: numpy array
     :return ab: numpy array
     """
 
-    if len(matrix_1.shape) == 3 or len(matrix_2.shape) == 3:
-        return np.sum(np.multiply(matrix_1, matrix_2), axis=(1, 2))
-    else:
-        return np.sum(np.multiply(matrix_1, matrix_2))
+    return np.sum(np.multiply(matrix_1, matrix_2), axis=(1, 2))
 
 
 def circulant_matrix(observation, model_order):
@@ -137,7 +155,7 @@ def component_gram_matrix(autocorrelation, component):
     for j in range(num_components):
         tmp = np.matmul(autocorrelation, component[j])
         for k in range(j, num_components):
-            gram_matrix[:, j, k] = np.sum(np.multiply(tmp, component[k]), axis=(1, 2))
+            gram_matrix[:, j, k] = broadcast_inner_product(tmp, component[k])
             if j != k:
                 gram_matrix[:, k, j] = gram_matrix[:, j, k]
 
