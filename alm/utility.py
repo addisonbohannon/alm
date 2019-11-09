@@ -4,27 +4,6 @@
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from alm.utility import broadcast_inner_product, circulant_matrix
-
-
-def package_observations(observations, model_order):
-    """
-    Compute the sample sufficient statistics (autocovariance)
-    :param observations: num_observations x observation_length x signal_dimension numpy array
-    :param model_order: positive integer
-    :return YtY: num_observations numpy array
-    :return XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :return XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    """
-
-    observation_length = len(observations)
-    Y = observations[:, model_order:, :]
-    X = np.array([circulant_matrix(observation, model_order) for observation in observations])
-    YtY = broadcast_inner_product(Y, Y) / (observation_length - model_order)
-    XtY = np.matmul(X.T, Y) / (observation_length - model_order)
-    XtX = np.matmul(X.T, X) / (observation_length - model_order)
-
-    return YtY, XtY, XtX
 
 
 def train_val_split(samples, val_pct):
@@ -34,11 +13,6 @@ def train_val_split(samples, val_pct):
     :param val_pct: float (0, 1)
     :return train_idx, val_idx: lists
     """
-    
-    if not np.issubdtype(type(samples), np.int) or samples < 1:
-        raise TypeError('Number of samples must be a positive integer.')
-    if not isinstance(val_pct, float) or val_pct < 0 or val_pct > 1:
-        raise TypeError('Validation percentage must be between 0 and 1.')
     
     val_idx = nr.choice(samples, int(samples * val_pct), replace=False)
     train_idx = np.setdiff1d(np.arange(samples), val_idx)
@@ -85,9 +59,6 @@ def circulant_matrix(observation, model_order):
     (sample_length-model_order) x signal_dimension
     """
 
-    if not np.issubdtype(type(model_order), np.int) or model_order < 1:
-        raise TypeError('Model order must be a positive integer.')
-
     sample_length, signal_dimension = np.shape(observation)
     circulant_observation = np.zeros([sample_length - model_order, model_order * signal_dimension])
     # Reverse order of observations to achieve convolution effect
@@ -96,6 +67,26 @@ def circulant_matrix(observation, model_order):
         circulant_observation[t, :] = np.ndarray.flatten(observation[t + model_order - 1:t - 1:-1, :])
 
     return circulant_observation, observation[model_order:, :]
+
+
+def package_observations(observations, model_order):
+    """
+    Compute the sample sufficient statistics (autocovariance)
+    :param observations: num_observations x observation_length x signal_dimension numpy array
+    :param model_order: positive integer
+    :return YtY: num_observations numpy array
+    :return XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
+    :return XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
+    """
+
+    observation_length = len(observations)
+    Y = observations[:, model_order:, :]
+    X = np.array([circulant_matrix(observation, model_order)[0] for observation in observations])
+    YtY = broadcast_inner_product(Y, Y) / (observation_length - model_order)
+    XtY = np.matmul(np.moveaxis(X, 1, 2), Y) / (observation_length - model_order)
+    XtX = np.matmul(np.moveaxis(X, 1, 2), X) / (observation_length - model_order)
+
+    return YtY, XtY, XtX
 
 
 def stack_coef(coef):
@@ -201,4 +192,4 @@ def coef_corr_matrix(correlation, coef):
 
     num_observations = correlation.shape[0]
 
-    return np.dot(coef.T, correlation).T / num_observations
+    return np.moveaxis(np.tensordot(coef.T, correlation, axes=1), 1, 2) / num_observations
