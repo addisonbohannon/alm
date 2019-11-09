@@ -144,34 +144,6 @@ def component_gram_matrix(autocorrelation, component):
     return gram_matrix
 
 
-# def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] component):
-#     """
-#     Computes component Gram matrix with respect to sample autocorrelation
-#     :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-#     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-#     :return component_gram_matrix: num_observations x num_components x num_components numpy array
-#     """
-#
-#     cdef size_t num_observations, model_ord_by_signal_dim, signal_dim, num_components
-#     num_observations = autocorrelation.shape[0]
-#     model_ord_by_signal_dim = autocorrelation.shape[1]
-#     signal_dim = component.shape[2]
-#     num_components = component.shape[0]
-#     cdef double[:, :, :] tmp = np.zeros([num_observations, model_ord_by_signal_dim, signal_dim])
-#     cdef double[:, :, :] gram_matrix = np.zeros([num_observations, num_components, num_components])
-#     for j in range(num_components):
-#         tmp = np.matmul(autocorrelation, component[j, :, :])
-#         for k in range(j, num_components):
-#             for i in range(num_observations):
-#                 for m in range(model_ord_by_signal_dim):
-#                     for n in range(signal_dim):
-#                         gram_matrix[i, j, k] += tmp[i, m, n] * component[k, m, n]
-#             if j != k:
-#                 for i in range(num_observations):
-#                     gram_matrix[i, j, k] = gram_matrix[i, k, j]
-#
-#     return gram_matrix
-
 def component_corr_matrix(correlation, component):
     """
     Computes component correlation matrix
