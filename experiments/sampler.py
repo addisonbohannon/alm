@@ -4,8 +4,7 @@
 import numpy as np
 import numpy.random as nr
 import scipy.linalg as sl
-from alm.timeseries import Timeseries
-from alm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix
+from alm.utility import stack_coef, initialize_components, coef_gram_matrix, component_gram_matrix, package_observations
 
 MIXING_TIME = 1000
 MAX_ITER = int(1e2)
@@ -23,11 +22,7 @@ def check_alm_condition(observation, component, mixing_coef):
     number_observations, _, signal_dimension = observation.shape
     number_components, model_order, _, _ = component.shape
 
-    XtX = []
-    for x_i in observation:
-        x_i = Timeseries(x_i)
-        XtX.append(x_i.XtX(model_order))
-    XtX = np.array(XtX)
+    _, _, XtX = package_observations(observation, model_order)
     coef_gram_list = coef_gram_matrix(XtX, mixing_coef)
     component_matrix = np.zeros([model_order*signal_dimension*number_components,
                                  model_order*signal_dimension*number_components])
