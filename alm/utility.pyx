@@ -166,7 +166,6 @@ def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] compo
 
     return gram_matrix
 
-
 def component_corr_matrix(correlation, component):
     """
     Computes component correlation matrix
@@ -175,7 +174,7 @@ def component_corr_matrix(correlation, component):
     :return component_corr_matrix: num_components numpy array
     """
 
-    return np.array([inner_product(correlation, component_j) for component_j in component])
+    return np.sum(np.multiply(component, correlation), axis=(1, 2))
 
 
 def coef_gram_matrix(autocorrelation, coef):
@@ -204,6 +203,6 @@ def coef_corr_matrix(correlation, coef):
     :return coef_corr: num_components x model_order*signal_dimension x signal_dimension numpy array
     """
 
-    num_observations, num_components = coef.shape
+    num_observations = correlation.shape[0]
 
-    return [np.tensordot(coef[:, j], correlation, axes=1) / num_observations for j in range(num_components)]
+    return np.dot(coef.T, correlation).T / num_observations
