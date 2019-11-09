@@ -131,8 +131,8 @@ def component_gram_matrix(autocorrelation, component):
     :return component_gram_matrix: num_observations x num_components x num_components numpy array
     """
 
-    num_observations = len(autocorrelation)
-    num_components = len(component)
+    num_observations = autocorrelation.shape[0]
+    num_components = component.shape[0]
     gram_matrix = np.zeros([num_observations, num_components, num_components])
     for j in range(num_components):
         tmp = np.matmul(autocorrelation, component[j])
