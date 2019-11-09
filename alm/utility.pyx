@@ -123,24 +123,6 @@ def initialize_components(num_components, model_order, signal_dimension, stacked
     return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
 
 
-def frobenius_inner_product(double[:, :] a, double[:, :] b):
-    """
-    Compute Frobenius inner product of two matrices (Cython)
-    :param a: m x n numpy array
-    :param b: m x n numpy array
-    :return result: float
-    """
-
-    m = a.shape[0]
-    n = a.shape[1]
-    cdef double result = 0
-    for i in range(m):
-        for j in range(n):
-            result += a[i, j] * b[i, j]
-
-    return result
-
-
 def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] component):
     """
     Computes component Gram matrix with respect to sample autocorrelation
@@ -149,6 +131,7 @@ def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] compo
     :return component_gram_matrix: num_observations x num_components x num_components numpy array
     """
 
+    cdef size_t num_observations, model_ord_by_signal_dim, signal_dim, num_components
     num_observations = autocorrelation.shape[0]
     model_ord_by_signal_dim = autocorrelation.shape[1]
     signal_dim = component.shape[2]
@@ -156,10 +139,12 @@ def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] compo
     cdef double[:, :, :] tmp = np.zeros([num_observations, model_ord_by_signal_dim, signal_dim])
     cdef double[:, :, :] gram_matrix = np.zeros([num_observations, num_components, num_components])
     for j in range(num_components):
-        tmp = np.matmul(autocorrelation, component[j])
+        tmp = np.matmul(autocorrelation, component[j, :, :])
         for k in range(j, num_components):
             for i in range(num_observations):
-                gram_matrix[i, j, k] = frobenius_inner_product(tmp[i, :, :], component[k])
+                for m in range(model_ord_by_signal_dim):
+                    for n in range(signal_dim):
+                        gram_matrix[i, j, k] += tmp[i, m, n] * component[k, m, n]
             if j != k:
                 for i in range(num_observations):
                     gram_matrix[i, j, k] = gram_matrix[i, k, j]
