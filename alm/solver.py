@@ -165,7 +165,7 @@ def coef_update(XtX, XtY, current_component, current_coef, penalty_parameter, co
         raise TypeError('Coefficient penalty type must be None, l0, or l1.')
 
     gram = component_gram_matrix(XtX, current_component)
-    corr = [component_corr_matrix(XtY_i, current_component) for XtY_i in XtY]
+    corr = component_corr_matrix(XtY, current_component)
     new_coef = np.array([solve(gram_i, corr_i) for gram_i, corr_i in zip(gram, corr)])
 
     return new_coef, new_coef - current_coef
@@ -197,17 +197,23 @@ def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_paramete
 
     num_observations = len(XtX)
     component_gram = component_gram_matrix(XtX, current_component)
-    component_corr = [component_corr_matrix(XtY_i, current_component) for XtY_i in XtY]
+    component_corr = component_corr_matrix(XtY, current_component)
 
-    def gradient(observation_index):
-        return (- component_corr[observation_index] + np.dot(component_gram[observation_index],
-                                                             current_coef[observation_index, :].T)) / num_observations
+    # def gradient(observation_index):
+    #     return (- component_corr[observation_index] + np.dot(component_gram[observation_index],
+    #                                                          current_coef[observation_index, :].T)) / num_observations
 
-    new_coef = np.copy(current_coef)
+    gradient = - component_corr \
+               + np.squeeze(np.matmul(component_gram, np.expand_dims(current_coef, 2))) / num_observations
+
+    # new_coef = np.copy(current_coef)
     beta = map(lambda x: num_observations * step_size / x, [sl.norm(comp_gram, ord=2) for comp_gram in component_gram])
-    for i, beta_i in enumerate(beta):
-        new_coef[i, :] = proximal_function(new_coef[i, :] - beta_i * gradient(i),
-                                           penalty_parameter * beta_i / num_observations)
+    # for i, beta_i in enumerate(beta):
+    #     new_coef[i, :] = proximal_function(new_coef[i, :] - beta_i * gradient[i],
+    #                                        penalty_parameter * beta_i / num_observations)
+
+    new_coef = proximal_function(current_coef - np.tensordot(beta, gradient, axes=1),
+                                 np.expand_dims(np.expand_dims(beta * (penalty_parameter / num_observations), 1), 2))
 
     return new_coef, new_coef - current_coef
 
@@ -274,7 +280,7 @@ def negative_log_likelihood(YtY, XtX, XtY, component, coef, penalty_parameter, c
     num_observations = len(XtX)
     num_components, _, _ = component.shape
     gram = component_gram_matrix(XtX, component)
-    corr = [component_corr_matrix(XtY_i, component) for XtY_i in XtY]
+    corr = component_corr_matrix(XtY, component)
     nll = 0.5 * (np.mean(YtY) - 2 * np.mean([np.dot(coef[i, :], corr[i]) for i in range(num_observations)])
                  + np.mean(np.matmul(np.expand_dims(coef, 1), np.matmul(gram, np.expand_dims(coef, 2)))))
     if coef_penalty_type == 'l0':

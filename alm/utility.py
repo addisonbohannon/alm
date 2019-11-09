@@ -146,22 +146,25 @@ def component_gram_matrix(autocorrelation, component):
     for j in range(num_components):
         tmp = np.matmul(autocorrelation, component[j])
         for k in range(j, num_components):
-            gram_matrix[:, j, k] = broadcast_inner_product(tmp, component[k])
+            gram_matrix[:, k, j] = broadcast_inner_product(component[k], tmp)
             if j != k:
-                gram_matrix[:, k, j] = gram_matrix[:, j, k]
+                gram_matrix[:, j, k] = gram_matrix[:, k, j]
 
     return gram_matrix
+
+#    return np.array([gram_matrix(component, lambda comp_1, comp_2: np.sum(np.multiply(comp_1, np.dot(XtX_i, comp_2))))
+#            for XtX_i in autocorrelation])
 
 
 def component_corr_matrix(correlation, component):
     """
     Computes component correlation matrix
-    :param correlation: model_order*signal_dimension x signal_dimension numpy array
+    :param correlation: num_observations x model_order*signal_dimension x signal_dimension numpy array
     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return component_corr_matrix: num_components numpy array
+    :return component_corr_matrix: num_observations x num_components numpy array
     """
 
-    return np.sum(np.multiply(component, correlation), axis=(1, 2))
+    return np.tensordot(correlation, np.moveaxis(component, 0, -1), axes=2)
 
 
 def coef_gram_matrix(autocorrelation, coef):
