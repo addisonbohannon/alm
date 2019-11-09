@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup
-from Cython.Build import cythonize
+# from Cython.Build import cythonize
 
 setup(
     name='alm',
@@ -14,7 +14,7 @@ setup(
     author_email='addison.bohannon@gmail.com',
     description='Autoregressive Linear Mixture Model',
     install_requires=['numpy', 'scipy', 'cvxpy', 'matplotlib', 'scikit-learn'],
-    setup_requires=['Cython'],
+    #setup_requires=['Cython'],
     scripts=[],
-    ext_modules=cythonize("alm/utility.pyx", compiler_directives={'language_level': "3"})
+    #ext_modules=cythonize("alm/utility.py", compiler_directives={'language_level': "3"})
 )
