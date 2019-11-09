@@ -192,4 +192,4 @@ def coef_corr_matrix(correlation, coef):
 
     num_observations = correlation.shape[0]
 
-    return np.moveaxis(np.tensordot(coef.T, correlation, axes=1), 1, 2) / num_observations
+    return np.tensordot(coef.T, correlation, axes=1) / num_observations
