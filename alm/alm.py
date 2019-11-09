@@ -122,6 +122,7 @@ class Alm:
             YtY.append(observation_i.YtY(model_order))
             XtX.append(observation_i.XtX(model_order))
             XtY.append(observation_i.XtY(model_order))
+        YtY, XtX, XtY = np.array(YtY), np.array(XtX), np.array(XtY)
         if self.verbose:
             print('Complete.')
         if self.verbose:

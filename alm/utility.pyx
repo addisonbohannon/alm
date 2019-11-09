@@ -123,17 +123,17 @@ def initialize_components(num_components, model_order, signal_dimension, stacked
     return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
 
 
-def frobenius_inner_product(float[:, :] a, float[:, :] b):
+def frobenius_inner_product(double[:, :] a, double[:, :] b):
     """
     Compute Frobenius inner product of two matrices (Cython)
     :param a: m x n numpy array
     :param b: m x n numpy array
     :return result: float
     """
-    assert a.shape == b.shape
+
     m = a.shape[0]
     n = a.shape[1]
-    cdef float result = 0
+    cdef double result = 0
     for i in range(m):
         for j in range(n):
             result += a[i, j] * b[i, j]
@@ -141,7 +141,7 @@ def frobenius_inner_product(float[:, :] a, float[:, :] b):
     return result
 
 
-def component_gram_matrix(float[:, :, :] autocorrelation, float[:, :, :] component):
+def component_gram_matrix(double[:, :, :] autocorrelation, double[:, :, :] component):
     """
     Computes component Gram matrix with respect to sample autocorrelation
     :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
@@ -149,8 +149,22 @@ def component_gram_matrix(float[:, :, :] autocorrelation, float[:, :, :] compone
     :return component_gram_matrix: num_observations x num_components x num_components numpy array
     """
 
-    return [gram_matrix(component, lambda comp_1, comp_2: inner_product(comp_1, np.dot(autocorrelation_i, comp_2)))
-            for autocorrelation_i in autocorrelation]
+    num_observations = autocorrelation.shape[0]
+    model_ord_by_signal_dim = autocorrelation.shape[1]
+    signal_dim = component.shape[2]
+    num_components = component.shape[0]
+    cdef double[:, :, :] tmp = np.zeros([num_observations, model_ord_by_signal_dim, signal_dim])
+    cdef double[:, :, :] gram_matrix = np.zeros([num_observations, num_components, num_components])
+    for j in range(num_components):
+        tmp = np.matmul(autocorrelation, component[j])
+        for k in range(j, num_components):
+            for i in range(num_observations):
+                gram_matrix[i, j, k] = frobenius_inner_product(tmp[i, :, :], component[k])
+            if j != k:
+                for i in range(num_observations):
+                    gram_matrix[i, j, k] = gram_matrix[i, k, j]
+
+    return gram_matrix
 
 
 def component_corr_matrix(correlation, component):

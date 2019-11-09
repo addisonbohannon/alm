@@ -27,6 +27,7 @@ def check_alm_condition(observation, component, mixing_coef):
     for x_i in observation:
         x_i = Timeseries(x_i)
         XtX.append(x_i.XtX(model_order))
+    XtX = np.array(XtX)
     coef_gram_list = coef_gram_matrix(XtX, mixing_coef)
     component_matrix = np.zeros([model_order*signal_dimension*number_components,
                                  model_order*signal_dimension*number_components])
@@ -37,7 +38,7 @@ def check_alm_condition(observation, component, mixing_coef):
             component_matrix[(j * model_order * signal_dimension):((j + 1) * model_order * signal_dimension),
                              (i * model_order * signal_dimension):(i + 1) * model_order * signal_dimension] = coef_gram
     component_singvals = sl.svdvals(component_matrix)
-    component = [stack_coef(component_j) for component_j in component]
+    component = np.array([stack_coef(component_j) for component_j in component])
     component_gram = component_gram_matrix(XtX, component)
     coef_singvals = [sl.svdvals(component_gram_i) for component_gram_i in component_gram]
 
