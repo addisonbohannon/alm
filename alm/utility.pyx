@@ -123,12 +123,30 @@ def initialize_components(num_components, model_order, signal_dimension, stacked
     return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
 
 
-def component_gram_matrix(autocorrelation, component):
+def frobenius_inner_product(float[:, :] a, float[:, :] b):
+    """
+    Compute Frobenius inner product of two matrices (Cython)
+    :param a: m x n numpy array
+    :param b: m x n numpy array
+    :return result: float
+    """
+    assert a.shape == b.shape
+    m = a.shape[0]
+    n = a.shape[1]
+    cdef float result = 0
+    for i in range(m):
+        for j in range(n):
+            result += a[i, j] * b[i, j]
+
+    return result
+
+
+def component_gram_matrix(float[:, :, :] autocorrelation, float[:, :, :] component):
     """
     Computes component Gram matrix with respect to sample autocorrelation
-    :param autocorrelation: [num_observations x] model_order*signal_dimension x model_order*signal_dimension numpy array
+    :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
     :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return component_gram_matrix: [num_observations x] num_components x num_components numpy array
+    :return component_gram_matrix: num_observations x num_components x num_components numpy array
     """
 
     return [gram_matrix(component, lambda comp_1, comp_2: inner_product(comp_1, np.dot(autocorrelation_i, comp_2)))
