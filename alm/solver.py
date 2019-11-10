@@ -198,22 +198,11 @@ def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_paramete
     num_observations = len(XtX)
     component_gram = component_gram_matrix(XtX, current_component)
     component_corr = component_corr_matrix(XtY, current_component)
-
-    # def gradient(observation_index):
-    #     return (- component_corr[observation_index] + np.dot(component_gram[observation_index],
-    #                                                          current_coef[observation_index, :].T)) / num_observations
-
-    gradient = - component_corr \
-               + np.squeeze(np.matmul(component_gram, np.expand_dims(current_coef, 2))) / num_observations
-
-    # new_coef = np.copy(current_coef)
-    beta = map(lambda x: num_observations * step_size / x, [sl.norm(comp_gram, ord=2) for comp_gram in component_gram])
-    # for i, beta_i in enumerate(beta):
-    #     new_coef[i, :] = proximal_function(new_coef[i, :] - beta_i * gradient[i],
-    #                                        penalty_parameter * beta_i / num_observations)
-
-    new_coef = proximal_function(current_coef - np.tensordot(beta, gradient, axes=1),
-                                 np.expand_dims(np.expand_dims(beta * (penalty_parameter / num_observations), 1), 2))
+    gradient = (- component_corr \
+               + np.squeeze(np.matmul(component_gram, np.expand_dims(current_coef, 2)))) / num_observations
+    beta = (num_observations * step_size) / np.array([sl.norm(comp_gram, ord=2) for comp_gram in component_gram])
+    new_coef = proximal_function(current_coef - np.multiply(np.expand_dims(beta, 1), gradient),
+                                 np.expand_dims(beta * (penalty_parameter / num_observations), 1))
 
     return new_coef, new_coef - current_coef
 

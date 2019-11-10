@@ -79,7 +79,7 @@ def package_observations(observations, model_order):
     :return XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
     """
 
-    observation_length = len(observations)
+    observation_length = observations.shape[1]
     Y = observations[:, model_order:, :]
     X = np.array([circulant_matrix(observation, model_order)[0] for observation in observations])
     YtY = broadcast_inner_product(Y, Y) / (observation_length - model_order)
