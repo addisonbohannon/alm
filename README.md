@@ -19,18 +19,38 @@ the maximum *a posteriori* (MAP) estimator using block coordinate descent, alter
 - [MATPLOTLIB](https://matplotlib.org/)
 - [CVXPY](https://www.cvxpy.org/)
 - [Scikit Learn](https://scikit-learn.org/)
+- [Requests](https://requests.kennethreitz.org/en/master/)
+- [UnRAR](https://github.com/matiasb/python-unrar)
 
-## Installation
+## Installation (Linux)
 
-In order to use the software, you clone the repository and install the package in an appropriate environment. Here, we are installing
-the package with [Anaconda](https://www.anaconda.com/) on Linux in a directory `my_workspace`.
+In order to use the software, we clone the repository and install the package in an appropriate environment. First, we clone the remote directory to a local directory `my_workspace`.
 
 ```
 cd my_workspace
 git clone https://gitlab.sitcore.net/addison.bohannon/almm.git
-conda create -n alm python=3.7 scipy numpy matplotlib scikit-learn
-source activate alm
-pip install --upgrade setuptools
-pip install cvxpy
+```
+
+Now, we create an environment with [Anaconda](https://www.anaconda.com/) that installs all of the required packages.
+
+```
+conda env create --file environment.yml
+conda activate alm
+```
+
+We will need to also download the [UnRAR](https://www.rarlab.com/) library binaries, build it, and make the library findable by unrar.
+
+```
+wget https://www.rarlab.com/rar/unrarsrc-5.8.3.tar.gz
+sudo tar xzvf unrarsrc-5.8.3.tar.gz
+cd unrarsrc-5.8.3.tar.gz
+make lib
+sudo make install-lib
+echo 'export UNRAR_LIB_PATH=/usr/lib/libunrar.so' >> ~/.bashrc 
+```
+
+Now, we can install the `alm` package.
+
+```
 python setup.py install
 ```
