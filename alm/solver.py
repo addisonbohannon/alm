@@ -44,50 +44,49 @@ def project(z):
     return z / sl.norm(z[:])
 
 
-def component_update_altmin(XtX, XtY, current_component, current_coef, step_size):
+def component_update_altmin(XtX, XtY, current_comps, current_coef, step_size):
     """
     Update all autoregressive components for fixed mixing coefficients
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :param current_coef: num_observations x num_components numpy array
+    :param XtX: num_observations x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :param current_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :param current_coef: num_observations x num_comps numpy array
     :param step_size: float
-    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :return change_in_component: num_comps x model_ord*signal_dim x signal_dim numpy array
     """
 
-    num_components, model_order_by_signal_dimension, signal_dimension = current_component.shape
-    model_order = int(model_order_by_signal_dimension/signal_dimension)
+    num_comps, model_ord_by_signal_dim, signal_dim = current_comps.shape
+    model_ord = int(model_ord_by_signal_dim/signal_dim)
     coef_gram = coef_gram_matrix(XtX, current_coef)
-    a = np.zeros([num_components * model_order * signal_dimension, num_components * model_order * signal_dimension])
+    a = np.zeros([num_comps * model_ord * signal_dim, num_comps * model_ord * signal_dim])
     for (i, j), coef_gram_ij in coef_gram.items():
-        a[i * model_order * signal_dimension:(i + 1) * (model_order * signal_dimension),
-          (j * model_order * signal_dimension):(j + 1) * (model_order * signal_dimension)] = coef_gram_ij
+        a[i * model_ord * signal_dim:(i + 1) * (model_ord * signal_dim),
+          (j * model_ord * signal_dim):(j + 1) * (model_ord * signal_dim)] = coef_gram_ij
         if i != j:
-            a[j * model_order * signal_dimension:(j + 1) * (model_order * signal_dimension),
-              (i * model_order * signal_dimension):(i + 1) * (model_order * signal_dimension)] = coef_gram_ij.T
+            a[j * model_ord * signal_dim:(j + 1) * (model_ord * signal_dim),
+              (i * model_ord * signal_dim):(i + 1) * (model_ord * signal_dim)] = coef_gram_ij.T
     coef_corr = coef_corr_matrix(XtY, current_coef)
-    b = np.zeros([num_components * model_order * signal_dimension, signal_dimension])
-    for j in range(num_components):
-        b[(j * model_order * signal_dimension):(j + 1) * model_order * signal_dimension, :] = coef_corr[j]
-    new_component = sl.solve(a + EPS * np.eye(num_components * model_order * signal_dimension), b, assume_a='pos')
-    new_component = np.array([project(new_component[(j * model_order * signal_dimension):
-                                                    (j + 1) * model_order * signal_dimension, :])
-                              for j in range(num_components)])
+    b = np.zeros([num_comps * model_ord * signal_dim, signal_dim])
+    for j in range(num_comps):
+        b[(j * model_ord * signal_dim):(j + 1) * model_ord * signal_dim, :] = coef_corr[j]
+    new_comps = sl.solve(a + EPS * np.eye(num_comps * model_ord * signal_dim), b, assume_a='pos')
+    new_comps = np.array([project(new_comps[(j * model_ord * signal_dim):(j + 1) * model_ord * signal_dim, :])
+                              for j in range(num_comps)])
 
-    return new_component, new_component - current_component
+    return new_comps, new_comps - current_comps
 
 
-def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
+def component_update_bcd(XtX, XtY, current_comps, current_coef, step_size):
     """
     Update all autoregressive components sequentially (random) for fixed mixing coefficients
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :param current_coef: num_observations x num_components numpy array
+    :param XtX: num_observations x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :param current_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :param current_coef: num_observations x num_comps numpy array
     :param step_size: float
-    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :return change_in_component: num_comps x model_ord*signal_dim x signal_dim numpy array
     """
     
     def randomly(seq):
@@ -95,95 +94,95 @@ def component_update_bcd(XtX, XtY, current_component, current_coef, step_size):
         shuffle(shuffled)
         return iter(shuffled)
 
-    num_components, model_order_by_signal_dimension, signal_dimension = current_component.shape
-    model_order = int(model_order_by_signal_dimension / signal_dimension)
-    new_component = np.copy(current_component)
+    num_comps, model_ord_by_signal_dim, signal_dim = current_comps.shape
+    model_ord = int(model_ord_by_signal_dim / signal_dim)
+    new_comps = np.copy(current_comps)
     coef_gram = coef_gram_matrix(XtX, current_coef)
     coef_corr = coef_corr_matrix(XtY, current_coef)
-    for j in randomly(range(num_components)):
+    for j in randomly(range(num_comps)):
         a = coef_gram[(j, j)]
         b = coef_corr[j]
-        for l in np.setdiff1d(np.arange(num_components), [j]):
-            b -= np.dot(coef_gram[tuple(sorted((j, l)))], new_component[l])
-        new_component[j] = project(sl.solve(a + EPS * np.eye(model_order * signal_dimension), b, assume_a='pos'))
+        for l in np.setdiff1d(np.arange(num_comps), [j]):
+            b -= np.dot(coef_gram[tuple(sorted((j, l)))], new_comps[l])
+        new_comps[j] = project(sl.solve(a + EPS * np.eye(model_ord * signal_dim), b, assume_a='pos'))
 
-    return new_component, new_component - current_component
+    return new_comps, new_comps - current_comps
 
 
-def component_update_palm(XtX, XtY, current_component, current_coef, step_size):
+def component_update_palm(XtX, XtY, current_comps, current_coef, step_size):
     """
     Update all autoregressive components for fixed mixing coefficients
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :param current_coef: num_observations x num_components numpy array
+    :param XtX: num_observations x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :param current_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :param current_coef: num_observations x num_comps numpy array
     :param step_size: float
-    :return new_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return change_in_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+    :return new_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :return change_in_component: num_comps x model_ord*signal_dim x signal_dim numpy array
     """
 
-    num_components, _, _ = current_component.shape
-    new_component = np.copy(current_component)
+    num_comps, _, _ = current_comps.shape
+    new_comps = np.copy(current_comps)
     coef_gram = coef_gram_matrix(XtX, current_coef)
     coef_corr = coef_corr_matrix(XtY, current_coef)
 
     def gradient(component_index):
         grad = - coef_corr[component_index]
-        for l in range(num_components):
-            grad += np.dot(coef_gram[tuple(sorted((component_index, l)))], new_component[l])
+        for l in range(num_comps):
+            grad += np.dot(coef_gram[tuple(sorted((component_index, l)))], new_comps[l])
         return grad
 
-    alpha = np.zeros([num_components])
-    for j in range(num_components):
+    alpha = np.zeros([num_comps])
+    for j in range(num_comps):
         alpha[j] = step_size / sl.norm(coef_gram[(j, j)], ord=2)
-        new_component[j] = project(current_component[j] - alpha[j] * gradient(j))
+        new_comps[j] = project(current_comps[j] - alpha[j] * gradient(j))
 
-    return new_component, new_component - current_component
+    return new_comps, new_comps - current_comps
 
         
-def coef_update(XtX, XtY, current_component, current_coef, penalty_parameter, coef_penalty_type, step_size):
+def coef_update(XtX, XtY, current_comps, current_coef, penalty_param, coef_penalty_type, step_size):
     """
     Fit mixing coefficients for fixed autoregressive components
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :param current_coef: num_observations x num_components numpy array
-    :param penalty_parameter: float
+    :param XtX: num_observations x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :param current_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :param current_coef: num_observations x num_comps numpy array
+    :param penalty_param: float
     :param coef_penalty_type: None, 'l0', or 'l1'
     :param step_size: float
-    :return new_coef: num_observations x num_components numpy array
-    :return change_in_coef: num_observations x num_components numpy array
+    :return new_coef: num_observations x num_comps numpy array
+    :return change_in_coef: num_observations x num_comps numpy array
     """
     
     if coef_penalty_type is None:
         def solve(a, b): return sl.solve(a, b, assume_a='pos')
     elif coef_penalty_type == 'l0':
-        def solve(a, b): return penalized_ls_gram(a, b, threshold, penalty_parameter)
+        def solve(a, b): return penalized_ls_gram(a, b, threshold, penalty_param)
     elif coef_penalty_type == 'l1':
-        def solve(a, b): return penalized_ls_gram(a, b, shrink, penalty_parameter)
+        def solve(a, b): return penalized_ls_gram(a, b, shrink, penalty_param)
     else:
         raise TypeError('Coefficient penalty type must be None, l0, or l1.')
 
-    gram = component_gram_matrix(XtX, current_component)
-    corr = component_corr_matrix(XtY, current_component)
-    new_coef = np.array([solve(gram_i, corr_i) for gram_i, corr_i in zip(gram, corr)])
+    comp_gram = component_gram_matrix(XtX, current_comps)
+    comp_corr = component_corr_matrix(XtY, current_comps)
+    new_coef = np.array([solve(gram_i, corr_i) for gram_i, corr_i in zip(comp_gram, comp_corr)])
 
     return new_coef, new_coef - current_coef
 
 
-def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_parameter, coef_penalty_type, step_size):
+def coef_update_palm(XtX, XtY, current_comps, current_coef, penalty_param, coef_penalty_type, step_size):
     """
     Implement one linearized proximal gradient step with respect to the mixing coefficients for fixed autoregressive
     components
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param current_component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :param current_coef: num_observations x num_components numpy array
-    :param penalty_parameter: float
+    :param XtX: num_obs x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_obs x model_ord*signal_dim x signal_dim numpy array
+    :param current_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :param current_coef: num_obs x num_comps numpy array
+    :param penalty_param: float
     :param coef_penalty_type: None, 'l0', or 'l1'
     :param step_size: float
-    :return new_coef: num_observations x num_components numpy array
-    :return change_in_coef: num_observations x num_components numpy array
+    :return new_coef: num_obs x num_comps numpy array
+    :return change_in_coef: num_obs x num_comps numpy array
     """
 
     if coef_penalty_type is None:
@@ -195,25 +194,24 @@ def coef_update_palm(XtX, XtY, current_component, current_coef, penalty_paramete
     else:
         raise TypeError('Coefficient penalty type must be None, l0, or l1.')
 
-    num_observations = len(XtX)
-    component_gram = component_gram_matrix(XtX, current_component)
-    component_corr = component_corr_matrix(XtY, current_component)
-    gradient = (- component_corr \
-               + np.squeeze(np.matmul(component_gram, np.expand_dims(current_coef, 2)))) / num_observations
-    beta = (num_observations * step_size) / np.array([sl.norm(comp_gram, ord=2) for comp_gram in component_gram])
+    num_obs = len(XtX)
+    comp_gram = component_gram_matrix(XtX, current_comps)
+    comp_corr = component_corr_matrix(XtY, current_comps)
+    gradient = (- comp_corr + np.squeeze(np.matmul(comp_gram, np.expand_dims(current_coef, 2)))) / num_obs
+    beta = (num_obs * step_size) / np.array([sl.norm(comp_gram, ord=2) for comp_gram in comp_gram])
     new_coef = proximal_function(current_coef - np.multiply(np.expand_dims(beta, 1), gradient),
-                                 np.expand_dims(beta * (penalty_parameter / num_observations), 1))
+                                 np.expand_dims(beta * (penalty_param / num_obs), 1))
 
     return new_coef, new_coef - current_coef
 
 
-def penalized_ls_gram(gram_matrix, covariance, proximal_function, penalty_parameter, max_iter=1e3, tol=1e-4):
+def penalized_ls_gram(gram_matrix, cov, prox_fcn, penalty_param, max_iter=1e3, tol=1e-4):
     """
     Implements iterative solver for penalized least squares using precomputed Gram matrix
     :param gram_matrix: m x m numpy array
-    :param covariance: m x n numpy array
-    :param proximal_function: function
-    :param penalty_parameter: float
+    :param cov: m x n numpy array
+    :param prox_fcn: function
+    :param penalty_param: float
     :param max_iter: integer
     :param tol: float
     :return m x n numpy array
@@ -227,54 +225,52 @@ def penalized_ls_gram(gram_matrix, covariance, proximal_function, penalty_parame
 
         return penalty_param
 
-    m = covariance.shape[0]
-    primal_variable_1 = np.zeros_like(covariance)
-    primal_variable_2 = np.zeros_like(covariance)
-    dual_variable = np.zeros_like(primal_variable_2)
+    m = cov.shape[0]
+    pri_var_1 = np.zeros_like(cov)
+    pri_var_2 = np.zeros_like(cov)
+    dual_var = np.zeros_like(pri_var_2)
     primal_residual = []
     dual_residual = []
-    lagrange_parameter = 1e-4
+    lagrange_param = 1e-4
     gram_factor = sl.cho_factor(gram_matrix + np.eye(m))
     for step in np.arange(int(max_iter)):
-        primal_variable_1 = sl.cho_solve(gram_factor,
-                                         covariance - dual_variable + lagrange_parameter * primal_variable_2)
-        primal_variable_2_update = proximal_function(primal_variable_1 + (1 / lagrange_parameter) * dual_variable,
-                                                     penalty_parameter / lagrange_parameter)
-        dual_residual.append(lagrange_parameter * sl.norm(primal_variable_2_update-primal_variable_2))
-        primal_variable_2 = primal_variable_2_update
-        dual_variable += lagrange_parameter * (primal_variable_1 - primal_variable_2)
-        primal_residual.append(sl.norm(primal_variable_1-primal_variable_2))
-        if (primal_residual[step] <= tol*np.maximum(sl.norm(primal_variable_1), sl.norm(primal_variable_2)) and
-                dual_residual[step] <= tol*sl.norm(dual_variable)):
+        pri_var_1 = sl.cho_solve(gram_factor, cov - dual_var + lagrange_param * pri_var_2)
+        primal_variable_2_update = prox_fcn(pri_var_1 + (1 / lagrange_param) * dual_var, penalty_param / lagrange_param)
+        dual_residual.append(lagrange_param * sl.norm(primal_variable_2_update-pri_var_2))
+        pri_var_2 = primal_variable_2_update
+        dual_var += lagrange_param * (pri_var_1 - pri_var_2)
+        primal_residual.append(sl.norm(pri_var_1-pri_var_2))
+        if (primal_residual[step] <= tol*np.maximum(sl.norm(pri_var_1), sl.norm(pri_var_2)) and
+                dual_residual[step] <= tol*sl.norm(dual_var)):
             break
-        lagrange_parameter = update_lagrange_parameter(lagrange_parameter, primal_residual[step], dual_residual[step])
-        gram_factor = sl.cho_factor(gram_matrix + lagrange_parameter * np.eye(m))
+        lagrange_param = update_lagrange_parameter(lagrange_param, primal_residual[step], dual_residual[step])
+        gram_factor = sl.cho_factor(gram_matrix + lagrange_param * np.eye(m))
 
-    return primal_variable_1
+    return pri_var_1
 
     
-def negative_log_likelihood(YtY, XtX, XtY, component, coef, penalty_parameter, coef_penalty_type):
+def negative_log_likelihood(YtY, XtX, XtY, ar_comps, mixing_coef, penalty_param, coef_penalty_type):
     """
     Computes the negative log likelihood for ALMM
     :param YtY: list
-    :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param component: numpy array
-    :param coef: numpy array
-    :param penalty_parameter: float
+    :param XtX: num_obs x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param XtY: num_obs x model_ord*signal_dim x signal_dim numpy array
+    :param ar_comps: numpy array
+    :param mixing_coef: numpy array
+    :param penalty_param: float
     :param coef_penalty_type: None, 'l0', or 'l1'
     :return nll: float
     """
     
-    num_observations = len(XtX)
-    num_components, _, _ = component.shape
-    gram = component_gram_matrix(XtX, component)
-    corr = component_corr_matrix(XtY, component)
-    nll = 0.5 * (np.mean(YtY) - 2 * np.mean([np.dot(coef[i, :], corr[i]) for i in range(num_observations)])
-                 + np.mean(np.matmul(np.expand_dims(coef, 1), np.matmul(gram, np.expand_dims(coef, 2)))))
+    num_obs = len(XtX)
+    comp_gram = component_gram_matrix(XtX, ar_comps)
+    comp_corr = component_corr_matrix(XtY, ar_comps)
+    nll = 0.5 * (np.mean(YtY) - 2 * np.mean([np.dot(mixing_coef[i, :], comp_corr[i]) for i in range(num_obs)])
+                 + np.mean(np.matmul(np.expand_dims(mixing_coef, 1), np.matmul(comp_gram,
+                                                                               np.expand_dims(mixing_coef, 2)))))
     if coef_penalty_type == 'l0':
-        nll += penalty_parameter * np.count_nonzero(coef[:]) / num_observations
+        nll += penalty_param * np.count_nonzero(mixing_coef[:]) / num_obs
     elif coef_penalty_type == 'l1':
-        nll += penalty_parameter * sl.norm(coef[:], ord=1) / num_observations
+        nll += penalty_param * sl.norm(mixing_coef[:], ord=1) / num_obs
 
     return nll

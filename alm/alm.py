@@ -4,7 +4,7 @@
 from timeit import default_timer as timer
 import numpy as np
 import scipy.linalg as sl
-from alm.utility import initialize_components
+from alm.utility import initialize_autoregressive_components
 from alm.solver import negative_log_likelihood, coef_update
 from alm.utility import package_observations
 
@@ -67,56 +67,53 @@ class Alm:
         self.component, self.mixing_coef, self.solver_time, self.nll, self.residual, self.stop_condition \
             = [], [], [], [], [], []
 
-    def fit(self, observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None,
-            return_path=False, return_all=False, compute_likelihood_path=True):
+    def fit(self, obs, model_ord, num_comps, penalty_param, num_starts=5, initial_comps=None, return_path=False,
+            return_all=False):
         """
-        Fit the ALMM model to observations
-        :param observation: list of observation_length x signal_dimension numpy array
-        :param model_order: positive integer
-        :param num_components: positive integer
-        :param penalty_parameter: positive float
+        Fit the ALMM model to obs
+        :param obs: list of obs_len x signal_dim numpy array
+        :param model_ord: positive integer
+        :param num_comps: positive integer
+        :param penalty_param: positive float
         :param num_starts: positive integer
-        :param initial_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+        :param initial_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
         :param return_path: boolean
         :param return_all: boolean
-        :param compute_likelihood_path: boolean
-        :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
-        :return mixing_coef: [list of] num_observations x num_components numpy array
+        :return ar_comps: [list of] num_comps x model_ord*signal_dim x signal_dim numpy array
+        :return mixing_coef: [list of] num_observations x num_comps numpy array
         :return nll: [list of] float
         :return solver_time: list of float
         """
 
-        if not np.issubdtype(type(num_components), np.int) or num_components < 1:
+        if not np.issubdtype(type(num_comps), np.int) or num_comps < 1:
             raise TypeError('Number of components must be a positive integer.')
-        if not np.issubdtype(type(model_order), np.int) or model_order < 1:
+        if not np.issubdtype(type(model_ord), np.int) or model_ord < 1:
             raise TypeError('Model order must be a positive integer.')
-        if not isinstance(penalty_parameter, float) and penalty_parameter < 0:
+        if not isinstance(penalty_param, float) and penalty_param < 0:
             raise ValueError('Penalty parameter must be a positive float.')
         if not np.issubdtype(type(num_starts), np.int) or num_starts < 1:
             raise ValueError('Number of starts must be a positive integer.')
-        _, signal_dimension = observation[0].shape
-        if initial_component is None:
-            initial_component = [initialize_components(num_components, model_order, signal_dimension)
-                                 for _ in range(num_starts)]
-        elif np.shape(initial_component) != (num_starts, num_components, model_order * signal_dimension,
-                                             signal_dimension):
-            raise ValueError('Initial dictionary estimate must be list of num_components x model_order*signal_dimension'
-                             + ' x signal_dimension numpy arrays.')
+        _, signal_dimension = obs[0].shape
+        if initial_comps is None:
+            initial_comps = [initialize_autoregressive_components(num_comps, model_ord, signal_dimension)
+                             for _ in range(num_starts)]
+        elif np.shape(initial_comps) != (num_starts, num_comps, model_ord * signal_dimension,
+                                         signal_dimension):
+            raise ValueError('Initial dictionary estimate must be list of num_comps x model_ord*signal_dim'
+                             + ' x signal_dim numpy arrays.')
         else:
-            initial_component = [np.array([component_kj / sl.norm(component_kj[:]) for component_kj in component_k])
-                                 for component_k in initial_component]
+            initial_comps = [np.array([component_kj / sl.norm(component_kj[:]) for component_kj in component_k])
+                             for component_k in initial_comps]
         if not isinstance(return_path, bool):
             raise TypeError('Return path must be a boolean.')
         if not isinstance(return_all, bool):
             raise TypeError('Return all must be a boolean.')
-        if not isinstance(compute_likelihood_path, bool):
-            raise TypeError('Compute likelihood must be a boolean.')
 
         self.component, self.mixing_coef, self.solver_time, self.nll, self.residual, self.stop_condition \
             = [], [], [], [], [], []
         if self.verbose:
             print('-Formatting data...', end=" ", flush=True)
-        YtY, XtY, XtX = package_observations(observation, model_order)
+        YtY, XtY, XtX = package_observations(obs, model_ord)
         if self.verbose:
             print('Complete.')
         if self.verbose:
@@ -125,7 +122,7 @@ class Alm:
             if self.verbose and num_starts > 1:
                 print('--Start: ' + str(start_k))
             component_k, mixing_coef_k, component_residual_k, coef_residual_k, stop_condition_k, solver_time_k \
-                = self._fit(XtX, XtY, model_order, num_components, penalty_parameter, initial_component[start_k],
+                = self._fit(XtX, XtY, model_ord, num_comps, penalty_param, initial_comps[start_k],
                             return_path=return_path)
             self.component.append(component_k)
             self.mixing_coef.append(mixing_coef_k)
@@ -138,16 +135,11 @@ class Alm:
             print('-Computing likelihood...', end=" ", flush=True)
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
-                if compute_likelihood_path:
-                    nll_k = [negative_log_likelihood(YtY, XtX, XtY, Dis, Cis, penalty_parameter,
-                                                     self.coef_penalty_type)
-                             for Dis, Cis in zip(component_k, mixing_coef_k)]
-                else:
-                    nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1],
-                                                    penalty_parameter, self.coef_penalty_type)
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1], penalty_param,
+                                                self.coef_penalty_type)
             else:
-                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k,
-                                                penalty_parameter, self.coef_penalty_type)
+                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_param,
+                                                self.coef_penalty_type)
             self.nll.append(nll_k)
         if self.verbose:
             print('Complete.')
@@ -172,29 +164,29 @@ class Alm:
                         nll_min = nll_k
             return self.component[opt], self.mixing_coef[opt], self.nll[opt], self.solver_time[opt]
 
-    def _fit(self, XtX, XtY, model_order, num_components, penalty_parameter, initial_component, return_path=False):
+    def _fit(self, XtX, XtY, model_ord, num_comps, penalty_param, initial_comps, return_path=False):
         """
         Fit ALMM according to algorithm specified by solver
-        :param XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-        :param XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-        :param model_order: positive integer
-        :param num_components: positive integer
-        :param penalty_parameter: float
-        :param initial_component: num_components x model_order*signal_dimension x signal_dimension numpy array
+        :param XtX: num_obs x model_ord*signal_dim x model_ord*signal_dim numpy array
+        :param XtY: num_obs x model_ord*signal_dim x signal_dim numpy array
+        :param model_ord: positive integer
+        :param num_comps: positive integer
+        :param penalty_param: float
+        :param initial_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
         :param return_path: boolean
-        :return component: [list of] num_components x model_order*signal_dimension x signal_dimension numpy array
-        :return mixing_coef: [list of] num_observations x num_components numpy array
+        :return ar_comps: [list of] num_comps x model_ord*signal_dim x signal_dim numpy array
+        :return mixing_coef: [list of] num_obs x num_comps numpy array
         :return coef_residual: list of float
-        :return component_residual: list of float
+        :return comp_residual: list of float
         :return stop_condition: string
         :return elapsed_time: list of float
         """
 
         def compute_component_residual(component_diff):
-            return sl.norm(component_diff[:]) / (num_components ** (1 / 2) * model_order ** (1 / 2) * signal_dimension)
+            return sl.norm(component_diff[:]) / (num_comps ** (1 / 2) * model_ord ** (1 / 2) * signal_dim)
 
         def compute_coef_residual(coef_diff):
-            return sl.norm(coef_diff[:]) / (num_observations ** (1 / 2) * num_components ** (1 / 2))
+            return sl.norm(coef_diff[:]) / (num_obs ** (1 / 2) * num_comps ** (1 / 2))
 
         def stopping_condition(current_step, residual_1, residual_2):
             if current_step == 0:
@@ -207,28 +199,28 @@ class Alm:
                 return True
 
         start_time = timer()
-        num_observations = len(XtY)
-        _, signal_dimension = XtY[0].shape
-        component = np.copy(initial_component)
-        mixing_coef = np.zeros([num_observations, num_components])
-        mixing_coef, _ = coef_update(XtX, XtY, initial_component, mixing_coef, penalty_parameter,
+        num_obs = len(XtY)
+        _, signal_dim = XtY[0].shape
+        ar_comps = np.copy(initial_comps)
+        mixing_coef = np.zeros([num_obs, num_comps])
+        mixing_coef, _ = coef_update(XtX, XtY, initial_comps, mixing_coef, penalty_param,
                                      self.coef_penalty_type, self.step_size)
         elapsed_time = [timer() - start_time]
         stop_condition = 'maximum iteration'
         if return_path:
-            component_path, coef_path = [np.copy(component)], [np.copy(mixing_coef)]
-        component_residual, coef_residual = [], []
+            comp_path, coef_path = [np.copy(ar_comps)], [np.copy(mixing_coef)]
+        comp_residual, coef_residual = [], []
         for step in range(self.max_iter):
-            component, component_change = self.update_component(XtX, XtY, component, mixing_coef, self.step_size)
-            mixing_coef, coef_change = self.update_coef(XtX, XtY, component, mixing_coef, penalty_parameter,
+            ar_comps, comp_change = self.update_component(XtX, XtY, ar_comps, mixing_coef, self.step_size)
+            mixing_coef, coef_change = self.update_coef(XtX, XtY, ar_comps, mixing_coef, penalty_param,
                                                         self.coef_penalty_type, self.step_size)
             if return_path:
-                component_path.append(np.copy(component))
+                comp_path.append(np.copy(ar_comps))
                 coef_path.append(np.copy(mixing_coef))
-            component_residual.append(compute_component_residual(component_change))
+            comp_residual.append(compute_component_residual(comp_change))
             coef_residual.append(compute_coef_residual(coef_change))
             elapsed_time.append(timer() - start_time)
-            if stopping_condition(step, component_residual, coef_residual):
+            if stopping_condition(step, comp_residual, coef_residual):
                 stop_condition = 'relative tolerance'
                 break
         if self.verbose:
@@ -238,6 +230,6 @@ class Alm:
             print('*Duration: ' + str(elapsed_time[-1]) + 's')
 
         if return_path:
-            return component_path, coef_path, component_residual, coef_residual, stop_condition, elapsed_time
+            return comp_path, coef_path, comp_residual, coef_residual, stop_condition, elapsed_time
         else:
-            return component, mixing_coef, coef_residual, component_residual, stop_condition, elapsed_time
+            return ar_comps, mixing_coef, coef_residual, comp_residual, stop_condition, elapsed_time

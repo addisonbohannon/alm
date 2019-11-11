@@ -29,8 +29,8 @@ where we are intersted in the mixing coefficients $`\left(\mathbf{c}_i\right)_{i
 | max_iter | integer | Maximum number of iterations for which the algorithm will run; must be positive |
 | solver | 'altmin', 'bcd', 'palm' | Algorithm which will be used to minimize the objective |
 | verbose | boolean | Whether or not to print reports from solver during run-time |
-| component | list |  Nested list of autoregressive component estimates, `(num_components, model_order*obs_dim, obs_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
-| mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_components)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| ar_comps | list |  Nested list of autoregressive component estimates, `(num_comps, model_ord*signal_dim, signal_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_comps)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | solver_time | list | Nested list of wall time for algorithm, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | residual | list | Nested list of residuals from algorithm, `tuple(float, float)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration |
@@ -41,28 +41,26 @@ where we are intersted in the mixing coefficients $`\left(\mathbf{c}_i\right)_{i
 | `fit` | Fit model with desired algorithm |
 
 ```python
-fit(observation, model_order, num_components, penalty_parameter, num_starts=5, initial_component=None, 
-    return_path=False, return_all=False, compute_likelihood_path=True)
+fit(observation, model_ord, num_comps, penalty_param, num_starts=5, initial_comps=None, 
+    return_path=False, return_all=False)
 ```
 
 This method will implement the desired algorithm to fit the $`ALM(p, r)`$ model to observations.
 
 | Paramater | Values | Description |
 | :--- | :---: | :--- |
-| observation | numpy array | Observations with which to fit model; `(n_obs, obs_len, obs_dim)` |
-| model_order | integer | Model order of ALM model |
-| num_components | integer | Number of autoregressive components of ALM model |
-| penalty_parameter | float | Value with which to weight the mixing coefficient penalty |
+| observation | numpy array | Observations with which to fit model; `(n_obs, obs_len, signal_dim)` |
+| model_ord | integer | Model order of ALM model |
+| num_comps | integer | Number of autoregressive components of ALM model |
+| penalty_param | float | Value with which to weight the mixing coefficient penalty |
 | num_starts | integer | Number of unique initializations for algorithm |
-| initial_components | list | Initial estimate of autoregressive components, `(num_components, model_order*obs_dim, obs_dim)`; `len(initial_components)=num_starts` |
+| initial_comps | list | Initial estimate of autoregressive components, `(num_comps, model_ord*signal_dim, signal_dim)`; `len(initial_comps)=num_starts` |
 | return_path | boolean | Whether to return estimates from each iteration |
 | return_all | boolean | Whether to return the result of all `num_starts` unique initializations or that of maximum likelihood |
-| compute_likelihood_path | boolean | Whether to compute negative log likelihood for each iteration of algorithm; only matters if `return_path=True`
-
 
 | Returns | Values | Description |
 | :--- | :---: | :--- |
-| component | list |  Nested list of autoregressive component estimates, `(num_components, model_order*obs_dim, obs_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
-| mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_components)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| ar_comps | list |  Nested list of autoregressive component estimates, `(num_comps, model_ord*signal_dim, signal_dim)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
+| mixing_coef | list | Nested list of mixing coefficient estimates, `(num_obs, num_comps)`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |
 | nll | list | Nested list of negative likelihood values, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True`, unless over-ruled by `compute_likelihood_path=False` |
 | solver_time | list | Nested list of wall time for algorithm, `float`; outer list indexed by initialization, `return_all=True`; inner list indexed by iteration, `return_path=True` |

@@ -20,11 +20,11 @@ def train_val_split(samples, val_pct):
     return list(train_idx), list(val_idx)
 
 
-def gram_matrix(data, local_inner_product):
+def gram_matrix(data, inner_prod):
     """
     Computes the gram matrix for a list of elements for a given inner product
     :param data: list
-    :param local_inner_product: symmetric function of two arguments
+    :param inner_prod: symmetric function of two arguments
     :return g: len(x) x len(x) numpy array
     """
 
@@ -32,167 +32,167 @@ def gram_matrix(data, local_inner_product):
     g = np.zeros([n, n])
     triu_index = np.triu_indices(n)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-        g[i, j] = local_inner_product(data[i], data[j])
+        g[i, j] = inner_prod(data[i], data[j])
     tril_index = np.tril_indices(n, k=-1)
     g[tril_index] = g.T[tril_index]
 
     return g
 
 
-def broadcast_inner_product(matrix_1, matrix_2):
+def broadcast_inner_product(mat_1, mat_2):
     """
     Returns the Frobenius inner product with broadcasting
-    :param matrix_1: numpy array
-    :param matrix_2: numpy array
-    :return ab: numpy array
+    :param mat_1: [k x] m x n numpy array
+    :param mat_2: [k x] m x n numpy array
+    :return ab: [k] x 1 numpy array
     """
 
-    return np.sum(np.multiply(matrix_1, matrix_2), axis=(1, 2))
+    return np.sum(np.multiply(mat_1, mat_2), axis=(1, 2))
 
 
-def circulant_matrix(observation, model_order):
+def circulant_matrix(obs, model_ord):
     """
-    Returns the circulant observation matrix
-    :param observation: sample_length x signal_dimension numpy array
-    :param model_order: positive integer
-    :return circulant_observation, stacked_observation: (sample_length-model_order) x (model_order*signal_dimension),
-    (sample_length-model_order) x signal_dimension
+    Returns the circulant obs matrix
+    :param obs: obs_len x signal_dim numpy array
+    :param model_ord: positive integer
+    :return circ_obs, stacked_observation: (obs_len-model_ord) x (model_ord*signal_dim),
+    (obs_len-model_ord) x signal_dim
     """
 
-    sample_length, signal_dimension = np.shape(observation)
-    circulant_observation = np.zeros([sample_length - model_order, model_order * signal_dimension])
-    # Reverse order of observations to achieve convolution effect
-    circulant_observation[0, :] = np.ndarray.flatten(observation[model_order - 1::-1, :])
-    for t in np.arange(1, sample_length - model_order):
-        circulant_observation[t, :] = np.ndarray.flatten(observation[t + model_order - 1:t - 1:-1, :])
+    obs_len, signal_dim = np.shape(obs)
+    circ_obs = np.zeros([obs_len - model_ord, model_ord * signal_dim])
+    # Reverse order of obs to achieve convolution effect
+    circ_obs[0, :] = np.ndarray.flatten(obs[model_ord - 1::-1, :])
+    for t in np.arange(1, obs_len - model_ord):
+        circ_obs[t, :] = np.ndarray.flatten(obs[t + model_ord - 1:t - 1:-1, :])
 
-    return circulant_observation, observation[model_order:, :]
+    return circ_obs, obs[model_ord:, :]
 
 
-def package_observations(observations, model_order):
+def package_observations(obs, model_ord):
     """
     Compute the sample sufficient statistics (autocovariance)
-    :param observations: num_observations x observation_length x signal_dimension numpy array
-    :param model_order: positive integer
+    :param obs: num_observations x obs_len x signal_dim numpy array
+    :param model_ord: positive integer
     :return YtY: num_observations numpy array
-    :return XtY: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :return XtX: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
+    :return XtY: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :return XtX: num_observations x model_ord*signal_dim x model_ord*signal_dim numpy array
     """
 
-    observation_length = observations.shape[1]
-    Y = observations[:, model_order:, :]
-    X = np.array([circulant_matrix(observation, model_order)[0] for observation in observations])
-    YtY = broadcast_inner_product(Y, Y) / (observation_length - model_order)
-    XtY = np.matmul(np.moveaxis(X, 1, 2), Y) / (observation_length - model_order)
-    XtX = np.matmul(np.moveaxis(X, 1, 2), X) / (observation_length - model_order)
+    obs_len = obs.shape[1]
+    Y = obs[:, model_ord:, :]
+    X = np.array([circulant_matrix(obs_i, model_ord)[0] for obs_i in obs])
+    YtY = broadcast_inner_product(Y, Y) / (obs_len - model_ord)
+    XtY = np.matmul(np.moveaxis(X, 1, 2), Y) / (obs_len - model_ord)
+    XtX = np.matmul(np.moveaxis(X, 1, 2), X) / (obs_len - model_ord)
 
     return YtY, XtY, XtX
 
 
-def stack_coef(coef):
+def stack_ar_coef(ar_coef):
     """
     Returns the stacked coefficients of an autoregressive model
-    :param coef: model_order x signal_dimension x signal_dimension numpy array
-    :return stacked_coef: (model_order*signal_dimension) x signal_dimension numpy array
+    :param ar_coef: model_ord x signal_dim x signal_dim numpy array
+    :return stacked_coef: (model_ord*signal_dim) x signal_dim numpy array
     """
 
-    model_order, signal_dimension, _ = coef.shape
+    model_ord, signal_dim, _ = ar_coef.shape
 
-    return np.reshape(np.moveaxis(coef, 1, 2), [model_order * signal_dimension, signal_dimension])
+    return np.reshape(np.moveaxis(ar_coef, 1, 2), [model_ord * signal_dim, signal_dim])
 
 
-def unstack_coef(coef):
+def unstack_ar_coef(ar_coef):
     """
     Returns the unstacked coefficients of an autoregressive model
-    :param coef: (model_order*signal_dimension) x signal_dimension numpy array
-    :return unstacked_coef: model_order x signal_dimension x signal_dimension numpy array
+    :param ar_coef: (model_ord*signal_dim) x signal_dim numpy array
+    :return unstacked_coef: model_ord x signal_dim x signal_dim numpy array
     """
     
-    model_order_by_signal_dimension, signal_dimension = coef.shape
-    model_order = int(model_order_by_signal_dimension/signal_dimension)
+    model_ord_by_signal_dim, signal_dim = ar_coef.shape
+    model_ord = int(model_ord_by_signal_dim/signal_dim)
 
-    return np.stack(np.split(coef.T, model_order, axis=1), axis=0)
+    return np.stack(np.split(ar_coef.T, model_ord, axis=1), axis=0)
 
 
-def initialize_components(num_components, model_order, signal_dimension, stacked=True):
+def initialize_autoregressive_components(num_comps, model_ord, signal_dim, stacked=True):
     """
     Initialize random components for ALMM
-    :param num_components: integer
-    :param model_order: integer
-    :param signal_dimension: integer
+    :param num_comps: integer
+    :param model_ord: integer
+    :param signal_dim: integer
     :param stacked: boolean
-    :return initial_component: num_components x model_order x signal_dimension x signal_dimension numpy array
+    :return initial_comps: num_comps x model_ord x signal_dim x signal_dim numpy array
     """
 
     if stacked:
-        component = nr.randn(num_components, model_order*signal_dimension, signal_dimension)
+        ar_comps = nr.randn(num_comps, model_ord * signal_dim, signal_dim)
     else:
-        component = nr.randn(num_components, model_order, signal_dimension, signal_dimension)
+        ar_comps = nr.randn(num_comps, model_ord, signal_dim, signal_dim)
 
-    return np.array([component_j/sl.norm(component_j[:]) for component_j in component])
+    return np.array([ar_comp/sl.norm(ar_comp[:]) for ar_comp in ar_comps])
 
 
-def component_gram_matrix(autocorrelation, component):
+def component_gram_matrix(autocov, ar_comps):
     """
-    Computes component Gram matrix with respect to sample autocorrelation
-    :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return component_gram_matrix: num_observations x num_components x num_components numpy array
+    Computes ar_comps Gram matrix with respect to sample autocov
+    :param autocov: num_obs x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param ar_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :return component_gram_matrix: num_obs x num_comps x num_comps numpy array
     """
 
-    num_observations = autocorrelation.shape[0]
-    num_components = component.shape[0]
-    gram_matrix = np.zeros([num_observations, num_components, num_components])
-    for j in range(num_components):
-        tmp = np.matmul(autocorrelation, component[j])
-        for k in range(j, num_components):
-            gram_matrix[:, k, j] = broadcast_inner_product(component[k], tmp)
+    num_obs = autocov.shape[0]
+    num_comps = ar_comps.shape[0]
+    comp_gram = np.zeros([num_obs, num_comps, num_comps])
+    for j in range(num_comps):
+        tmp = np.matmul(autocov, ar_comps[j])
+        for k in range(j, num_comps):
+            comp_gram[:, k, j] = broadcast_inner_product(ar_comps[k], tmp)
             if j != k:
-                gram_matrix[:, j, k] = gram_matrix[:, k, j]
+                comp_gram[:, j, k] = comp_gram[:, k, j]
 
-    return gram_matrix
+    return comp_gram
 
-#    return np.array([gram_matrix(component, lambda comp_1, comp_2: np.sum(np.multiply(comp_1, np.dot(XtX_i, comp_2))))
-#            for XtX_i in autocorrelation])
+#    return np.array([gram_matrix(ar_comps, lambda ar_comp_1, comp_2: np.sum(np.multiply(ar_comp_1, np.dot(XtX_i, comp_2))))
+#            for XtX_i in autocov])
 
 
-def component_corr_matrix(correlation, component):
+def component_corr_matrix(autocov, ar_comps):
     """
-    Computes component correlation matrix
-    :param correlation: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param component: num_components x model_order*signal_dimension x signal_dimension numpy array
-    :return component_corr_matrix: num_observations x num_components numpy array
+    Computes ar_comps autocov matrix
+    :param autocov: num_observations x model_ord*signal_dim x signal_dim numpy array
+    :param ar_comps: num_comps x model_ord*signal_dim x signal_dim numpy array
+    :return component_corr_matrix: num_observations x num_comps numpy array
     """
 
-    return np.tensordot(correlation, np.moveaxis(component, 0, -1), axes=2)
+    return np.tensordot(autocov, np.moveaxis(ar_comps, 0, -1), axes=2)
 
 
-def coef_gram_matrix(autocorrelation, coef):
+def coef_gram_matrix(autocov, mixing_coef):
     """
     Computes the coefficient gram matrix with respect to sample autocovariance
-    :param autocorrelation: num_observations x model_order*signal_dimension x model_order*signal_dimension numpy array
-    :param coef: num_observations x num_components numpy array
-    :return coef_gram: dictionary of model_order*signal_dimension x model_order*signal_dimension numpy arrays indexed
+    :param autocov: num_obs x model_ord*signal_dim x model_ord*signal_dim numpy array
+    :param mixing_coef: num_obs x num_comps numpy array
+    :return coef_gram: dictionary of model_ord*signal_dim x model_ord*signal_dim numpy arrays indexed
     by upper triangular indices
     """
 
-    num_observations, num_components = coef.shape
+    num_obs, num_comps = mixing_coef.shape
     coef_gram = {}
-    triu_index = np.triu_indices(num_components)
+    triu_index = np.triu_indices(num_comps)
     for (i, j) in zip(triu_index[0], triu_index[1]):
-        coef_gram[(i, j)] = np.tensordot(coef[:, i] * coef[:, j], autocorrelation, axes=1) / num_observations
+        coef_gram[(i, j)] = np.tensordot(mixing_coef[:, i] * mixing_coef[:, j], autocov, axes=1) / num_obs
 
     return coef_gram
 
 
-def coef_corr_matrix(correlation, coef):
+def coef_corr_matrix(autocov, mixing_coef):
     """
-    Computes coefficient correlation matrix
-    :param correlation: num_observations x model_order*signal_dimension x signal_dimension numpy array
-    :param coef: num_observations x num_components numpy array
-    :return coef_corr: num_components x model_order*signal_dimension x signal_dimension numpy array
+    Computes coefficient autocov matrix
+    :param autocov: num_obs x model_ord*signal_dim x signal_dim numpy array
+    :param mixing_coef: num_obs x num_comps numpy array
+    :return coef_corr: num_comps x model_ord*signal_dim x signal_dim numpy array
     """
 
-    num_observations = correlation.shape[0]
+    num_obs = autocov.shape[0]
 
-    return np.tensordot(coef.T, correlation, axes=1) / num_observations
+    return np.tensordot(mixing_coef.T, autocov, axes=1) / num_obs

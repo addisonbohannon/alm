@@ -4,7 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from experiments.sampler import autoregressive_sample
-from alm.utility import unstack_coef
+from alm.utility import unstack_ar_coef
 from experiments.utility import load_individual_results, periodogram_from_filter
 
 SIGNAL_DIM = 6
@@ -22,7 +22,7 @@ for i, label in enumerate(np.unique(subj_labels)):
     # Need to replace these placeholders with real channels
     axs[i, 0].set_yticklabels(['F3', 'C3', 'O1', 'F4', 'C4', 'O2'])
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)
-    ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
+    ar_coef = unstack_ar_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
     signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
     images.append(axs[i, 0].plot(signal + np.arange(0, 18, 3)))
     axs[i,0].set_facecolor("#f2f3f4")
@@ -43,7 +43,7 @@ subj_components, subj_mixing_coef, subj_labels = load_individual_results(8, star
 images = []
 for i, label in enumerate(sorted(np.unique(subj_labels))):
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)
-    ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
+    ar_coef = unstack_ar_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
     periodogram, freqs = periodogram_from_filter(ar_coef, SAMPLING_RATE, fft_len=FFT_LEN)
     axs[i,1].set_xticklabels([])
     images.append(axs[i,1].plot(periodogram[:20]))

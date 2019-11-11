@@ -6,9 +6,9 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm
-from alm.utility import unstack_coef, initialize_components
+from alm.utility import unstack_ar_coef, initialize_autoregressive_components
 from experiments.sampler import alm_sample
-from experiments.utility import component_distance
+from experiments.utility import ar_comp_dist
 
 NUM_OBS = 1000
 OBS_LEN = 10000
@@ -22,12 +22,12 @@ PENALTY_PARAM = 1e-2
 path = "/mnt/data/ALMM/almm/results/"
 colors = ['#ffffbf', '#fdae61', '#d7191c', '#abdda4', '#2b83ba']
 
-x, C, D = alm_sample(NUM_OBS, OBS_LEN, SIG_DIM, NUM_COMPS, MODEL_ORD, SPARSITY, coef_condition=1e1,
-                     component_condition=1e1)
-D_0 = [initialize_components(NUM_COMPS, MODEL_ORD, SIG_DIM) for _ in range(NUM_STARTS)]
+x, C, D = alm_sample(NUM_OBS, OBS_LEN, SIG_DIM, NUM_COMPS, MODEL_ORD, SPARSITY, coef_cond=1e1,
+                     comp_cond=1e1)
+D_0 = [initialize_autoregressive_components(NUM_COMPS, MODEL_ORD, SIG_DIM) for _ in range(NUM_STARTS)]
 alm = Alm(solver='palm', verbose=True)
 D_palm, C_palm, palm_likelihood, _ = alm.fit(x, MODEL_ORD, NUM_COMPS, PENALTY_PARAM, num_starts=NUM_STARTS,
-                                             initial_component=D_0, return_path=True, return_all=True)
+                                             initial_comps=D_0, return_path=True, return_all=True)
 
 # from scratch
 fig, axs = plt.subplots(1, 2)
@@ -43,8 +43,8 @@ for i, Di in enumerate(D_palm):
     for SPARSITY, Dis in enumerate(Di):
         Dis_pred = np.zeros([NUM_COMPS, MODEL_ORD, SIG_DIM, SIG_DIM])
         for j in range(NUM_COMPS):
-            Dis_pred[j] = unstack_coef(Dis[j])
-        d_loss, _, _ = component_distance(D, Dis_pred)
+            Dis_pred[j] = unstack_ar_coef(Dis[j])
+        d_loss, _, _ = ar_comp_dist(D, Dis_pred)
         loss.append(d_loss)
     palm_error.append(loss)
     plt_palm1, = axs[1].plot(loss, color=colors[i])

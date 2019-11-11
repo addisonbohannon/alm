@@ -3,7 +3,7 @@ import scipy.linalg as sl
 import scipy.fftpack as sf
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from alm.utility import unstack_coef
+from alm.utility import unstack_ar_coef
 from experiments.utility import load_individual_results, transfer_function_from_filter
 
 SIGNAL_DIM = 6
@@ -16,7 +16,7 @@ FREQ_MAX = 30
 components, _, _ = load_individual_results(8, start=0)
 connectivity = []
 for component_j in components:
-    transfer_function, frequencies = transfer_function_from_filter(unstack_coef(component_j), SAMPLING_RATE, fft_len=FFT_LEN)
+    transfer_function, frequencies = transfer_function_from_filter(unstack_ar_coef(component_j), SAMPLING_RATE, fft_len=FFT_LEN)
     for channel in range(SIGNAL_DIM):
         transfer_function[:, channel, channel] = 0
     dtf = np.abs(transfer_function) / sl.norm(transfer_function, axis=-1, keepdims=True)

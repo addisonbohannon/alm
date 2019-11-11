@@ -23,7 +23,7 @@ nll = np.zeros([NUM_SAMPLES, len(MODEL_ORDER), len(MODEL_ORDER)])
 for sample in range(NUM_SAMPLES):
     for j, model_order_gen in enumerate(MODEL_ORDER):
         data, _, D = alm_sample(NUM_OBS, OBS_LEN, SIGNAL_DIM, NUM_COMPONENTS, model_order_gen, COEF_SUPP,
-                                coef_condition=1e2, component_condition=1e2)
+                                coef_cond=1e2, comp_cond=1e2)
         for i, model_order_fit in enumerate(MODEL_ORDER):
             print('Generative model order: ' + str(model_order_gen) + ', Fitted model order: ' + str(model_order_fit))
             alm_model = Alm(solver='palm', tol=1e-3)

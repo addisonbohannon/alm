@@ -22,8 +22,8 @@ SAVE_PATH = '/home/addison/Python/almm/results'
 nll = np.zeros([NUM_SAMPLES, len(NUM_COMPONENTS), len(NUM_COMPONENTS)])
 for sample in range(NUM_SAMPLES):
     for j, num_comps_gen in enumerate(NUM_COMPONENTS):
-        data, _, D = alm_sample(NUM_OBS, OBS_LEN, SIGNAL_DIM, num_comps_gen, MODEL_ORDER, COEF_SUPP, coef_condition=1e2,
-                                component_condition=1e2)
+        data, _, D = alm_sample(NUM_OBS, OBS_LEN, SIGNAL_DIM, num_comps_gen, MODEL_ORDER, COEF_SUPP, coef_cond=1e2,
+                                comp_cond=1e2)
         for i, num_comps_fit in enumerate(NUM_COMPONENTS):
             print('Generative number of components: ' + str(num_comps_gen) + ', Fitted number of components: '
                   + str(num_comps_fit))

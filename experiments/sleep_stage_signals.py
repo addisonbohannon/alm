@@ -3,7 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from alm.utility import unstack_coef
+from alm.utility import unstack_ar_coef
 from experiments.sampler import autoregressive_sample
 from experiments.utility import load_individual_results
 
@@ -23,6 +23,6 @@ for i, label in enumerate(np.unique(subj_labels)):
     # Need to replace these placeholders with real channels
     axs[i].set_yticklabels(['F3', 'C3', 'O1', 'F4', 'C4', 'O2'])
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)
-    ar_coef = unstack_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
+    ar_coef = unstack_ar_coef(np.tensordot(subj_mixing_coef_i, subj_components, axes=1))
     signal = autoregressive_sample(SAMPLE_LEN*SAMPLING_RATE, SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), ar_coef)
     images.append(axs[i].plot(signal + np.arange(0, 18, 3)))
