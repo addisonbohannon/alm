@@ -9,9 +9,9 @@ from experiments.utility import load_individual_results, periodogram_from_filter
 SAMPLING_RATE = 200
 FFT_LEN = 100
 
-components, _, _ = load_individual_results(8, start=0)
-periodogram = [periodogram_from_filter(unstack_ar_coef(component_j), SAMPLING_RATE, fft_len=FFT_LEN)
-               for component_j in components]
+components, _, _ = load_individual_results(8, start=2)
+periodogram = [periodogram_from_filter(unstack_ar_coef(component), SAMPLING_RATE, fft_len=FFT_LEN)
+               for component in components]
 fig, axs = plt.subplots(len(components), 1, sharey=True)
 for ax, (Pxx, freqs) in zip(axs, periodogram):
     ax.plot(Pxx[:20])
@@ -34,8 +34,8 @@ f = plt.figure()
 f.hold = True
 colors=["#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"]
 cnt = 0
-for Pxx in zip(periodogram):
-    plt.plot((Pxx[0][0][:25]),figure=f,linewidth=3.0)#,color=colors[cnt])
+for Pxx, freqs in periodogram:
+    plt.plot((Pxx[:25]),figure=f,linewidth=3.0)#,color=colors[cnt])
     cnt=cnt+1
     ax = plt.gca()
     ax.set_xticks(np.arange(0, len(freqs[:25]), 5, dtype=np.int))
