@@ -8,7 +8,7 @@ from experiments.utility import load_isruc_data
 SUBJ = 8
 """The typical orders for multichannel EEG datasets vary in range from 3 to 9 (Kaminski and Liang 2005)"""
 MODEL_ORDER = range(4, 10, 2) # {4, 6, 8}
-NUM_COMPS = range(5, 20, 5) # {5, 10, 15}
+NUM_COMPS = range(6, 12, 2) # {6, 8, 10}
 PENALTY_PARAM = 1e-1
 NUM_STARTS = 5
 
