@@ -14,7 +14,6 @@ import cvxpy as cp
 
 RESULTS_PATH = '/home/addison/Python/almm/results'
 DATA_PATH = '/home/addison/Python/almm/isruc_sleep'
-TMP_PATH = '/tmp'
 ISRUC_URL = 'http://sleeptight.isr.uc.pt/ISRUC_Sleep/ISRUC_Sleep/subgroupIII/'
 
 
