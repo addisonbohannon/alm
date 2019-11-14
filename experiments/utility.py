@@ -12,7 +12,7 @@ import scipy.linalg as sl
 import scipy.fftpack as sf
 import cvxpy as cp
 
-RESULTS_PATH = '/home/addison/Python/almm/results'
+RESULTS_PATH = '/home/addison/Python/almm/individual/results'
 DATA_PATH = '/home/addison/Python/almm/isruc_sleep'
 ISRUC_URL = 'http://sleeptight.isr.uc.pt/ISRUC_Sleep/ISRUC_Sleep/subgroupIII/'
 

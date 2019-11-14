@@ -11,7 +11,7 @@ NUM_COMPS = 8
 SUBJECTS = range(1, 11)
 PENALTY_PARAM = 1e-1
 NUM_STARTS = 5
-RESULTS_PATH = '/home/addison/Python/almm/results'
+RESULTS_PATH = '/home/addison/Python/almm/results/individual'
 
 for subj in SUBJECTS:
     data, _ = load_isruc_data(subj)
