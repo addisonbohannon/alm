@@ -21,5 +21,7 @@ for i, model_ord in enumerate(MODEL_ORDER):
         num_params = model_ord * num_comps
         alm_model = Alm(tol=1e-3, solver='palm', verbose=False)
         _, _, nll[i, j], _ = alm_model.fit(data, model_ord, num_comps, PENALTY_PARAM, num_starts=NUM_STARTS)
+""" aic: -2 * log(L) + 2 * k """
 aic = 2 * (num_obs * obs_len * nll + num_params)
+""" bic: -2 * log(L) + sqrt(n) * k """
 bic = 2 * num_obs * obs_len * nll + (np.log(num_obs * obs_len)) * num_params
