@@ -4,7 +4,7 @@ import scipy.fftpack as sf
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from alm.utility import unstack_ar_coef
-from experiments.utility import load_individual_results, transfer_function_from_filter
+from experiments.utility import load_isruc_results, transfer_function_from_filter
 
 SIGNAL_DIM = 6
 NUM_COMPONENTS = 10
@@ -13,7 +13,7 @@ FFT_LEN = int(SAMPLING_RATE / 2)
 FREQ_MIN = 0
 FREQ_MAX = 30
 
-components, _, _ = load_individual_results(8, start=0)
+components, _, _ = load_isruc_results(8, start=0)
 connectivity = []
 for component_j in components:
     transfer_function, frequencies = transfer_function_from_filter(unstack_ar_coef(component_j), SAMPLING_RATE, fft_len=FFT_LEN)

@@ -4,12 +4,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.utility import unstack_ar_coef
-from experiments.utility import load_individual_results, periodogram_from_filter
+from experiments.utility import load_isruc_results, periodogram_from_filter
 
 SAMPLING_RATE = 200
 FFT_LEN = 100
 
-components, _, _ = load_individual_results(8, start=2)
+components, _, _ = load_isruc_results(8, start=2)
 periodogram = [periodogram_from_filter(unstack_ar_coef(component), SAMPLING_RATE, fft_len=FFT_LEN)
                for component in components]
 fig, axs = plt.subplots(len(components), 1, sharey=True)

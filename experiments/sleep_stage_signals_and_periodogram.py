@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from experiments.sampler import autoregressive_sample
 from alm.utility import unstack_ar_coef
-from experiments.utility import load_individual_results, periodogram_from_filter
+from experiments.utility import load_isruc_results, periodogram_from_filter
 
 SIGNAL_DIM = 6
 SAMPLING_RATE = 200
@@ -13,7 +13,7 @@ SAMPLE_LEN = 2
 CLASS_LABEL = ['Awake', 'N1', 'N2', 'N3', 'REM']
 
 fig, axs = plt.subplots(5, 2)
-subj_components, subj_mixing_coef, subj_labels = load_individual_results(8, start=0)
+subj_components, subj_mixing_coef, subj_labels = load_isruc_results(8, start=0)
 images = []
 for i, label in enumerate(np.unique(subj_labels)):
     axs[i, 0].set_ylabel(CLASS_LABEL[i], fontsize=12)
@@ -39,7 +39,7 @@ SAMPLING_RATE = 200
 FFT_LEN = 100
 CLASS_LABEL = ['Awake', 'N1', 'N2', 'N3', 'REM']
 
-subj_components, subj_mixing_coef, subj_labels = load_individual_results(8, start=0)
+subj_components, subj_mixing_coef, subj_labels = load_isruc_results(8, start=0)
 images = []
 for i, label in enumerate(sorted(np.unique(subj_labels))):
     subj_mixing_coef_i = np.mean(subj_mixing_coef[subj_labels == label], axis=0)

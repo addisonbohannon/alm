@@ -4,12 +4,12 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
-from experiments.utility import load_individual_results
+from experiments.utility import load_isruc_results
 
 score, lr_coef = [], []
 skf = StratifiedKFold(n_splits=5)
 for subj in range(1, 12):
-    _, subj_coef, subj_labels = load_individual_results(subj)
+    _, subj_coef, subj_labels = load_isruc_results(subj)
     subj_score, subj_lr_coef = [], []
     for subj_coef_k in subj_coef:
         subj_score_k, subj_lr_coef_k = [], []

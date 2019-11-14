@@ -6,12 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.decomposition import PCA
-from experiments.utility import load_individual_results
+from experiments.utility import load_isruc_results
 from MulticoreTSNE import MulticoreTSNE as TSNE
 import time
 
 # load mixing coefficiencts
-_, mixing_coef, labels = load_individual_results(8, start=0)
+_, mixing_coef, labels = load_isruc_results(8, start=0)
 
 # get average mixing components
 avg_mixing_coef=np.zeros((5,10))

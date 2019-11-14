@@ -100,11 +100,11 @@ def load_isruc_data(subj_id):
     return data, labels
 
 
-def load_individual_results(subj_id, start=None):
+def load_isruc_results(subj_id, start=None):
     """
     Load results from fitted ALM model
-    :param subj_id: integer, [1, 11]
-    :param start: integer, [0, 4]
+    :param subj_id: integer, {1, ..., 10}
+    :param start: integer, {0, ..., 4}
     :return ar_comps: list of num_comps x model_ord*signal_dim x signal_dim numpy arrays
     :return mixing_coef: list of num_obs x num_comps numpy arrays
     :return labels: list of integers
@@ -115,39 +115,13 @@ def load_individual_results(subj_id, start=None):
     if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    with open(join(RESULTS_PATH, 'individual/subj_' + str(subj_id) + '_results.pickle'), 'rb') as f:
+    with open(join(RESULTS_PATH, 'S' + str(subj_id) + '_results.pickle'), 'rb') as f:
         ar_comps, mixing_coef, labels = pickle.load(f)
     if subj_id == 11:
         ar_comps, mixing_coef = [ar_comps], [mixing_coef]
     if start is not None:
         ar_comps = ar_comps[start]
         mixing_coef = mixing_coef[start]
-
-    return ar_comps, mixing_coef, labels
-
-
-def load_group_results(model_ord=12, num_comps=10, penalty_param=0.1):
-    """
-    Load results from fitted group ALM model
-    :param model_ord: integer, {12, 16, 20}
-    :param num_comps: integer, {10, 15, 20}
-    :param penalty_param: float, {0.1, 1}
-    :return ar_comps: list of num_comps x model_ord*signal_dim x signal_dim numpy arrays
-    :return mixing_coef: list of num_obs x num_comps numpy arrays
-    :return labels: list of integers
-    """
-
-    if model_ord not in [12, 16, 20]:
-        raise ValueError('Model order must be 12, 16, or 20.')
-    if num_comps not in [10, 15, 20]:
-        raise ValueError('Number of ar_comps must be 10, 15, or 20.')
-    if penalty_param == 1 and not (model_ord == 20 or num_comps == 20):
-        raise ValueError('Penalty parameter must be 0.1, or 0.1 or 1 for p=20 and r=20.')
-
-    with open(join(RESULTS_PATH,
-                   'group/p' + str(model_ord) + '_r' + str(num_comps) + '_mu' + str(penalty_param) + '.pickle'),
-              'rb') as f:
-        ar_comps, mixing_coef, labels = pickle.load(f)
 
     return ar_comps, mixing_coef, labels
 
