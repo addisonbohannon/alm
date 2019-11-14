@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy as np
 from alm.alm import Alm
 from experiments.utility import load_isruc_data
 
 SUBJ = 8
-MODEL_ORDER = 12
-NUM_COMPONENTS = 6
+"""The typical orders for multichannel EEG datasets vary in range from 3 to 9 (Kaminski and Liang 2005)"""
+MODEL_ORDER = range(4, 10, 2) # {4, 6, 8}
+NUM_COMPS = range(5, 20, 5) # {5, 10, 15}
 PENALTY_PARAM = 1e-1
-NUM_STARTS = 1
-DATA_DIR = '/home/addison/Python/almm/data/'
+NUM_STARTS = 5
 
-# Load data
 data, _ = load_isruc_data(SUBJ)
-# Fit ALM model
-alm_model = Alm(tol=1e-3, solver='palm', verbose=False)
-D, C, nll, _ = alm_model.fit(data, MODEL_ORDER, NUM_COMPONENTS, PENALTY_PARAM, num_starts=NUM_STARTS, return_path=True)
+num_obs, obs_len, sig_dim = data.shape
+nll = np.zeros([len(MODEL_ORDER), len(NUM_COMPS)])
+num_params = np.zeros_like(nll)
+for i, model_ord in enumerate(MODEL_ORDER):
+    for j, num_comps in enumerate(NUM_COMPS):
+        num_params = model_ord * num_comps
+        alm_model = Alm(tol=1e-3, solver='palm', verbose=False)
+        _, _, nll[i, j], _ = alm_model.fit(data, model_ord, num_comps, PENALTY_PARAM, num_starts=NUM_STARTS)
+aic = 2 * (num_obs * obs_len * nll + num_params)
+bic = 2 * num_obs * obs_len * nll + (np.log(num_obs * obs_len)) * num_params
