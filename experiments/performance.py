@@ -40,7 +40,7 @@ for likelihood, color in zip(palm_likelihood, colors):
 palm_error = []
 for i, Di in enumerate(D_palm):
     loss = []
-    for SPARSITY, Dis in enumerate(Di):
+    for Dis in Di:
         Dis_pred = np.zeros([NUM_COMPS, MODEL_ORD, SIG_DIM, SIG_DIM])
         for j in range(NUM_COMPS):
             Dis_pred[j] = unstack_ar_coef(Dis[j])
