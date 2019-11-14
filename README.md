@@ -41,10 +41,12 @@ conda activate alm
 We will need to also download the [UnRAR](https://www.rarlab.com/) library binaries, build it, and make the library findable by unrar.
 
 ```
+cd /tmp
 wget https://www.rarlab.com/rar/unrarsrc-5.8.3.tar.gz
 sudo tar xzvf unrarsrc-5.8.3.tar.gz
-cd unrarsrc-5.8.3.tar.gz
-make lib
+rm -r unrarsrc-5.8.3.tar.gz
+cd unrar
+sudo make lib
 sudo make install-lib
 echo 'export UNRAR_LIB_PATH=/usr/lib/libunrar.so' >> ~/.bashrc 
 ```
