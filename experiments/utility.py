@@ -94,7 +94,7 @@ def load_isruc_data(subj_id):
         labels = labels[[drop_epoch == [] for drop_epoch in epoched_data.drop_log]]
         with open(join(DATA_PATH, 'S' + str(subj_id) + '.pickle'), 'wb') as file:
             pickle.dump([data, labels], file)
-        rmdir(DATA_PATH, str(subj_id))
+        rmdir(join(DATA_PATH, 'S' + str(subj_id)))
 
     return data, labels
 
