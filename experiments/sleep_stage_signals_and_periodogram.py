@@ -28,7 +28,7 @@ for i, label in enumerate(np.unique(subj_labels)):
     axs[i, 0].set_facecolor("#f2f3f4")
     axs[i, 0].grid(b=True, which='major', linestyle="-", linewidth=1.5, color="#ffffff", zorder=3)
     axs[i, 0].grid(b=True, which='minor', linewidth=0.75, color="#ffffff", zorder=3)
-axs[-1, 0].set_xlabel('time (s)', fontsize=12)
+axs[-1, 0].set_xlabel('Time (s)', fontsize=12)
 axs[-1, 0].set_xticks(np.arange(0, SAMPLE_LEN * SAMPLING_RATE + 1, SAMPLING_RATE))
 axs[-1, 0].set_xticklabels(np.arange(SAMPLE_LEN + 1))
 axs[0, 0].set_title('Signals', fontsize=14)

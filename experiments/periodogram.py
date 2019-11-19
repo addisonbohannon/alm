@@ -9,7 +9,7 @@ from experiments.utility import load_isruc_results, periodogram_from_filter
 SAMPLING_RATE = 200
 FFT_LEN = 100
 
-components, _, _ = load_isruc_results(8, start=0)
+components, _, _ = load_isruc_results(8, start=2)
 periodogram = [periodogram_from_filter(unstack_ar_coef(component), SAMPLING_RATE, fft_len=FFT_LEN)
                for component in components]
 f = plt.figure()
