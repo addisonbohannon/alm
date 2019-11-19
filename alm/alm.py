@@ -135,8 +135,9 @@ class Alm:
             print('-Computing likelihood...', end=" ", flush=True)
         for component_k, mixing_coef_k in zip(self.component, self.mixing_coef):
             if return_path:
-                nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k[-1], mixing_coef_k[-1], penalty_param,
-                                                self.coef_penalty_type)
+                nll_k = [negative_log_likelihood(YtY, XtX, XtY, component_ki, mixing_coef_ki, penalty_param,
+                                                 self.coef_penalty_type) 
+                         for component_ki, mixing_coef_ki in zip(component_k, mixing_coef_k)]
             else:
                 nll_k = negative_log_likelihood(YtY, XtX, XtY, component_k, mixing_coef_k, penalty_param,
                                                 self.coef_penalty_type)
