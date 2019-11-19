@@ -116,11 +116,10 @@ def load_isruc_results(subj_id, start=None):
         raise ValueError('Start must be between 0 and 4.')
 
     with open(join(RESULTS_PATH, 'S' + str(subj_id) + '.pickle'), 'rb') as f:
-        ar_comps, mixing_coef, _ = pickle.load(f)
+        ar_comps, mixing_coef, _, labels = pickle.load(f)
     if start is not None:
         ar_comps = ar_comps[start]
         mixing_coef = mixing_coef[start]
-    _, labels = load_isruc_data(subj_id)
 
     return ar_comps, mixing_coef, labels
 
