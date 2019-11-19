@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from os.path import join
+import pickle
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from experiments.utility import load_isruc_results
 
+RESULTS_PATH = '/home/addison/Python/almm/results/'
+
 score, lr_coef = [], []
 skf = StratifiedKFold(n_splits=5)
-for subj in range(1, 12):
+for subj in range(1, 11):
     _, subj_coef, subj_labels = load_isruc_results(subj)
     subj_score, subj_lr_coef = [], []
     for subj_coef_k in subj_coef:
@@ -24,3 +28,6 @@ for subj in range(1, 12):
         subj_lr_coef.append(subj_lr_coef_k)
     score.append(subj_score)
     lr_coef.append(subj_lr_coef)
+
+with open(join(RESULTS_PATH, 'discrimination.pickle'), 'wb') as file:
+    pickle.dump([score, lr_coef], file)

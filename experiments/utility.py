@@ -110,15 +110,13 @@ def load_isruc_results(subj_id, start=None):
     :return labels: list of integers
     """
 
-    if not np.issubdtype(type(subj_id), np.int) or not (0 < subj_id <= 11):
+    if not np.issubdtype(type(subj_id), np.int) or not (0 < subj_id <= 10):
         raise ValueError('Subject ID must be between 1 and 10.')
     if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
     with open(join(RESULTS_PATH, 'S' + str(subj_id) + '.pickle'), 'rb') as f:
         ar_comps, mixing_coef, _ = pickle.load(f)
-    if subj_id == 11:
-        ar_comps, mixing_coef = [ar_comps], [mixing_coef]
     if start is not None:
         ar_comps = ar_comps[start]
         mixing_coef = mixing_coef[start]
