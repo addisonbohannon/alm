@@ -3,6 +3,7 @@
 
 from os import mkdir, remove, rename, rmdir
 from os.path import join, exists
+import shutil
 import pickle
 import requests
 from unrar import rarfile
@@ -12,7 +13,7 @@ import scipy.linalg as sl
 import scipy.fftpack as sf
 import cvxpy as cp
 
-RESULTS_PATH = '/home/addison/Python/almm/individual/results'
+RESULTS_PATH = '/home/addison/Python/almm/results/individual'
 DATA_PATH = '/home/addison/Python/almm/isruc_sleep'
 ISRUC_URL = 'http://sleeptight.isr.uc.pt/ISRUC_Sleep/ISRUC_Sleep/subgroupIII/'
 
@@ -94,7 +95,7 @@ def load_isruc_data(subj_id):
         labels = labels[[drop_epoch == [] for drop_epoch in epoched_data.drop_log]]
         with open(join(DATA_PATH, 'S' + str(subj_id) + '.pickle'), 'wb') as file:
             pickle.dump([data, labels], file)
-        rmdir(join(DATA_PATH, 'S' + str(subj_id)))
+        shutil.rmtree(join(DATA_PATH, str(subj_id)))
 
     return data, labels
 
@@ -110,17 +111,18 @@ def load_isruc_results(subj_id, start=None):
     """
 
     if not np.issubdtype(type(subj_id), np.int) or not (0 < subj_id <= 11):
-        raise ValueError('Subject ID must be between 0 and 9.')
+        raise ValueError('Subject ID must be between 1 and 10.')
     if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    with open(join(RESULTS_PATH, 'S' + str(subj_id) + '_results.pickle'), 'rb') as f:
-        ar_comps, mixing_coef, labels = pickle.load(f)
+    with open(join(RESULTS_PATH, 'S' + str(subj_id) + '.pickle'), 'rb') as f:
+        ar_comps, mixing_coef, _ = pickle.load(f)
     if subj_id == 11:
         ar_comps, mixing_coef = [ar_comps], [mixing_coef]
     if start is not None:
         ar_comps = ar_comps[start]
         mixing_coef = mixing_coef[start]
+    _, labels = load_isruc_data(subj_id)
 
     return ar_comps, mixing_coef, labels
 
