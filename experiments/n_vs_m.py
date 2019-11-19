@@ -42,6 +42,19 @@ for iteration in range(NUM_ITERATIONS):
                 d_loss, _, _ = ar_comp_dist(D, D_pred)
                 error_palm.append(d_loss)
             error[iteration, :, i, j] = np.array(error_palm)
+
+###################
+# save results
+###################
+# with open(join(SAVE_PATH, "n_vs_m.pickle"), 'wb') as f:
+#     pickle.dump([nll, error], f)
+
+###################
+# load results
+###################
+# with open(join(SAVE_PATH, "n_vs_m.pickle"), 'rb') as f:
+#     nll, error = pickle.load(f)
+
     fig, axs = plt.subplots(2, 2)
     images = []
     for i in range(2):
@@ -64,6 +77,3 @@ for iteration in range(NUM_ITERATIONS):
     images.append(axs[1, 1].imshow(np.mean(np.std(nll, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
     axs[1, 1].set_title('NLL-Mean-STD')
     fig.colorbar(images[-1], ax=axs[1, 1], fraction=0.046, pad=0.04)
-    plt.savefig(join(SAVE_PATH, "n_vs_m.svg"))
-    with open(join(SAVE_PATH, "n_vs_m.pickle"), 'wb') as f:
-        pickle.dump([nll, error], f)

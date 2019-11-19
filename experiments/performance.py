@@ -18,7 +18,6 @@ MODEL_ORD = 2
 SPARSITY = 3
 NUM_STARTS = 5
 PENALTY_PARAM = 1e-2
-RESULTS_PATH = "/home/addison/Python/almm/results"
 colors = ['#ffffbf', '#fdae61', '#d7191c', '#abdda4', '#2b83ba']
 
 x, C, D = alm_sample(NUM_OBS, OBS_LEN, SIG_DIM, NUM_COMPS, MODEL_ORD, SPARSITY, coef_cond=1e1,
@@ -37,18 +36,6 @@ for i, Di in enumerate(D_palm):
         d_loss, _, _ = ar_comp_dist(D, Dis_pred)
         loss.append(d_loss)
     palm_error.append(loss)
-
-###################
-# save results
-###################
-# with open(join(RESULTS_PATH, "performance.pickle"), 'wb') as f:
-#    pickle.dump([palm_likelihood, palm_error], f)
-
-###################
-# load results
-###################
-# palm_likelihood, palm_error = pickle.load(open(RESULTS_PATH + 'performance.pickle', 'rb'))
-
 fig, axs = plt.subplots(1, 2)
 fig.set_size_inches(8.5, 5.5)
 axs[0].set_xlabel('Iteration', fontsize=12)

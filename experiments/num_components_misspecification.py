@@ -17,7 +17,7 @@ COEF_SUPP = 2
 NUM_STARTS = 1
 PENALTY_PARAM = 1e-2
 NUM_SAMPLES = 10
-SAVE_PATH = '/home/addison/Python/almm/results'
+RESULTS_PATH = "/home/addison/Python/almm/results"
 
 nll = np.zeros([NUM_SAMPLES, len(NUM_COMPONENTS), len(NUM_COMPONENTS)])
 for sample in range(NUM_SAMPLES):
@@ -30,15 +30,25 @@ for sample in range(NUM_SAMPLES):
             alm_model = Alm(solver='palm', tol=1e-3)
             _, _, nll[sample, i, j], _ = alm_model.fit(data, MODEL_ORDER, num_comps_fit, PENALTY_PARAM,
                                                        num_starts=NUM_STARTS)
-    # fig, ax = plt.subplots()
-    # ax.set_xlabel('Generative number of components')
-    # ax.set_xticks(np.arange(len(NUM_COMPONENTS)+1))
-    # ax.set_xticklabels(NUM_COMPONENTS)
-    # ax.set_ylabel('Fitted number of components')
-    # ax.set_yticks(np.arange(len(NUM_COMPONENTS)+1))
-    # ax.set_yticklabels(NUM_COMPONENTS)
-    # image = ax.imshow(np.mean(nll, axis=0), origin='lower', cmap=plt.cm.Blues)
-    # fig.colorbar(image, fraction=0.046, pad=0.04)
-    # plt.savefig(join(SAVE_PATH, 'num_components_misspecification2.eps'))
-    with open(join(SAVE_PATH, 'num_components_misspecification2.pickle'), 'wb') as f:
-        pickle.dump(nll, f)
+
+###################
+# save results
+###################
+# with open(join(RESULTS_PATH, "num_comps_misspec.pickle"), 'wb') as f:
+#    pickle.dump(nll, f)
+
+###################
+# load results
+###################
+# with open(join(RESULTS_PATH, "num_comps_misspec.pickle"), 'rb') as f:
+#    nll = pickle.load(f)
+
+fig, ax = plt.subplots()
+ax.set_xlabel('Generative number of components')
+ax.set_xticks(np.arange(len(NUM_COMPONENTS)+1))
+ax.set_xticklabels(NUM_COMPONENTS)
+ax.set_ylabel('Fitted number of components')
+ax.set_yticks(np.arange(len(NUM_COMPONENTS)+1))
+ax.set_yticklabels(NUM_COMPONENTS)
+image = ax.imshow(np.mean(nll, axis=0), origin='lower', cmap=plt.cm.Blues)
+fig.colorbar(image, fraction=0.046, pad=0.04)
