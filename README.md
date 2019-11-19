@@ -21,6 +21,7 @@ the maximum *a posteriori* (MAP) estimator using block coordinate descent, alter
 - [Scikit Learn](https://scikit-learn.org/)
 - [Requests](https://requests.kennethreitz.org/en/master/)
 - [UnRAR](https://github.com/matiasb/python-unrar)
+- [MulticoreTSNE](https://github.com/DmitryUlyanov/Multicore-TSNE)
 
 ## Installation (Linux)
 
