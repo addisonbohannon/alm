@@ -49,3 +49,4 @@ dependencies:
   - unrar
   - setuptools
   - cvxpy
+  - MulticoreTSNE
