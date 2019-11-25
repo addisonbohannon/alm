@@ -33,8 +33,8 @@ for sample in range(NUM_SAMPLES):
 ###################
 # save results
 ###################
-# with open(join(RESULTS_PATH, "model_ord_misspec.pickle"), 'wb') as f:
-#    pickle.dump(nll, f)
+with open(join(RESULTS_PATH, "model_ord_misspec.pickle"), 'wb') as f:
+    pickle.dump(nll, f)
 
 ###################
 # load results
@@ -44,10 +44,10 @@ for sample in range(NUM_SAMPLES):
 
 fig, ax = plt.subplots()
 ax.set_xlabel('Generative model order')
-ax.set_xticks(np.arange(len(NUM_COMPONENTS)+1))
+ax.set_xticks(np.arange(len(MODEL_ORDER)+1))
 ax.set_xticklabels(MODEL_ORDER)
 ax.set_ylabel('Fitted model order')
-ax.set_yticks(np.arange(len(NUM_COMPONENTS)+1))
+ax.set_yticks(np.arange(len(MODEL_ORDER)+1))
 ax.set_yticklabels(MODEL_ORDER)
 image = ax.imshow(np.mean(nll, axis=0), origin='lower', cmap=plt.cm.Blues)
 fig.colorbar(image, fraction=0.046, pad=0.04)

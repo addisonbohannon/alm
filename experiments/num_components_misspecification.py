@@ -34,8 +34,8 @@ for sample in range(NUM_SAMPLES):
 ###################
 # save results
 ###################
-# with open(join(RESULTS_PATH, "num_comps_misspec.pickle"), 'wb') as f:
-#    pickle.dump(nll, f)
+with open(join(RESULTS_PATH, "num_comps_misspec.pickle"), 'wb') as f:
+    pickle.dump(nll, f)
 
 ###################
 # load results
