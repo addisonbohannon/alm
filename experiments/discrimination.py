@@ -28,6 +28,17 @@ for subj in range(1, 11):
         subj_lr_coef.append(subj_lr_coef_k)
     score.append(subj_score)
     lr_coef.append(subj_lr_coef)
-
+    
+###################
+# save results
+###################
 with open(join(RESULTS_PATH, 'discrimination.pickle'), 'wb') as file:
     pickle.dump([score, lr_coef], file)
+
+###################
+# load results
+###################
+#with open(join(RESULTS_PATH, 'discrimination.pickle'), 'rb') as file:
+#    score, lr_coef = pickle.load(file)
+
+
