@@ -52,15 +52,16 @@ for iteration in range(NUM_ITERATIONS):
 ###################
 # load results
 ###################
-# with open(join(SAVE_PATH, "n_vs_m.pickle"), 'rb') as f:
-#     nll, error = pickle.load(f)
+with open(join(SAVE_PATH, "n_vs_m.pickle"), 'rb') as f:
+    nll, error = pickle.load(f)
 
 fig, axs = plt.subplots(1, 2)
+plt.subplots_adjust(wspace=0.55)
 images = []
 for i in range(2):
     axs[i].set_xlabel('Observation length', fontsize=12)
     axs[i].set_xticks(np.arange(len(OBS_LEN)+1))
-    axs[i].set_xticklabels(OBS_LEN, fontsize=12)
+    axs[i].set_xticklabels(OBS_LEN, fontsize=8)
     axs[i].set_ylabel('Number of observations', fontsize=12)
     axs[i].set_yticks(np.arange(len(NUM_OBS)+1))
     axs[i].set_yticklabels(NUM_OBS, fontsize=12)
