@@ -40,5 +40,8 @@ with open(join(RESULTS_PATH, 'discrimination.pickle'), 'wb') as file:
 ###################
 #with open(join(RESULTS_PATH, 'discrimination.pickle'), 'rb') as file:
 #    score, lr_coef = pickle.load(file)
+    
+max_score = [max(subj_score) for subj_score in score]
+avg_score = sum(max_score)/len(max_score)
 
 
