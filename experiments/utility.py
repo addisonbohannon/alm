@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os import mkdir, remove, rename, rmdir
+from os import mkdir, remove, rename
 from os.path import join, exists
 import shutil
 import pickle
@@ -13,8 +13,8 @@ import scipy.linalg as sl
 import scipy.fftpack as sf
 import cvxpy as cp
 
-RESULTS_PATH = '/home/addison/Python/almm/results/individual'
-DATA_PATH = '/home/addison/Python/almm/isruc_sleep'
+RESULTS_PATH = '/home/addison/Python/alm/results'
+DATA_PATH = '/home/addison/Python/alm/isruc_sleep'
 ISRUC_URL = 'http://sleeptight.isr.uc.pt/ISRUC_Sleep/ISRUC_Sleep/subgroupIII/'
 
 
@@ -50,6 +50,29 @@ def ar_comp_dist(ar_comp_1, ar_comp_2, p=2):
     prob.solve()
 
     return prob.value, d[w.value > 1e-3], w.value
+
+
+def load_results(filename):
+    """
+    Load results from experiments.
+    :param filename: string
+    :return results: pickle objects
+    """
+
+    with open(join(RESULTS_PATH, filename), 'rb') as file:
+        results = pickle.load(file)
+    return tuple(results)
+
+
+def save_results(results, filename):
+    """
+    Save results from experiments.
+    :param results: list of objects
+    :param filename: string
+    """
+
+    with open(join(RESULTS_PATH, filename), 'wb') as file:
+        pickle.dump(results, file)
 
 
 def load_isruc_data(subj_id):
@@ -116,7 +139,7 @@ def load_isruc_results(subj_id, start=None):
     if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    with open(join(RESULTS_PATH, 'S' + str(subj_id) + '.pickle'), 'rb') as f:
+    with open(join(RESULTS_PATH, 'individual/S' + str(subj_id) + '.pickle'), 'rb') as f:
         ar_comps, mixing_coef, _, labels = pickle.load(f)
     if start is not None:
         ar_comps = ar_comps[start]

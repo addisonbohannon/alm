@@ -35,8 +35,7 @@ for perplexity in perplexities:
     plt.minorticks_on()
     ax1.set_xticklabels([])
     ax1.set_yticklabels([])
-    # colors that follow the priciples of data visualization
-    # colors = ["#8dd3c7","#b3de69","#fb8072","#80b1d3","#fdb462"]
+    # colors = ["#8dd3c7","#b3de69","#fb8072","#80b1d3","#fdb462"] # data visualization friendly colors
     colors = ["#d7191c", "#fdae61", "#ffffaf", "#abdda4", "#2b83ba"]  # bw friendly colors
     plot = []
     for color, label, category in zip(colors, np.unique(labels), SLEEP_CLASS):

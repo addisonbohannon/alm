@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os.path import join
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm
+from experiments.utility import load_results, save_results
 from experiments.sampler import alm_sample
 
 NUM_OBS = 1000
@@ -15,7 +14,6 @@ COEF_SUPP = 2
 NUM_STARTS = 1
 PENALTY_PARAM = 1e-2
 NUM_SAMPLES = 10
-RESULTS_PATH = "/home/addison/Python/almm/results"
 MODEL_ORDER = np.arange(2, 17, 2)
 NUM_COMPONENTS = np.arange(2, 17, 2)
 
@@ -28,7 +26,7 @@ for sample in range(NUM_SAMPLES):
             print('Generative model order: ' + str(model_order_gen) + ', Fitted model order: ' + str(model_order_fit))
             alm_model = Alm(solver='palm', tol=1e-3)
             _, _, nll_model_ord[sample, i, j], _ = alm_model.fit(data, model_order_fit, NUM_COMPONENTS, PENALTY_PARAM,
-                                                       num_starts=NUM_STARTS)
+                                                                 num_starts=NUM_STARTS)
 
 nll_num_comps = np.zeros([NUM_SAMPLES, len(NUM_COMPONENTS), len(NUM_COMPONENTS)])
 for sample in range(NUM_SAMPLES):
@@ -40,37 +38,35 @@ for sample in range(NUM_SAMPLES):
                   + str(num_comps_fit))
             alm_model = Alm(solver='palm', tol=1e-3)
             _, _, nll_num_comps[sample, i, j], _ = alm_model.fit(data, MODEL_ORDER, num_comps_fit, PENALTY_PARAM,
-                                                       num_starts=NUM_STARTS)
+                                                                 num_starts=NUM_STARTS)
 
 ###################
 # save results
 ###################
-#with open(join(RESULTS_PATH, "model_misspec.pickle"), 'wb') as f:
-#    pickle.dump([nll_model_ord, nll_num_comps], f)
+save_results([nll_model_ord, nll_num_comps], 'model_misspec.pickle')
 
 ###################
 # load results
 ###################
-with open(join(RESULTS_PATH, "model_misspec.pickle"), 'rb') as f:
-   nll_model_ord, nll_num_comps = pickle.load(f)
+# nll_model_ord, nll_num_comps = load_results('model_misspec.pickle')
 
 fig, axs = plt.subplots(1, 2)
 plt.subplots_adjust(wspace=0.55)
 image = []
 axs[0].set_xlabel('Generative model order', fontsize=12)
-axs[0].set_xticks(np.arange(len(MODEL_ORDER)+1))
+axs[0].set_xticks(np.arange(len(MODEL_ORDER) + 1))
 axs[0].set_xticklabels(MODEL_ORDER, fontsize=12)
 axs[0].set_ylabel('Fitted model order', fontsize=12)
-axs[0].set_yticks(np.arange(len(MODEL_ORDER)+1))
+axs[0].set_yticks(np.arange(len(MODEL_ORDER) + 1))
 axs[0].set_yticklabels(MODEL_ORDER, fontsize=12)
 image.append(axs[0].imshow(np.mean(nll_model_ord, axis=0), origin='lower', cmap=plt.cm.Blues))
 fig.colorbar(image[-1], ax=axs[0], fraction=0.046, pad=0.04)
 
 axs[1].set_xlabel('Generative num. of comps.', fontsize=12)
-axs[1].set_xticks(np.arange(len(NUM_COMPONENTS)+1))
+axs[1].set_xticks(np.arange(len(NUM_COMPONENTS) + 1))
 axs[1].set_xticklabels(NUM_COMPONENTS, fontsize=12)
 axs[1].set_ylabel('Fitted num. of comps.', fontsize=12)
-axs[1].set_yticks(np.arange(len(NUM_COMPONENTS)+1))
+axs[1].set_yticks(np.arange(len(NUM_COMPONENTS) + 1))
 axs[1].set_yticklabels(NUM_COMPONENTS, fontsize=12)
 image.append(axs[1].imshow(np.mean(nll_num_comps, axis=0), origin='lower', cmap=plt.cm.Blues))
 fig.colorbar(image[-1], ax=axs[1], fraction=0.046, pad=0.04)

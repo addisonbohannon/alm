@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os.path import join
-import pickle
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
-from experiments.utility import load_isruc_results
-
-RESULTS_PATH = '/home/addison/Python/almm/results/'
+from experiments.utility import load_isruc_results, load_results, save_results
 
 score, lr_coef = [], []
 skf = StratifiedKFold(n_splits=5)
@@ -32,14 +28,12 @@ for subj in range(1, 11):
 ###################
 # save results
 ###################
-with open(join(RESULTS_PATH, 'discrimination.pickle'), 'wb') as file:
-    pickle.dump([score, lr_coef], file)
+save_results([score, lr_coef], 'discrimination.pickle')
 
 ###################
 # load results
 ###################
-#with open(join(RESULTS_PATH, 'discrimination.pickle'), 'rb') as file:
-#    score, lr_coef = pickle.load(file)
+# score, lr_coef = load_results('discrimination.pickle')
     
 max_score = [max(subj_score) for subj_score in score]
 avg_score = sum(max_score)/len(max_score)

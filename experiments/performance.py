@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os.path import join
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm
 from alm.utility import unstack_ar_coef, initialize_autoregressive_components
 from experiments.sampler import alm_sample
-from experiments.utility import ar_comp_dist
+from experiments.utility import ar_comp_dist, load_results, save_results
 
 NUM_OBS = 1000
 OBS_LEN = 10000
@@ -19,7 +17,6 @@ SPARSITY = 3
 NUM_STARTS = 5
 PENALTY_PARAM = 1e-2
 colors = ['#ffffbf', '#fdae61', '#d7191c', '#abdda4', '#2b83ba']
-RESULTS_PATH = '/home/addison/Python/almm/results/'
 
 x, C, D = alm_sample(NUM_OBS, OBS_LEN, SIG_DIM, NUM_COMPS, MODEL_ORD, SPARSITY, coef_cond=1e1,
                      comp_cond=1e1)
@@ -41,14 +38,12 @@ for i, Di in enumerate(D_palm):
 ###################
 # save results
 ###################
-with open(join(RESULTS_PATH, "performance.pickle"), 'wb') as f:
-    pickle.dump([palm_error, palm_likelihood], f)
+save_results([palm_error, palm_likelihood], 'performance.pickle')
 
 ###################
 # load results
 ###################
-# with open(join(RESULTS_PATH, "performance.pickle"), 'rb') as f:
-#    palm_error, palm_likelihood = pickle.load(f)
+# palm_error, palm_likelihood = load_results('performance.pickle')
     
 fig, axs = plt.subplots(1, 2)
 fig.set_size_inches(8.5, 5.5)

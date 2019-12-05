@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from os.path import join
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm
 from alm.utility import unstack_ar_coef, initialize_autoregressive_components
 from experiments.sampler import alm_sample
-from experiments.utility import ar_comp_dist
+from experiments.utility import ar_comp_dist, load_results, save_results
 
 NUM_OBS = [2**i for i in range(4, 11)]
 OBS_LEN = [2**i for i in range(4, 11)]
@@ -19,9 +17,6 @@ COEF_SUPPORT = 3
 NUM_STARTS = 10
 PENALTY_PARAM = 1e-2
 NUM_ITERATIONS = 10
-VMIN = 0
-VMAX = 14
-SAVE_PATH = "/home/addison/Python/almm/results"
 
 nll = np.zeros([NUM_ITERATIONS, NUM_STARTS, len(NUM_OBS), len(OBS_LEN)])
 error = np.zeros_like(nll)
@@ -46,14 +41,12 @@ for iteration in range(NUM_ITERATIONS):
 ###################
 # save results
 ###################
-# with open(join(SAVE_PATH, "n_vs_m.pickle"), 'wb') as f:
-#     pickle.dump([nll, error], f)
+save_results([nll, error], 'n_vs_m.pickle')
 
 ###################
 # load results
 ###################
-with open(join(SAVE_PATH, "n_vs_m.pickle"), 'rb') as f:
-    nll, error = pickle.load(f)
+# nll, error = load_results('n_vs_m.pickle')
 
 fig, axs = plt.subplots(1, 2)
 plt.subplots_adjust(wspace=0.55)
