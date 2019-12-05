@@ -42,4 +42,4 @@ The application results can be generated using the following scripts:
 - `periodogram.py`
 - `sleep_stage_signals_and_periodogram.py`
 
-In addition, `fit_alm_to_isruc.py` will fit the ALM model to the ISRUC data.
+In addition, `fit_alm_to_isruc.py` will fit the ALM model to the ISRUC data and `model_selection.py` implements model selection.

@@ -25,13 +25,13 @@ def check_alm_condition(obs, ar_comps, mixing_coef):
 
     _, _, XtX = package_observations(obs, model_ord)
     coef_gram = coef_gram_matrix(XtX, mixing_coef)
-    comp_cond_mat = np.zeros([model_ord*signal_dim*num_comps, model_ord*signal_dim*num_comps])
+    comp_cond_mat = np.zeros([model_ord * signal_dim * num_comps, model_ord * signal_dim * num_comps])
     for (i, j), coef_gram in coef_gram.items():
-        comp_cond_mat[(i*model_ord*signal_dim):((i+1)*model_ord*signal_dim),
-                      (j*model_ord*signal_dim):(j+1)*model_ord*signal_dim] = coef_gram
+        comp_cond_mat[(i * model_ord * signal_dim):((i + 1) * model_ord * signal_dim),
+        (j * model_ord * signal_dim):(j + 1) * model_ord * signal_dim] = coef_gram
         if i != j:
             comp_cond_mat[(j * model_ord * signal_dim):((j + 1) * model_ord * signal_dim),
-                          (i * model_ord * signal_dim):(i + 1) * model_ord * signal_dim] = coef_gram
+            (i * model_ord * signal_dim):(i + 1) * model_ord * signal_dim] = coef_gram
     comp_singvals = sl.svdvals(comp_cond_mat)
     ar_comps = np.array([stack_ar_coef(component_j) for component_j in ar_comps])
     comp_gram = component_gram_matrix(XtX, ar_comps)
@@ -50,7 +50,7 @@ def isstable(ar_coef):
     """
 
     model_ord, signal_dim, _ = ar_coef.shape
-    comp_mat = np.eye(model_ord*signal_dim, k=-signal_dim)
+    comp_mat = np.eye(model_ord * signal_dim, k=-signal_dim)
     comp_mat[:signal_dim, :] = np.concatenate(list(ar_coef), axis=1)
     eigvals = sl.eigvals(comp_mat, overwrite_a=True)
 
@@ -74,7 +74,7 @@ def autoregressive_sample(obs_len, signal_dim, noise_var, ar_coef):
     obs[:model_ord, :, :] = nr.randn(model_ord, signal_dim, 1)
     obs[model_ord, :, :] = (np.sum(np.matmul(ar_coef, obs[model_ord - 1::-1, :, :]), axis=0)
                             + noise_var * nr.randn(1, signal_dim, 1))
-    for t in np.arange(model_ord+1, obs_len_wmix):
+    for t in np.arange(model_ord + 1, obs_len_wmix):
         obs[t, :] = (np.sum(np.matmul(ar_coef, obs[t - 1:t - model_ord - 1:-1, :, :]), axis=0)
                      + noise_var * nr.randn(1, signal_dim, 1))
 
@@ -96,7 +96,7 @@ def alm_sample(num_obs, obs_len, signal_dim, num_comps, model_ord, coef_supp, co
     :return mixing_coef: number_observations x num_comps numpy array
     :return ar_comps: num_comps x model_ord x signal_dim x signal_dim numpy array
     """
-    
+
     nr.seed()
     for step in range(MAX_ITER):
         ar_comps = initialize_autoregressive_components(num_comps, model_ord, signal_dim, stacked=False)
@@ -109,7 +109,7 @@ def alm_sample(num_obs, obs_len, signal_dim, num_comps, model_ord, coef_supp, co
         obs = np.zeros([num_obs, obs_len, signal_dim])
         for i in range(num_obs):
             obs[i, :, :] = autoregressive_sample(obs_len, signal_dim, signal_dim ** (-1 / 2),
-                                                         np.tensordot(mixing_coef[i, :], ar_comps, axes=1))
+                                                 np.tensordot(mixing_coef[i, :], ar_comps, axes=1))
         if coef_cond is not None and comp_cond is not None:
             k1, k2 = check_alm_condition(obs, ar_comps, mixing_coef)
             if k1 < coef_cond and np.all(k2 < comp_cond):

@@ -75,7 +75,8 @@ def load_isruc_data(subj_id):
         with rarfile.RarFile(join(DATA_PATH, 'S' + str(subj_id) + '.rar')) as file:
             file.extract(str(subj_id) + '/' + str(subj_id) + '.rec', path=DATA_PATH)  # Raw data
             file.extract(str(subj_id) + '/' + str(subj_id) + '_1.txt', path=DATA_PATH)  # Labels
-        rename(join(DATA_PATH, str(subj_id) + '/' + str(subj_id) + '.rec'), join(DATA_PATH, 'S' + str(subj_id) + '.edf'))
+        rename(join(DATA_PATH, str(subj_id) + '/' + str(subj_id) + '.rec'),
+               join(DATA_PATH, 'S' + str(subj_id) + '.edf'))
         remove(join(DATA_PATH, 'S' + str(subj_id) + '.rar'))
         # Read raw data data file into mne-python
         raw_data = mne.io.read_raw_edf(join(DATA_PATH, 'S' + str(subj_id) + '.edf'), preload=True)
