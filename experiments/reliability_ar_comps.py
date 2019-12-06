@@ -10,7 +10,7 @@ SAMPLING_RATE = 200
 FFT_LEN = 100
 colors = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
 
-components, _, _ = load_isruc_results(8)
+components, _, _ = load_isruc_results(7)
 periodograms = [[periodogram_from_filter(unstack_ar_coef(component), SAMPLING_RATE, fft_len=FFT_LEN)
                 for component in component_k] for component_k in components]
 fig, axs = plt.subplots(1, 5)
@@ -21,7 +21,7 @@ for i, periodogram in enumerate(periodograms):
         axs[i].set_xticklabels(freqs[::5])
         axs[i].set_ylabel('Gain', fontsize=12)
         axs[i].set_xlabel('Frequency (Hz)', fontsize=12)
-        axs[i].set_title('Initialization ' + str(i+1), fontsize=14)
+        axs[i].set_title('Initialization ' + str(i), fontsize=14)
         axs[i].set_facecolor("#f2f3f4")
         axs[i].grid(b=True, which='major', linestyle="-", linewidth=1.5, color="#ffffff", zorder=3)
         axs[i].grid(b=True, which='minor', linewidth=0.75, color="#ffffff", zorder=3)

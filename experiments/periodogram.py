@@ -22,7 +22,7 @@ for Pxx, freqs in periodogram:
     ax.set_xticklabels(freqs[::5])
     ax.set_ylabel('Gain', fontsize=12)
     ax.set_xlabel('Frequency (Hz)', fontsize=12)
-    ax.set_title('Component Periodograms', fontsize=15)
+#    ax.set_title('Component Periodograms', fontsize=14)
     ax.set_facecolor("#f2f3f4")
     ax.grid(b=True, which='major', linestyle="-", linewidth=1.5, color="#ffffff", zorder=3)
     ax.grid(b=True, which='minor', linewidth=0.75, color="#ffffff", zorder=3)
