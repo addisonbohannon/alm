@@ -12,9 +12,11 @@ import numpy as np
 import scipy.linalg as sl
 import scipy.fftpack as sf
 import cvxpy as cp
+import results
+import data
 
-RESULTS_PATH = '/home/addison/Python/alm/results'
-DATA_PATH = '/home/addison/Python/alm/isruc_sleep'
+RESULTS_PATH = results.__path__[0]
+DATA_PATH = data.__path__[0]
 ISRUC_URL = 'http://sleeptight.isr.uc.pt/ISRUC_Sleep/ISRUC_Sleep/subgroupIII/'
 
 
@@ -205,4 +207,4 @@ def transfer_function_from_filter(filter_coef, srate, fft_len=None):
     filter_coef = np.concatenate((np.expand_dims(np.eye(signal_dim), 0), -filter_coef), axis=0)
 
     return np.array([sl.inv(H) for H in sf.fft(filter_coef, n=fft_len, axis=0)[:return_len]]), \
-           frequency(np.arange(return_len))
+        frequency(np.arange(return_len))
