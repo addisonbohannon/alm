@@ -16,4 +16,4 @@ for subj in SUBJECTS:
     alm_model = Alm(tol=1e-3, solver='palm')
     ar_comps, mixing_coef, nll, _ = alm_model.fit(data, MODEL_ORD, NUM_COMPS, PENALTY_PARAM, num_starts=NUM_STARTS,
                                                   return_all=True)
-    save_results([ar_comps, mixing_coef, nll, labels], 'individual/S' + str(subj) + '.pickle')
+    save_results([ar_comps, mixing_coef, nll, labels], 'S' + str(subj) + '.pickle')

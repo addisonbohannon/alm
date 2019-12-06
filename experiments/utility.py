@@ -141,7 +141,7 @@ def load_isruc_results(subj_id, start=None):
     if start is not None and (not np.issubdtype(type(start), np.int) or not (0 <= start < 5)):
         raise ValueError('Start must be between 0 and 4.')
 
-    with open(join(RESULTS_PATH, 'individual/S' + str(subj_id) + '.pickle'), 'rb') as f:
+    with open(join(RESULTS_PATH, 'S' + str(subj_id) + '.pickle'), 'rb') as f:
         ar_comps, mixing_coef, _, labels = pickle.load(f)
     if start is not None:
         ar_comps = ar_comps[start]
