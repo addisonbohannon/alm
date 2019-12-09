@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+ALM Copyright (C) 2019  Addison Bohannon
+"""
+
 from os import mkdir, remove, rename
 from os.path import join, exists
 import shutil

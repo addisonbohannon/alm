@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+ALM Copyright (C) 2019  Addison Bohannon
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from alm.alm import Alm

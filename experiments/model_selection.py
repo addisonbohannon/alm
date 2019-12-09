@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+ALM Copyright (C) 2019  Addison Bohannon
+"""
+
 import numpy as np
 from alm.alm import Alm
 from experiments.utility import load_isruc_data, save_results

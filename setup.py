@@ -8,7 +8,7 @@ setup(
     version='0.0.0',
     packages=['alm', 'data', 'experiments', 'results'],
     url='https://gitlab.sitcore.net/addison.bohannon/alm',
-    license='',
+    license='GPL 3',
     author='Addison Bohannon',
     author_email='addison.bohannon@gmail.com',
     description='Autoregressive Linear Mixture Model',
