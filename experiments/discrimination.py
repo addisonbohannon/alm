@@ -16,6 +16,8 @@ for subj in range(1, 11):
     _, subj_coef, subj_labels = load_isruc_results(subj)
     subj_score, subj_lr_coef = [], []
     for subj_coef_k in subj_coef:
+        idx_array = [0, 1, 3, 4, 6, 7, 9]
+        subj_coef_k = subj_coef_k[:, idx_array]
         subj_score_k, subj_lr_coef_k = [], []
         for train_index, test_index in skf.split(subj_coef_k, subj_labels):
             mixing_coef_train, mixing_coef_test = subj_coef_k[train_index], subj_coef_k[test_index]
@@ -32,7 +34,7 @@ for subj in range(1, 11):
 ###################
 # save results
 ###################
-save_results([score, lr_coef], 'discrimination.pickle')
+#save_results([score, lr_coef], 'discrimination.pickle')
 
 ###################
 # load results
