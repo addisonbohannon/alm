@@ -19,6 +19,7 @@ for component_j in components:
         transfer_function[:, channel, channel] = 0
     dtf = np.abs(transfer_function) / sl.norm(transfer_function, axis=-1, keepdims=True)
     connectivity.append(sl.norm([dtf[k] for k, freq in enumerate(frequencies) if FREQ_MIN <= freq <= FREQ_MAX], axis=0))
+vmax = max([np.max(connectivity_j) for connectivity_j in connectivity])
 fig, axs = plt.subplots(2, int(NUM_COMPONENTS/2))
 images = []
 row = 0
@@ -30,5 +31,5 @@ for j, connectivity_j in enumerate(connectivity):
     axs[row, np.remainder(j, int(NUM_COMPONENTS/2))].set_xticklabels(['F3', 'C3', 'O1', 'F4', 'C4', 'O2'])
     axs[row, np.remainder(j, int(NUM_COMPONENTS/2))].set_yticks(np.arange(6), [])
     axs[row, np.remainder(j, int(NUM_COMPONENTS/2))].set_yticklabels(['F3', 'C3', 'O1', 'F4', 'C4', 'O2'])
-    images.append(axs[row, np.remainder(j, int(NUM_COMPONENTS/2))].imshow(connectivity_j, cmap=plt.cm.Blues))
+    images.append(axs[row, np.remainder(j, int(NUM_COMPONENTS/2))].imshow(connectivity_j, vmin=0, vmax=vmax, cmap=plt.cm.Blues))
 fig.colorbar(images[0], ax=axs, fraction=0.030, pad=0.04)
