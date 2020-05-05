@@ -10,38 +10,42 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from experiments.utility import load_isruc_results, load_results, save_results
 
-score, lr_coef = [], []
-skf = StratifiedKFold(n_splits=5)
-for subj in range(1, 11):
-    _, subj_coef, subj_labels = load_isruc_results(subj)
-    subj_score, subj_lr_coef = [], []
-    for subj_coef_k in subj_coef:
-        idx_array = [0, 1, 3, 4, 6, 7, 9]
-        subj_coef_k = subj_coef_k[:, idx_array]
-        subj_score_k, subj_lr_coef_k = [], []
-        for train_index, test_index in skf.split(subj_coef_k, subj_labels):
-            mixing_coef_train, mixing_coef_test = subj_coef_k[train_index], subj_coef_k[test_index]
-            labels_train, labels_test = subj_labels[train_index], subj_labels[test_index]
-            sklr = LogisticRegression(multi_class='multinomial', solver='saga', class_weight='balanced')
-            sklr.fit(mixing_coef_train, labels_train)
-            subj_score_k.append(sklr.score(mixing_coef_test, labels_test))
-            subj_lr_coef_k.append(sklr.coef_)
-        subj_score.append(np.mean(subj_score_k))
-        subj_lr_coef.append(subj_lr_coef_k)
-    score.append(subj_score)
-    lr_coef.append(subj_lr_coef)
+INNER_N_SPLITS = 5
+OUTER_N_SPLITS = 5
+NUM_SUBJECTS = 10
+NUM_STARTS = 5
+
+outer_score = np.zeros([NUM_SUBJECTS, OUTER_N_SPLITS])
+inner_score = np.zeros([NUM_STARTS, INNER_N_SPLITS])
+
+for subj in range(NUM_SUBJECTS):
+    inner_skcv = StratifiedKFold(n_splits=INNER_N_SPLITS)
+    outer_skcv = StratifiedKFold(n_splits=OUTER_N_SPLITS)
+    _, subj_coef, subj_labels = load_isruc_results(subj+1)
+    for outer_cv, (outer_train_idx, outer_test_idx) in enumerate(outer_skcv.split(np.zeros_like(subj_labels), subj_labels)):
+        outer_train_labels, outer_test_labels = subj_labels[outer_train_idx], subj_labels[outer_test_idx]
+    #    outer_train_coefs, outer_test_coefs = [subj_coef_per_startouter_train_idx, :], subj_coef[:, outer_test_idx, :]
+        for inner_cv, (inner_train_idx, inner_test_idx) in enumerate(inner_skcv.split(np.zeros_like(outer_train_labels), outer_train_labels)):
+            inner_train_labels, inner_test_labels = outer_train_labels[inner_train_idx], outer_train_labels[inner_test_idx]
+    #        inner_train_coefs, inner_test_coefs = outer_train_coefs[:, inner_train_idx, :], outer_train_coefs[:, inner_test_idx, :]
+            for start, subj_coef_per_start in enumerate(subj_coef):
+                inner_sklr = LogisticRegression(multi_class='multinomial', solver='saga', class_weight='balanced')
+                inner_sklr.fit(subj_coef_per_start[outer_train_idx[inner_train_idx]], inner_train_labels)
+                inner_score[start, inner_cv] = inner_sklr.score(subj_coef_per_start[outer_train_idx[inner_test_idx]], inner_test_labels)
+        best_start = np.argmax(np.mean(inner_score, axis=1))
+        outer_sklr = LogisticRegression(multi_class='multinomial', solver='saga', class_weight='balanced')
+        outer_sklr.fit(subj_coef[best_start][outer_train_idx], outer_train_labels)
+        outer_score[subj, outer_cv] = outer_sklr.score(subj_coef[best_start][outer_test_idx], outer_test_labels)
+score = np.mean(outer_score, axis=1)
     
 ###################
 # save results
 ###################
-#save_results([score, lr_coef], 'discrimination.pickle')
+#save_results(score, 'discrimination.pickle')
 
 ###################
 # load results
 ###################
-# score, lr_coef = load_results('discrimination.pickle')
-    
-max_score = [max(subj_score) for subj_score in score]
-avg_score = sum(max_score)/len(max_score)
+# score = load_results('discrimination.pickle')
 
 
