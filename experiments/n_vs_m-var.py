@@ -62,6 +62,5 @@ for i in range(2):
 axs[0].set_title('Avg. min. error: ALM', fontsize=12)
 axs[1].set_title('Avg. error: VAR', fontsize=12)
 images.append(axs[0].imshow(np.mean(np.min(error, axis=1), axis=0), origin='lower', vmin=0, vmax=vmax, cmap=plt.cm.Blues))
-#fig.colorbar(images[-1], ax=axs[0], fraction=0.046, pad=0.04)
 images.append(axs[1].imshow(np.mean(error_var, axis=0), origin='lower', vmin=0, vmax=vmax, cmap=plt.cm.Blues))
 fig.colorbar(images[-1], ax=axs, fraction=0.024, pad=0.04)
