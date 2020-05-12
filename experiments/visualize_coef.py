@@ -52,7 +52,7 @@ for perplexity in perplexities:
                     c=color, zorder=6)
         ax1.scatter(mean_data[class_label == label, 0], mean_data[class_label == label, 1], marker="2", s=125.0,
                     c="#000000", zorder=7)
-    legend = ax1.legend(prop={'size': 12}, loc="upper center", bbox_to_anchor=(0.15, 0.97), shadow=True, ncol=1)
+    legend = ax1.legend(prop={'size': 12}, loc="best", shadow=True, ncol=1)
     frame = legend.get_frame()
     frame.set_facecolor("#f5f5f5")
     frame.set_edgecolor("#000000")

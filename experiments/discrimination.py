@@ -24,10 +24,8 @@ for subj in range(NUM_SUBJECTS):
     _, subj_coef, subj_labels = load_isruc_results(subj+1)
     for outer_cv, (outer_train_idx, outer_test_idx) in enumerate(outer_skcv.split(np.zeros_like(subj_labels), subj_labels)):
         outer_train_labels, outer_test_labels = subj_labels[outer_train_idx], subj_labels[outer_test_idx]
-    #    outer_train_coefs, outer_test_coefs = [subj_coef_per_startouter_train_idx, :], subj_coef[:, outer_test_idx, :]
         for inner_cv, (inner_train_idx, inner_test_idx) in enumerate(inner_skcv.split(np.zeros_like(outer_train_labels), outer_train_labels)):
             inner_train_labels, inner_test_labels = outer_train_labels[inner_train_idx], outer_train_labels[inner_test_idx]
-    #        inner_train_coefs, inner_test_coefs = outer_train_coefs[:, inner_train_idx, :], outer_train_coefs[:, inner_test_idx, :]
             for start, subj_coef_per_start in enumerate(subj_coef):
                 inner_sklr = LogisticRegression(multi_class='multinomial', solver='saga', class_weight='balanced')
                 inner_sklr.fit(subj_coef_per_start[outer_train_idx[inner_train_idx]], inner_train_labels)
@@ -41,7 +39,7 @@ score = np.mean(outer_score, axis=1)
 ###################
 # save results
 ###################
-#save_results(score, 'discrimination.pickle')
+save_results(score, 'discrimination.pickle')
 
 ###################
 # load results
