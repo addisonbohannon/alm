@@ -43,9 +43,9 @@ We will need to also download the [UnRAR](https://www.rarlab.com/) library binar
 
 ```
 cd /usr/lib
-wget https://www.rarlab.com/rar/unrarsrc-5.8.3.tar.gz
-sudo tar xzvf unrarsrc-5.8.3.tar.gz
-rm -r unrarsrc-5.8.3.tar.gz
+sudo wget https://www.rarlab.com/rar/unrarsrc-5.9.2.tar.gz
+sudo tar xzvf unrarsrc-5.9.2.tar.gz
+sudo rm -r unrarsrc-5.9.2.tar.gz
 cd unrar
 sudo make lib
 sudo make install-lib
