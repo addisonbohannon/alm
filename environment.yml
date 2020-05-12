@@ -30,6 +30,7 @@ dependencies:
 - pyface>=6
 - traitsui>=6
 - testpath<0.4
+- cmake
 - pip:
   - mne
   - https://api.github.com/repos/numpy/numpydoc/zipball/master
