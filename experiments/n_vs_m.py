@@ -52,6 +52,8 @@ for iteration in range(NUM_ITERATIONS):
 ###################
 nll, error = load_results('n_vs_m.pickle')
 
+error /= NUM_COMPONENTS
+
 fig, axs = plt.subplots(1, 2)
 plt.subplots_adjust(wspace=0.55)
 images = []

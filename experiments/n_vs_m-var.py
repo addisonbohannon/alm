@@ -15,7 +15,7 @@ from experiments.utility import load_results, save_results
 NUM_OBS = [2**i for i in range(4, 11)]
 OBS_LEN = [2**i for i in range(4, 11)]
 SIGNAL_DIM = 5
-NUM_COMPONENTS = 1
+NUM_COMPONENTS = 10
 COEF_SUPPORT = 1
 MODEL_ORDER = 2
 NUM_STARTS = 10
@@ -31,10 +31,10 @@ for iteration in range(NUM_ITERATIONS):
         x[obs] = autoregressive_sample(max(OBS_LEN), SIGNAL_DIM, SIGNAL_DIM ** (-1 / 2), unstack_ar_coef(D[obs]))
     for i, n_i in enumerate(NUM_OBS):
         for j, m_i in enumerate(OBS_LEN):
-            _, XtY, XtX = package_observations(x[:(n_i - 1), :(m_i - 1), :], MODEL_ORDER)
-            D_ls = [sl.solve(XtX_i, XtY_i, assume_a='pos') for XtX_i, XtY_i in zip(XtX, XtY)]
+            _, XtY, XtX = package_observations(x[:n_i, :m_i, :], MODEL_ORDER)
+            D_ls = np.array([sl.solve(XtX_i, XtY_i, assume_a='pos') for XtX_i, XtY_i in zip(XtX, XtY)])
 #            nll[iteration, :, i, j] = np.array(L_palm)
-            error[iteration, i, j] = sl.norm(D[:(n_i-1)] - D_ls) / np.sqrt(n_i)
+            error[iteration, i, j] = np.mean(sl.norm(D[:n_i] - D_ls, ord='fro', axis=(1, 2)))
 
 ###################
 # save results
@@ -45,6 +45,8 @@ for iteration in range(NUM_ITERATIONS):
 # load results
 ###################
 _, error = load_results('n_vs_m.pickle')
+error /= NUM_COMPONENTS
+# error /= np.sqrt(NUM_COMPONENTS)
 error_var = load_results('n_vs_m-var.pickle')
 
 vmax = np.maximum(np.max(error), np.max(error_var))
