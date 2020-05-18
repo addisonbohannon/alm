@@ -3,7 +3,7 @@ import numpy.random as nr
 import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from alm.utility import unstack_ar_coef
-from experiments.utility import load_isruc_results, transfer_function_from_filter
+from experiments.utility import load_results, transfer_function_from_filter
 
 SIGNAL_DIM = 6
 NUM_COMPONENTS = 10
@@ -64,7 +64,8 @@ def randomize_network(R, swaps=None):
         R[c, b], R[c, d] = R[c, d], R[c, b]
     return R
 
-components, _, _ = load_isruc_results(8, start=2)
+components, _, _ = load_results('S8-mvar.pickle')
+components = components[0]
 alpha_connectivity = np.zeros([NUM_COMPONENTS, SIGNAL_DIM, SIGNAL_DIM])
 beta_connectivity, delta_connectivity, theta_connectivity = np.zeros_like(alpha_connectivity), np.zeros_like(alpha_connectivity), np.zeros_like(alpha_connectivity)
 for j, component_j in enumerate(components):
