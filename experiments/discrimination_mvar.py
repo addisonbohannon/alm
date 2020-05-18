@@ -10,7 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from experiments.utility import load_results, save_results
 
-SUBJS = [8]
+SUBJS = np.arange(1, 11)
 INNER_N_SPLITS = 5
 OUTER_N_SPLITS = 5
 NUM_STARTS = 5

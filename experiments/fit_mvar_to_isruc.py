@@ -13,7 +13,7 @@ from experiments.utility import load_isruc_data, save_results
 MAX_ITER = int(1e3)
 TOL = 1e-3
 NUM_STARTS = 5
-SUBJS = [8]
+SUBJS = np.setdiff1d(np.arange(1, 11), [8])
 MODEL_ORD = 4
 NUM_COMPS= 10
 
@@ -78,12 +78,13 @@ def fit(obs, model_ord, num_comps, num_starts, max_iter, tol):
     ar_comps, mixing_coef = np.zeros([num_starts, num_comps, model_ord*signal_dim, signal_dim]), \
         np.zeros([num_starts, num_obs, num_comps])
     for start in range(num_starts):
+        print('Start: ' + str(start))
         ar_comps[start], mixing_coef[start], _, _ = expectation_maximization(X, Y, num_comps, max_iter, tol)
         
     return np.squeeze(ar_comps), np.squeeze(mixing_coef)
 
 for subj in SUBJS:
-    print(subj)
+    print('Subject: ' + str(subj))
     data, labels = load_isruc_data(subj)
     ar_comps, mixing_coef = fit(data, MODEL_ORD, NUM_COMPS, NUM_STARTS, MAX_ITER, TOL)
     save_results([ar_comps, mixing_coef, labels], 'S' + str(subj) + '-mvar.pickle')

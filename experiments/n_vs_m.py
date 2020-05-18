@@ -45,25 +45,25 @@ for iteration in range(NUM_ITERATIONS):
 ###################
 # save results
 ###################
-save_results([nll, error], 'n_vs_m.pickle')
+# save_results([nll, error], 'n_vs_m.pickle')
 
 ###################
 # load results
 ###################
-# nll, error = load_results('n_vs_m.pickle')
+nll, error = load_results('n_vs_m.pickle')
 
 fig, axs = plt.subplots(1, 2)
 plt.subplots_adjust(wspace=0.55)
 images = []
 for i in range(2):
-    axs[i].set_xlabel('Obs. length', fontsize=12)
+    axs[i].set_xlabel('Len. of real.', fontsize=12)
     axs[i].set_xticks(np.arange(len(OBS_LEN)+1))
     axs[i].set_xticklabels(OBS_LEN, fontsize=8)
-    axs[i].set_ylabel('Num. of obs.', fontsize=12)
+    axs[i].set_ylabel('Num. of real.', fontsize=12)
     axs[i].set_yticks(np.arange(len(NUM_OBS)+1))
     axs[i].set_yticklabels(NUM_OBS, fontsize=12)
-axs[0].set_title('Avg. min. error', fontsize=12)
-axs[1].set_title('Avg. std. error', fontsize=12)
+# axs[0].set_title('Avg. min. error', fontsize=12, pad=12)
+# axs[1].set_title('Avg. std. error', fontsize=12, pad=12)
 images.append(axs[0].imshow(np.mean(np.min(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))
 fig.colorbar(images[-1], ax=axs[0], fraction=0.046, pad=0.04)
 images.append(axs[1].imshow(np.mean(np.std(error, axis=1), axis=0), origin='lower', vmin=0, cmap=plt.cm.Blues))

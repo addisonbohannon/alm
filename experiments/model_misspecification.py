@@ -47,12 +47,12 @@ for sample in range(NUM_SAMPLES):
 ###################
 # save results
 ###################
-save_results([nll_model_ord, nll_num_comps], 'model_misspec.pickle')
+# save_results([nll_model_ord, nll_num_comps], 'model_misspec.pickle')
 
 ###################
 # load results
 ###################
-# nll_model_ord, nll_num_comps = load_results('model_misspec.pickle')
+nll_model_ord, nll_num_comps = load_results('model_misspec.pickle')
 
 fig, axs = plt.subplots(1, 2)
 plt.subplots_adjust(wspace=0.55)
@@ -63,7 +63,6 @@ axs[0].set_xticklabels(MODEL_ORDER, fontsize=12)
 axs[0].set_ylabel('Fitted model order', fontsize=12)
 axs[0].set_yticks(np.arange(len(MODEL_ORDER) + 1))
 axs[0].set_yticklabels(MODEL_ORDER, fontsize=12)
-axs[0].set_title('Model order', fontsize=12)
 image.append(axs[0].imshow(np.mean(nll_model_ord, axis=0), origin='lower', cmap=plt.cm.Blues))
 fig.colorbar(image[-1], ax=axs[0], fraction=0.046, pad=0.04)
 
@@ -73,6 +72,5 @@ axs[1].set_xticklabels(NUM_COMPONENTS, fontsize=12)
 axs[1].set_ylabel('Fitted num. of comps.', fontsize=12)
 axs[1].set_yticks(np.arange(len(NUM_COMPONENTS) + 1))
 axs[1].set_yticklabels(NUM_COMPONENTS, fontsize=12)
-axs[1].set_title('Num. of comps.', fontsize=12)
 image.append(axs[1].imshow(np.mean(nll_num_comps, axis=0), origin='lower', cmap=plt.cm.Blues))
 fig.colorbar(image[-1], ax=axs[1], fraction=0.046, pad=0.04)

@@ -10,7 +10,7 @@ import scipy.linalg as sl
 from alm.utility import package_observations
 from experiments.utility import load_isruc_data, save_results
 
-SUBJS = [8]
+SUBJS = np.setdiff1d(np.arange(1, 11), [8])
 MODEL_ORD = 4
 
 def fit(obs, model_ord):
@@ -32,7 +32,7 @@ def fit(obs, model_ord):
     return ar_coefs
 
 for subj in SUBJS:
-    print(subj)
+    print('Subject: ' + str(subj))
     data, labels = load_isruc_data(subj)
     ar_comps = fit(data, MODEL_ORD)
     save_results([ar_comps, labels], 'S' + str(subj) + '-var.pickle')

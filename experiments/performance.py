@@ -42,12 +42,12 @@ for i, Di in enumerate(D_palm):
 ###################
 # save results
 ###################
-save_results([palm_error, palm_likelihood], 'performance.pickle')
+# save_results([palm_error, palm_likelihood], 'performance.pickle')
 
 ###################
 # load results
 ###################
-# palm_error, palm_likelihood = load_results('performance.pickle')
+palm_error, palm_likelihood = load_results('performance.pickle')
     
 fig, axs = plt.subplots(1, 2)
 fig.set_size_inches(8.5, 5.5)

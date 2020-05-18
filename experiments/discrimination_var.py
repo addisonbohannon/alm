@@ -10,7 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 from experiments.utility import load_results, save_results
 
-SUBJS = [8]
+SUBJS = range(1, 11)
 CV_SPLITS = 5
 
 score = []
