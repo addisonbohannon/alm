@@ -16,9 +16,8 @@ SUBJ = 8
 MODEL_ORDER = range(4, 14, 2)
 # {2, 6, 10, 14, 18}
 NUM_COMPS = range(2, 20, 4)
-PENALTY_PARAM = 1e-1
-NUM_STARTS = 1
-MAX_ITER = int(5e0)
+NUM_STARTS = 5
+MAX_ITER = int(1e2)
 TOL = 1e-3
 
 def expectation_maximization(X, Y, num_comps, max_iter, tol):
