@@ -10,12 +10,12 @@ import scipy.linalg as sl
 from alm.utility import circulant_matrix, initialize_autoregressive_components
 from experiments.utility import load_isruc_data, save_results
 
-MAX_ITER = int(1e3)
-TOL = 1e-3
+MAX_ITER = int(1e2)
+TOL = 1e-4
 NUM_STARTS = 5
-SUBJS = np.setdiff1d(np.arange(1, 11), [8])
-MODEL_ORD = 4
-NUM_COMPS= 10
+SUBJS = np.arange(1, 11)
+MODEL_ORD = 12
+NUM_COMPS= 6
 
 def expectation_maximization(X, Y, num_comps, max_iter, tol):
     
@@ -36,6 +36,8 @@ def expectation_maximization(X, Y, num_comps, max_iter, tol):
         # Expectation
         for j in range(num_comps):
             tau[:, :, j] = np.expand_dims(mixing_coef[:, j], axis=1) * np.exp(-0.5 * sl.norm(Y-np.matmul(X, ar_coef[j]), axis=2))
+        nll = - np.sum(np.log(np.sum(tau, axis=2)))
+        print(nll)
         tau = tau / np.sum(tau, axis=2, keepdims=True)
         
         # Maximization
@@ -53,8 +55,13 @@ def expectation_maximization(X, Y, num_comps, max_iter, tol):
         if iteration > 0 and np.all(residual[iteration] < tol*residual[0]):
             end_cond = 'relative tolerance'
             break
+        
+    # Compute weighted negative log likelihood (Font, et al., 2007)
+    for j in range(num_comps):
+        tau[:, :, j] = np.expand_dims(mixing_coef[:, j], axis=1) * np.exp(-0.5 * sl.norm(Y-np.matmul(X, ar_coef[j]), axis=2))
+    w_nll = - np.sum(np.log(np.sum(tau, axis=2)))
     
-    return ar_coef, mixing_coef, residual, end_cond
+    return ar_coef, mixing_coef, residual, w_nll, end_cond
 
 def fit(obs, model_ord, num_comps, num_starts, max_iter, tol):
     """
@@ -75,16 +82,16 @@ def fit(obs, model_ord, num_comps, num_starts, max_iter, tol):
         X[i], Y[i] = circulant_matrix(obs[i], model_ord)
         
     # Fit MVAR model
-    ar_comps, mixing_coef = np.zeros([num_starts, num_comps, model_ord*signal_dim, signal_dim]), \
-        np.zeros([num_starts, num_obs, num_comps])
+    ar_comps, mixing_coef, nll = np.zeros([num_starts, num_comps, model_ord*signal_dim, signal_dim]), \
+        np.zeros([num_starts, num_obs, num_comps]), np.zeros([num_starts])
     for start in range(num_starts):
         print('Start: ' + str(start))
-        ar_comps[start], mixing_coef[start], _, _ = expectation_maximization(X, Y, num_comps, max_iter, tol)
+        ar_comps[start], mixing_coef[start], _, nll[start], _ = expectation_maximization(X, Y, num_comps, max_iter, tol)
         
-    return np.squeeze(ar_comps), np.squeeze(mixing_coef)
+    return np.squeeze(ar_comps), np.squeeze(mixing_coef), nll
 
 for subj in SUBJS:
     print('Subject: ' + str(subj))
     data, labels = load_isruc_data(subj)
-    ar_comps, mixing_coef = fit(data, MODEL_ORD, NUM_COMPS, NUM_STARTS, MAX_ITER, TOL)
-    save_results([ar_comps, mixing_coef, labels], 'S' + str(subj) + '-mvar.pickle')
+    ar_comps, mixing_coef, nll = fit(data, MODEL_ORD, NUM_COMPS, NUM_STARTS, MAX_ITER, TOL)
+    save_results([ar_comps, mixing_coef, labels], 'S' + str(subj) + '-mvar-r6p12.pickle')
