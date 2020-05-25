@@ -13,9 +13,9 @@ from experiments.utility import load_isruc_data, save_results
 MAX_ITER = int(1e2)
 TOL = 1e-3
 NUM_STARTS = 5
-SUBJS = np.arange(1, 11)
-MODEL_ORD = 12
-NUM_COMPS= 6
+SUBJS = [8] #np.arange(1, 11)
+MODEL_ORD = 4
+NUM_COMPS=10
 
 def expectation_maximization(X, Y, num_comps, max_iter, tol):
     
@@ -36,7 +36,6 @@ def expectation_maximization(X, Y, num_comps, max_iter, tol):
         # Expectation
         for j in range(num_comps):
             tau[:, :, j] = np.expand_dims(mixing_coef[:, j], axis=1) * np.exp(-0.5 * sl.norm(Y-np.matmul(X, ar_coef[j]), axis=2))
-        nll = - np.sum(np.log(np.sum(tau, axis=2)))
         tau = tau / np.sum(tau, axis=2, keepdims=True)
         
         # Maximization
@@ -93,4 +92,4 @@ for subj in SUBJS:
     print('Subject: ' + str(subj))
     data, labels = load_isruc_data(subj)
     ar_comps, mixing_coef, nll = fit(data, MODEL_ORD, NUM_COMPS, NUM_STARTS, MAX_ITER, TOL)
-    save_results([ar_comps, mixing_coef, labels, nll], 'S' + str(subj) + '-mvar-r6p12.pickle')
+    # save_results([ar_comps, mixing_coef, labels, nll], 'S' + str(subj) + '-mvar-r6p12-test.pickle')

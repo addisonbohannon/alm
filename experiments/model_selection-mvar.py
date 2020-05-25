@@ -17,7 +17,7 @@ MODEL_ORDER = range(4, 14, 2)
 # {2, 6, 10, 14, 18}
 NUM_COMPS = range(2, 20, 4)
 NUM_STARTS = 5
-MAX_ITER = int(1e2)
+MAX_ITER = int(1e3)
 TOL = 1e-3
 
 def expectation_maximization(X, Y, num_comps, max_iter, tol):
@@ -60,7 +60,7 @@ def expectation_maximization(X, Y, num_comps, max_iter, tol):
     # Compute weighted negative log likelihood (Font, et al., 2007)
     for j in range(num_comps):
         tau[:, :, j] = np.expand_dims(mixing_coef[:, j], axis=1) * np.exp(-0.5 * sl.norm(Y-np.matmul(X, ar_coef[j]), axis=2))
-    w_nll = - np.sum(np.log(np.sum(tau, axis=2)))
+    w_nll = - np.mean(np.log(np.sum(tau, axis=2)))
     
     return ar_coef, mixing_coef, w_nll, residual, end_cond
 
@@ -107,11 +107,11 @@ for i, model_ord in enumerate(MODEL_ORDER):
     for j, num_comps in enumerate(NUM_COMPS):
         num_params[i, j] = model_ord * num_comps * sig_dim**2
         num_params_wcoef[i, j] = num_params[i, j] + num_obs * num_comps 
-        ar_comps, mixing_coef, nll[i, j] = fit(data, model_ord, num_comps, NUM_STARTS, MAX_ITER, TOL)
+        _, _, nll[i, j] = fit(data, model_ord, num_comps, NUM_STARTS, MAX_ITER, TOL)
 """ aic: -2 * log(L) + 2 * k """
 aic = 2 * (num_obs * obs_len * nll + num_params)
 aic_wcoef = 2 * (num_obs * obs_len * nll + num_params_wcoef)
 """ bic: -2 * log(L) + log(n) * k """
 bic = 2 * num_obs * obs_len * nll + (np.log(num_obs * obs_len)) * num_params
 bic_wcoef = 2 * num_obs * obs_len * nll + (np.log(num_obs * obs_len)) * num_params_wcoef
-save_results([nll, num_params, num_params_wcoef, aic, aic_wcoef, bic, bic_wcoef], 'model_selection-mvar.pickle')
+save_results([nll, num_params, num_params_wcoef, aic, aic_wcoef, bic, bic_wcoef], 'model_selection-mvar-1e3iter.pickle')
